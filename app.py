@@ -66,8 +66,13 @@ def cache_result(ttl=300):  # 5 minutes default
     return decorator
 
 # App initialization
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-production'
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=os.path.join(BASE_DIR, 'static')
+)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 app.config['WTF_CSRF_TIME_LIMIT'] = None  # Remove CSRF token expiration
 app.config['WTF_CSRF_SSL_STRICT'] = False
 app.config['WTF_CSRF_CHECK_DEFAULT'] = True
@@ -242,11 +247,16 @@ def create_database_indexes():
     except Exception as e:
         print(f"[WARNING] Could not create database indexes: {e}")
 
-db_url = os.environ.get('DATABASE_URL', 'sqlite:///pms.db')
+NEON_FALLBACK_URL = 'postgresql://neondb_owner:npg_GRCyKtOID8V1@ep-empty-base-be7tfogx-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require'
+db_url = os.environ.get('DATABASE_URL') or NEON_FALLBACK_URL
 if db_url.startswith('postgres://'):
     db_url = db_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
 
 # Mail Configuration for Gmail
 app.config['MAIL_SERVER'] = 'smtppro.zoho.com'

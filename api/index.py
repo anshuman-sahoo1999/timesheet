@@ -38,8 +38,8 @@ except Exception as e:
     print(f"[IMPORT_ERROR] Failed to import app: {tb}", file=sys.stderr)
     from flask import Flask, Response
     app = Flask(__name__)
-    @app.route('/', defaults={'path': ''})
-    @app.route('/<path:path>')
+    @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
+    @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
     def catch_all(path):
         return Response(
             f"<h2>Application Startup Error</h2><p>Could not import app.py:</p><pre>{tb}</pre>",

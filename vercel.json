@@ -3,23 +3,7 @@
     "api/index.py": {
       "maxDuration": 60,
       "memory": 1024,
-      "includeFiles": [
-        "templates/**",
-        "static/**",
-        "app.py",
-        "mail.py",
-        "reports.py"
-      ]
-    },
-    "app.py": {
-      "maxDuration": 60,
-      "memory": 1024,
-      "includeFiles": [
-        "templates/**",
-        "static/**",
-        "mail.py",
-        "reports.py"
-      ]
+      "includeFiles": "{templates/**,static/**,app.py,mail.py,reports.py}"
     }
   },
   "rewrites": [

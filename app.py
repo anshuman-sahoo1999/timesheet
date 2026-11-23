@@ -1,4 +1,27 @@
 import os
+import sys
+
+# Ensure markupsafe and werkzeug compatibility for Flask-WTF and extensions
+try:
+    import markupsafe
+    import flask
+    flask.Markup = markupsafe.Markup
+    flask.escape = markupsafe.escape
+except Exception:
+    pass
+
+try:
+    import urllib.parse
+    import werkzeug.urls
+    if not hasattr(werkzeug.urls, 'url_encode'):
+        werkzeug.urls.url_encode = urllib.parse.urlencode
+    if not hasattr(werkzeug.urls, 'url_quote'):
+        werkzeug.urls.url_quote = urllib.parse.quote
+    if not hasattr(werkzeug.urls, 'url_unquote'):
+        werkzeug.urls.url_unquote = urllib.parse.unquote
+except Exception:
+    pass
+
 from dotenv import load_dotenv
 load_dotenv()
 from flask import (Flask, abort, flash, redirect, render_template, request,

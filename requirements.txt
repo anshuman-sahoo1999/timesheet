@@ -11,11 +11,5 @@ itsdangerous==2.1.2
 Jinja2==3.1.2
 Flask-WTF==1.1.1
 bleach==6.0.0
-# Production deployment
-gunicorn==20.1.0
-gevent==22.10.2
-# Database options for production
-psycopg2-binary==2.9.5
-redis==4.5.4
-Flask-Session==0.5.0
-schedule==1.2.2 
+psycopg2-binary>=2.9.9
+schedule==1.2.2

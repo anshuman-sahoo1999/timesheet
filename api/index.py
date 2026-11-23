@@ -30,4 +30,19 @@ if parent_dir not in sys.path:
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from app import app
+try:
+    from app import app
+except Exception as e:
+    import traceback
+    tb = traceback.format_exc()
+    print(f"[IMPORT_ERROR] Failed to import app: {tb}", file=sys.stderr)
+    from flask import Flask, Response
+    app = Flask(__name__)
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def catch_all(path):
+        return Response(
+            f"<h2>Application Startup Error</h2><p>Could not import app.py:</p><pre>{tb}</pre>",
+            status=500,
+            mimetype='text/html'
+        )

@@ -113,6 +113,29 @@ def add_strict_anti_cache_headers(response):
         response.headers['Expires'] = '0'
     return response
 
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    import traceback
+    tb = traceback.format_exc()
+    print(f"[UNHANDLED EXCEPTION] {e}\n{tb}", file=sys.stderr)
+    return f"<h3>Application Error</h3><pre>{tb}</pre>", 500
+
+class ErrorLoggingWSGI:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+    def __call__(self, environ, start_response):
+        try:
+            return self.wsgi_app(environ, start_response)
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            print("WSGI EXCEPTION:\n", tb, file=sys.stderr)
+            headers = [('Content-Type', 'text/html; charset=utf-8')]
+            start_response('500 Internal Server Error', headers)
+            return [f"<h3>WSGI Error</h3><pre>{tb}</pre>".encode('utf-8')]
+
+app.wsgi_app = ErrorLoggingWSGI(app.wsgi_app)
+
 @app.context_processor
 def inject_year():
     return {'current_year': datetime.now().year}

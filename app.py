@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
-import pandas as pd
 from flask import (Flask, abort, flash, redirect, render_template, request,
                    send_from_directory, url_for, jsonify, send_file, session)
 from flask_login import (LoginManager, UserMixin, current_user, login_required,
@@ -9,21 +8,15 @@ from flask_login import (LoginManager, UserMixin, current_user, login_required,
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
-import reports
 import json
 from mail import mail, send_email, send_otp_email
 from flask_wtf.csrf import CSRFProtect
 import bleach
 from flask import current_app
-from xhtml2pdf import pisa
 from io import BytesIO
 from functools import wraps
 from flask import make_response
 import io
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
 from sqlalchemy.exc import IntegrityError
 import random, string
 import uuid
@@ -36,7 +29,6 @@ from collections import defaultdict
 from functools import lru_cache
 from sqlalchemy import func, and_, or_, text
 from sqlalchemy.orm import joinedload, subqueryload, contains_eager
-import openpyxl
 
 # Performance monitoring and caching
 def performance_monitor(func):
@@ -2476,6 +2468,7 @@ def download_ceo_project_report(indent_id):
         now=datetime.now()
     )
 
+    from xhtml2pdf import pisa
     pdf_buffer = io.BytesIO()
     pisa_status = pisa.CreatePDF(rendered_html, dest=pdf_buffer)
     if pisa_status.err:
@@ -3742,6 +3735,7 @@ def export_employee_history(emp_id):
     emp = Employee.query.get_or_404(emp_id)
     timesheets = WeeklyTimesheet.query.filter_by(employee_id=emp.id).order_by(WeeklyTimesheet.week_start_date.desc()).all()
     
+    import openpyxl
     wb = openpyxl.Workbook()
     # Sheet 1: Summary
     ws1 = wb.active
@@ -3884,6 +3878,7 @@ def reports_page():
 @login_required
 @nocache
 def generate_report():
+    import reports
     if current_user.role not in ['MD', 'PM', 'HR']:
         abort(403)
 
@@ -4835,6 +4830,7 @@ def api_hr_timesheet_submissions_dept_export():
 
     report_data = get_hr_timesheet_submissions_breakdown(preset=preset, from_date_str=from_date, to_date_str=to_date)
 
+    import openpyxl
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Submissions by Dept"
@@ -5520,6 +5516,7 @@ def generate_project_pdf(project_id):
     difference = contract_value - grand_total if contract_value and grand_total else 0
     generated_on = datetime.now().strftime('%d-%b-%Y %H:%M')
     rendered = render_template('job_indents/project_summary_pdf.html', project=project, job_card=job_card, tasks=tasks, team_members=team_members, budget_items=budget_items, timesheets=timesheets, generated_on=generated_on, contract_value=contract_value, estimated_value=estimated_value, overhead=overhead, profit=profit, grand_total=grand_total, difference=difference)
+    from xhtml2pdf import pisa
     pdf = BytesIO()
     pisa.CreatePDF(rendered, dest=pdf)
     pdf.seek(0)
@@ -5528,7 +5525,13 @@ def generate_project_pdf(project_id):
 # Serve the logo
 @app.route('/static/<path:filename>')
 def serve_static(filename):
-    return send_from_directory('static', filename)
+    static_dir = os.path.join(BASE_DIR, 'static')
+    return send_from_directory(static_dir, filename)
+
+@app.route('/favicon.ico')
+def favicon():
+    static_dir = os.path.join(BASE_DIR, 'static')
+    return send_from_directory(static_dir, 'emc_logo_clean.png', mimetype='image/png')
 
 @app.route('/bd/project-summary')
 @login_required
@@ -5544,6 +5547,10 @@ def bd_project_summary():
 def bd_project_summary_pdf():
     if current_user.role != 'BD':
         abort(403)
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
     projects = JobIndent.query.filter_by(created_by_id=current_user.id).order_by(JobIndent.created_at.desc()).all()
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
@@ -5587,6 +5594,10 @@ def bd_project_summary_pdf():
 def bd_project_summary_excel():
     if current_user.role != 'BD':
         abort(403)
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
     projects = JobIndent.query.filter_by(created_by_id=current_user.id).order_by(JobIndent.created_at.desc()).all()
     data = []
     for idx, p in enumerate(projects, 1):
@@ -5598,6 +5609,8 @@ def bd_project_summary_excel():
             'Date of Approval': p.approved_at.strftime('%d-%b-%Y') if p.status == 'Approved' and p.approved_at else '-',
             'Contract Value': p.contract_value
         })
+    import pandas as pd
+    import openpyxl
     df = pd.DataFrame(data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -7364,6 +7377,7 @@ def export_timesheets_excel():
     
     # Create Excel file
     output = BytesIO()
+    import openpyxl
     workbook = openpyxl.Workbook()
     worksheet = workbook.active
     worksheet.title = "Timesheets"
@@ -7424,6 +7438,7 @@ def export_employees_excel():
     
     # Create Excel file
     output = BytesIO()
+    import openpyxl
     workbook = openpyxl.Workbook()
     worksheet = workbook.active
     worksheet.title = "Employees"
@@ -7479,6 +7494,7 @@ def export_attendance_excel():
     
     # Create Excel file
     output = BytesIO()
+    import openpyxl
     workbook = openpyxl.Workbook()
     worksheet = workbook.active
     worksheet.title = "Attendance"
@@ -7525,6 +7541,7 @@ def export_employee_report(employee_id):
     
     # Create Excel file
     output = BytesIO()
+    import openpyxl
     workbook = openpyxl.Workbook()
     
     # Employee Information Sheet

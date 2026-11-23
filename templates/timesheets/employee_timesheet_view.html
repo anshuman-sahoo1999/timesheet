@@ -1,0 +1,931 @@
+<!-- ==============================================================================
+     MODERN EMPLOYEE TIMESHEET PORTAL (CALENDAR & MULTI-ROW SUBMISSION)
+     Design: Emerald & Deep Slate Theme with Glassmorphism, Micro-animations
+============================================================================== -->
+<style>
+    :root {
+        --ts-primary: #0e8749;
+        --ts-primary-hover: #0b733d;
+        --ts-primary-subtle: #ecfdf5;
+        --ts-primary-glow: rgba(14, 135, 73, 0.18);
+        --ts-slate: #0f172a;
+        --ts-slate-muted: #64748b;
+        --ts-border: #e2e8f0;
+        --ts-card-bg: #ffffff;
+        --ts-radius-lg: 16px;
+        --ts-radius-md: 10px;
+        --ts-dot-green: #10b981;
+    }
+
+    /* Container Card */
+    .timesheet-portal-card {
+        background: #ffffff;
+        border: 1px solid var(--ts-border);
+        border-radius: var(--ts-radius-lg);
+        box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+        overflow: hidden;
+    }
+
+    .timesheet-header-banner {
+        background: #ffffff;
+        border-bottom: 1px solid var(--ts-border);
+        padding: 1.1rem 1.5rem;
+    }
+
+    /* Calendar Styling */
+    .calendar-card {
+        background: #ffffff;
+        border: 1px solid var(--ts-border);
+        border-radius: var(--ts-radius-md);
+        padding: 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .calendar-nav-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .calendar-nav-btn {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid var(--ts-border);
+        background: #ffffff;
+        color: var(--ts-slate);
+        transition: all 0.15s ease;
+        cursor: pointer;
+    }
+
+    .calendar-nav-btn:hover {
+        background: #f1f5f9;
+        color: var(--ts-primary);
+        border-color: #cbd5e1;
+    }
+
+    .calendar-month-title {
+        font-weight: 700;
+        font-size: 0.98rem;
+        color: var(--ts-slate);
+        letter-spacing: -0.01em;
+        cursor: pointer;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        text-align: center;
+    }
+
+    .calendar-weekday {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #94a3b8;
+        padding: 6px 0;
+        text-transform: uppercase;
+    }
+
+    .calendar-day-cell {
+        aspect-ratio: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--ts-slate);
+        transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        user-select: none;
+        background: transparent;
+        border: 1px solid transparent;
+    }
+
+    .calendar-day-cell:hover {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+    }
+
+    .calendar-day-cell.other-month {
+        color: #cbd5e1;
+        cursor: default;
+    }
+
+    .calendar-day-cell.selected {
+        background: var(--ts-primary) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 10px var(--ts-primary-glow);
+    }
+
+    .calendar-day-cell.today:not(.selected) {
+        border-color: var(--ts-primary);
+        color: var(--ts-primary);
+    }
+
+    /* Green Dot indicator for submitted timesheets */
+    .submission-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background-color: var(--ts-dot-green);
+        position: absolute;
+        bottom: 3px;
+        box-shadow: 0 0 4px rgba(16, 185, 129, 0.8);
+    }
+
+    .calendar-day-cell.selected .submission-dot {
+        background-color: #ffffff;
+        box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Right Dossier Table */
+    .dossier-card {
+        background: #ffffff;
+        border: 1px solid var(--ts-border);
+        border-radius: var(--ts-radius-md);
+        overflow: hidden;
+        min-height: 380px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dossier-header {
+        background: #f8fafc;
+        border-bottom: 1px solid var(--ts-border);
+        padding: 0.85rem 1.25rem;
+    }
+
+    .table-modern {
+        margin-bottom: 0;
+        vertical-align: middle;
+    }
+
+    .table-modern thead th {
+        background: #0e8749;
+        color: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        border: none;
+        padding: 10px 12px;
+        white-space: nowrap;
+    }
+
+    .table-modern tbody td {
+        padding: 12px;
+        font-size: 0.86rem;
+        border-bottom: 1px solid #f1f5f9;
+        color: #1e293b;
+    }
+
+    .badge-not-verified {
+        background-color: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+        font-weight: 600;
+        font-size: 0.75rem;
+        padding: 5px 9px;
+        border-radius: 6px;
+        display: inline-block;
+    }
+
+    .badge-verified {
+        background-color: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        font-weight: 600;
+        font-size: 0.75rem;
+        padding: 5px 9px;
+        border-radius: 6px;
+        display: inline-block;
+    }
+
+    /* Idle Hours Counter Pill */
+    .idle-hours-pill {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: #334155;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .idle-hours-pill.completed {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
+    }
+
+    /* Add Timesheet Form Table */
+    .add-table-head th {
+        background: #0e8749 !important;
+        color: #ffffff !important;
+        font-weight: 700;
+        font-size: 0.80rem;
+        text-transform: uppercase;
+        padding: 10px 12px;
+        border: none;
+    }
+
+    .remove-row-btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+    }
+</style>
+
+<!-- MAIN CONTAINER CARD -->
+<div class="timesheet-portal-card mb-4" id="timesheetPortalRoot">
+    <!-- Portal Banner / Controls -->
+    <div class="timesheet-header-banner d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <span class="p-2 bg-success text-white rounded-3 d-inline-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                <i class="fas fa-calendar-check fs-6"></i>
+            </span>
+            <div>
+                <h4 class="fw-bold mb-0 text-dark">Employee Timesheet</h4>
+                <p class="text-muted small mb-0">Record, inspect, and track your daily work output & manager approvals</p>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <!-- View Toggle Button (switches between Calendar View & Add Form) -->
+            <button type="button" class="btn btn-success fw-bold px-4 py-2 rounded-3 shadow-sm" id="togglePortalViewBtn">
+                <i class="fas fa-plus me-1" id="toggleBtnIcon"></i>
+                <span id="toggleBtnText">Add Timesheet</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         VIEW 1: CALENDAR & DAILY PREVIEW (Default View - Image 1 Style)
+    ========================================================================== -->
+    <div class="p-3 p-md-4" id="calendarViewSection" style="display: {{ 'none' if mode == 'add' else 'block' }};">
+        <div class="row g-4">
+            <!-- Left Side: Interactive Calendar -->
+            <div class="col-12 col-lg-4 col-xl-4">
+                <div class="calendar-card">
+                    <!-- Month Selector Header -->
+                    <div class="calendar-nav-bar">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="calendar-month-title text-uppercase" id="currentMonthYearLabel">
+                                <!-- Populated dynamically, e.g. AUG 2026 -->
+                                AUG 2026
+                            </span>
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-link text-muted p-0 dropdown-toggle" type="button" id="monthPickerDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration: none;">
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-start shadow-sm" aria-labelledby="monthPickerDropdown" id="quickMonthSelector">
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="0">January</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="1">February</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="2">March</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="3">April</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="4">May</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="5">June</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="6">July</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="7">August</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="8">September</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="9">October</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="10">November</a></li>
+                                    <li><a class="dropdown-item py-1 small" href="#" data-month="11">December</a></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-1">
+                            <button type="button" class="calendar-nav-btn" id="prevMonthBtn" title="Previous Month">
+                                <i class="fas fa-chevron-left" style="font-size: 11px;"></i>
+                            </button>
+                            <button type="button" class="calendar-nav-btn" id="nextMonthBtn" title="Next Month">
+                                <i class="fas fa-chevron-right" style="font-size: 11px;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Days Grid -->
+                    <div class="calendar-grid mb-2">
+                        <div class="calendar-weekday">S</div>
+                        <div class="calendar-weekday">M</div>
+                        <div class="calendar-weekday">T</div>
+                        <div class="calendar-weekday">W</div>
+                        <div class="calendar-weekday">T</div>
+                        <div class="calendar-weekday">F</div>
+                        <div class="calendar-weekday">S</div>
+                    </div>
+
+                    <!-- Dynamic Day Cells -->
+                    <div class="calendar-grid" id="calendarDaysGrid">
+                        <!-- Populated by JavaScript -->
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center small text-muted">
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                            <span>Submitted Day</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0; display: inline-block;"></span>
+                            <span>Not Logged</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Selected Day's Dossier Table -->
+            <div class="col-12 col-lg-8 col-xl-8">
+                <div class="dossier-card">
+                    <!-- Date Dossier Header -->
+                    <div class="dossier-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="far fa-calendar-alt text-success fs-5"></i>
+                            <h5 class="fw-bold mb-0 text-dark" id="dossierDateLabel">
+                                {{ selected_date_formatted }}
+                            </h5>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2" id="dossierHeaderControls">
+                            <span class="badge bg-light text-secondary border px-3 py-2 fw-semibold" id="dossierTotalHoursBadge">
+                                <i class="far fa-clock me-1 text-primary"></i> Total Hours: <span id="dossierTotalHoursText">{{ formatted_total_hours }}</span>
+                            </span>
+                            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 fw-medium" id="quickLogForDateBtn">
+                                <i class="fas fa-plus me-1"></i> Log For This Date
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Submissions Table -->
+                    <div class="table-responsive flex-grow-1" id="dossierTableContainer" style="display: {{ 'none' if not day_entries else 'block' }};">
+                        <table class="table table-modern align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">SL</th>
+                                    <th style="width: 140px;">PROJECT</th>
+                                    <th>TASK/ OUTPUT DESCRIPTION</th>
+                                    <th style="width: 100px;">START TIME</th>
+                                    <th style="width: 100px;">END TIME</th>
+                                    <th style="width: 100px;">TOTAL HOURS</th>
+                                    <th style="width: 120px;">RM STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dossierTableBody">
+                                {% for entry in day_entries %}
+                                <tr>
+                                    <td class="text-secondary fw-semibold text-center">{{ loop.index }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border px-2 py-1 fw-semibold">
+                                            {{ entry.project_name or (entry.project.project_name if entry.project else 'Others') }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <p class="mb-0 text-dark" style="font-size: 0.88rem; line-height: 1.45;">
+                                            {{ entry.progress_description }}
+                                        </p>
+                                    </td>
+                                    <td class="text-muted small text-nowrap">
+                                        <i class="far fa-clock me-1 text-secondary opacity-75"></i>{{ entry.start_time or '10:00:00' }}
+                                    </td>
+                                    <td class="text-muted small text-nowrap">
+                                        <i class="far fa-clock me-1 text-secondary opacity-75"></i>{{ entry.end_time or '18:00:00' }}
+                                    </td>
+                                    <td class="fw-bold text-dark text-nowrap">
+                                        {% set h = entry.hours_worked | int %}
+                                        {% set m = ((entry.hours_worked - h) * 60) | round | int %}
+                                        {{ "%02d:%02d" | format(h, m) }}
+                                    </td>
+                                    <td>
+                                        {% if entry.rm_status == 'Verified' or entry.status == 'Verified' %}
+                                            <span class="badge-verified"><i class="fas fa-check-circle me-1"></i>Verified</span>
+                                        {% else %}
+                                            <span class="badge-not-verified"><i class="fas fa-clock me-1"></i>Not Verified</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Empty State (When no timesheets exist for date) -->
+                    <div class="text-center py-5 my-auto px-4" id="dossierEmptyState" style="display: {{ 'block' if not day_entries else 'none' }};">
+                        <div class="p-3 bg-light rounded-circle d-inline-flex mb-3" style="width: 60px; height: 60px; align-items: center; justify-content: center;">
+                            <i class="far fa-calendar-times text-muted fs-3"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">No Timesheet Logged for this Day</h6>
+                        <p class="text-muted small mb-3">No work hours or project activities were recorded for this date.</p>
+                        <button type="button" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold" id="emptyStateLogBtn">
+                            <i class="fas fa-plus me-1"></i> Log Timesheet for <span id="emptyStateDateSpan">{{ selected_date_formatted }}</span>
+                        </button>
+                    </div>
+
+                    <!-- Dossier Footer Pagination / Summary -->
+                    <div class="p-3 bg-white border-top d-flex flex-wrap justify-content-between align-items-center gap-2 small text-muted">
+                        <div class="d-flex align-items-center gap-2">
+                            <span>Items per page:</span>
+                            <select class="form-select form-select-sm" style="width: 70px;" disabled>
+                                <option>20</option>
+                            </select>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span id="dossierItemCountText">1 – {{ day_entries|length }} of {{ day_entries|length }}</span>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled><i class="fas fa-chevron-left"></i></button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         VIEW 2: ADD TIMESHEET FORM (Multi-row Entry - Image 2 Style)
+    ========================================================================== -->
+    <div class="p-3 p-md-4" id="addTimesheetSection" style="display: {{ 'block' if mode == 'add' else 'none' }};">
+        <form action="{{ url_for('log_timesheet') }}" method="POST" id="addTimesheetForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <!-- Form Top Bar: Date Selector & Idle Hr Counter -->
+            <div class="card border-0 bg-light rounded-3 p-3 mb-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <label for="timesheetEntryDate" class="fw-bold text-secondary mb-0">Date</label>
+                        <div class="input-group" style="width: 200px;">
+                            <input type="date" class="form-control fw-semibold" id="timesheetEntryDate" name="date" value="{{ selected_date }}" required>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Idle Hr Indicator -->
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="idle-hours-pill" id="idleHoursDisplay">
+                            <i class="far fa-hourglass me-1 text-warning"></i>
+                            <span>Idle Hr: <span id="idleHoursVal">{{ formatted_idle_hours }}</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-Row Dynamic Entry Table -->
+            <div class="card border rounded-3 overflow-hidden shadow-sm mb-3">
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0 align-middle" id="timesheetEntryTable">
+                        <thead class="add-table-head">
+                            <tr>
+                                <th style="width: 220px;">PROJECT</th>
+                                <th>TASK/ OUTPUT DESCRIPTION</th>
+                                <th style="width: 140px;">START TIME</th>
+                                <th style="width: 140px;">END TIME</th>
+                                <th style="width: 130px;">TOTAL HOURS</th>
+                                <th style="width: 70px; text-align: center;">ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entryRowsContainer">
+                            <!-- Default Row 1 -->
+                            <tr class="entry-row">
+                                <td>
+                                    <select class="form-select project-dropdown" name="project[]" required>
+                                        <option value="Others" selected>Others</option>
+                                        {% if assigned_projects %}
+                                        <optgroup label="Assigned Projects">
+                                            {% for p in assigned_projects %}
+                                            <option value="{{ p.id }}">{{ p.name }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                        {% endif %}
+                                        {% if other_projects %}
+                                        <optgroup label="All Projects">
+                                            {% for p in other_projects %}
+                                            <option value="{{ p.id }}">{{ p.name }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                        {% endif %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control" name="task_description[]" placeholder="Describe the task / deliverable output" required>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <input type="time" class="form-control time-start" name="start_time[]" value="10:00" required>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <input type="time" class="form-control time-end" name="end_time[]" value="18:00" required>
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control text-center fw-bold bg-light row-duration" name="total_hours[]" value="08:00" readonly>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-danger btn-sm remove-row-btn" title="Remove row">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <!-- Table Summary Bar -->
+                        <tfoot>
+                            <tr class="bg-light-subtle">
+                                <td colspan="4" class="p-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm px-3 fw-semibold" id="addMoreRowBtn">
+                                        <i class="fas fa-plus me-1"></i> Add
+                                    </button>
+                                </td>
+                                <td colspan="2" class="text-end pe-3 py-2">
+                                    <span class="fw-bold text-dark">Total Hours: <span class="text-success ms-1" id="grandTotalHoursVal">08:00</span></span>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Submit CTA -->
+            <div class="d-flex justify-content-end gap-2 pt-2">
+                <button type="button" class="btn btn-light border px-4 py-2" id="cancelAddTimesheetBtn">Cancel</button>
+                <button type="submit" class="btn btn-warning px-5 py-2 fw-bold text-dark shadow-sm" style="background-color: #f59e0b; border-color: #d97706;">
+                    Submit Timesheet
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =========================================================================
+     FRONTEND CONTROLLER & INTERACTIVE CALENDAR ENGINE
+========================================================================== -->
+<script>
+    (function() {
+        // State variables
+        let submittedDates = new Set({{ submitted_dates|tojson }});
+        let selectedDateStr = "{{ selected_date }}"; // format YYYY-MM-DD
+        let currentYear = parseInt(selectedDateStr.split('-')[0]) || 2026;
+        let currentMonth = (parseInt(selectedDateStr.split('-')[1]) - 1) || 9; // 0-indexed (9 = Oct)
+
+        const monthNames = [
+            "JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
+            "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+        ];
+        const fullMonthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+
+        // Elements
+        const calendarGrid = document.getElementById('calendarDaysGrid');
+        const monthYearLabel = document.getElementById('currentMonthYearLabel');
+        const prevMonthBtn = document.getElementById('prevMonthBtn');
+        const nextMonthBtn = document.getElementById('nextMonthBtn');
+        const toggleBtn = document.getElementById('togglePortalViewBtn');
+        const toggleBtnText = document.getElementById('toggleBtnText');
+        const toggleBtnIcon = document.getElementById('toggleBtnIcon');
+        const calendarView = document.getElementById('calendarViewSection');
+        const addView = document.getElementById('addTimesheetSection');
+        const dossierDateLabel = document.getElementById('dossierDateLabel');
+        const dossierTotalHoursText = document.getElementById('dossierTotalHoursText');
+        const dossierTableContainer = document.getElementById('dossierTableContainer');
+        const dossierEmptyState = document.getElementById('dossierEmptyState');
+        const dossierTableBody = document.getElementById('dossierTableBody');
+        const dossierItemCountText = document.getElementById('dossierItemCountText');
+        const emptyStateDateSpan = document.getElementById('emptyStateDateSpan');
+        const timesheetEntryDate = document.getElementById('timesheetEntryDate');
+        const quickLogForDateBtn = document.getElementById('quickLogForDateBtn');
+        const emptyStateLogBtn = document.getElementById('emptyStateLogBtn');
+        const cancelAddTimesheetBtn = document.getElementById('cancelAddTimesheetBtn');
+
+        // Form elements
+        const entryRowsContainer = document.getElementById('entryRowsContainer');
+        const addMoreRowBtn = document.getElementById('addMoreRowBtn');
+        const grandTotalHoursVal = document.getElementById('grandTotalHoursVal');
+        const idleHoursVal = document.getElementById('idleHoursVal');
+        const idleHoursDisplay = document.getElementById('idleHoursDisplay');
+
+        // Helper: Format YYYY-MM-DD
+        function formatDateKey(year, monthIndex, day) {
+            const m = String(monthIndex + 1).padStart(2, '0');
+            const d = String(day).padStart(2, '0');
+            return `${year}-${m}-${d}`;
+        }
+
+        // Helper: Format DD-MM-YYYY
+        function formatDisplayDate(dateKey) {
+            const parts = dateKey.split('-');
+            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+
+        // Render Calendar Grid
+        function renderCalendar(year, monthIndex) {
+            monthYearLabel.textContent = `${monthNames[monthIndex]} ${year}`;
+            calendarGrid.innerHTML = '';
+
+            const firstDayIndex = new Date(year, monthIndex, 1).getDay(); // 0 = Sun
+            const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, monthIndex, 0).getDate();
+
+            // Previous month padding days
+            for (let i = firstDayIndex - 1; i >= 0; i--) {
+                const dayNum = daysInPrevMonth - i;
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day-cell other-month';
+                cell.textContent = dayNum;
+                calendarGrid.appendChild(cell);
+            }
+
+            // Current month days
+            const today = new Date();
+            const todayStr = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = formatDateKey(year, monthIndex, day);
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day-cell';
+                cell.textContent = day;
+                cell.dataset.date = dateKey;
+
+                if (dateKey === selectedDateStr) {
+                    cell.classList.add('selected');
+                }
+                if (dateKey === todayStr) {
+                    cell.classList.add('today');
+                }
+
+                // Green dot if submitted
+                if (submittedDates.has(dateKey)) {
+                    const dot = document.createElement('span');
+                    dot.className = 'submission-dot';
+                    cell.appendChild(dot);
+                }
+
+                // Click event on day
+                cell.addEventListener('click', function() {
+                    document.querySelectorAll('.calendar-day-cell.selected').forEach(c => c.classList.remove('selected'));
+                    cell.classList.add('selected');
+                    selectedDateStr = dateKey;
+                    timesheetEntryDate.value = dateKey;
+                    loadDaySubmissions(dateKey);
+                });
+
+                calendarGrid.appendChild(cell);
+            }
+
+            // Next month padding days to complete 35 or 42 grid cells
+            const totalCells = firstDayIndex + daysInMonth;
+            const remaining = (7 - (totalCells % 7)) % 7;
+            for (let i = 1; i <= remaining; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day-cell other-month';
+                cell.textContent = i;
+                calendarGrid.appendChild(cell);
+            }
+        }
+
+        // Load Submissions via AJAX for selected day
+        function loadDaySubmissions(dateKey) {
+            dossierDateLabel.textContent = formatDisplayDate(dateKey);
+            emptyStateDateSpan.textContent = formatDisplayDate(dateKey);
+
+            fetch(`/api/timesheet/day-details?date=${dateKey}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.entries && data.entries.length > 0) {
+                        dossierTableContainer.style.display = 'block';
+                        dossierEmptyState.style.display = 'none';
+                        dossierTotalHoursText.textContent = data.formatted_total_hours || '00:00';
+                        dossierItemCountText.textContent = `1 – ${data.entries.length} of ${data.entries.length}`;
+
+                        dossierTableBody.innerHTML = '';
+                        data.entries.forEach(item => {
+                            const tr = document.createElement('tr');
+                            const statusBadge = (item.rm_status === 'Verified')
+                                ? '<span class="badge-verified"><i class="fas fa-check-circle me-1"></i>Verified</span>'
+                                : '<span class="badge-not-verified"><i class="fas fa-clock me-1"></i>Not Verified</span>';
+
+                            tr.innerHTML = `
+                                <td class="text-secondary fw-semibold text-center">${item.sl}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border px-2 py-1 fw-semibold">${escapeHtml(item.project)}</span>
+                                </td>
+                                <td>
+                                    <p class="mb-0 text-dark" style="font-size: 0.88rem; line-height: 1.45;">${escapeHtml(item.task_description)}</p>
+                                </td>
+                                <td class="text-muted small text-nowrap"><i class="far fa-clock me-1 text-secondary opacity-75"></i>${escapeHtml(item.start_time)}</td>
+                                <td class="text-muted small text-nowrap"><i class="far fa-clock me-1 text-secondary opacity-75"></i>${escapeHtml(item.end_time)}</td>
+                                <td class="fw-bold text-dark text-nowrap">${escapeHtml(item.total_hours)}</td>
+                                <td>${statusBadge}</td>
+                            `;
+                            dossierTableBody.appendChild(tr);
+                        });
+                    } else {
+                        dossierTableContainer.style.display = 'none';
+                        dossierEmptyState.style.display = 'block';
+                        dossierTotalHoursText.textContent = '00:00';
+                        dossierItemCountText.textContent = '0 of 0';
+                    }
+                })
+                .catch(err => console.error('Error fetching day details:', err));
+        }
+
+        // Fetch Month Submissions when navigating months
+        function fetchMonthSubmissions(year, monthIndex) {
+            fetch(`/api/timesheet/month-submissions?year=${year}&month=${monthIndex + 1}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.submitted_dates) {
+                        data.submitted_dates.forEach(d => submittedDates.add(d));
+                    }
+                    renderCalendar(year, monthIndex);
+                })
+                .catch(err => {
+                    console.error('Error fetching month submissions:', err);
+                    renderCalendar(year, monthIndex);
+                });
+        }
+
+        // Escape HTML helper
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Navigation Handlers
+        prevMonthBtn.addEventListener('click', function() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            fetchMonthSubmissions(currentYear, currentMonth);
+        });
+
+        nextMonthBtn.addEventListener('click', function() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            fetchMonthSubmissions(currentYear, currentMonth);
+        });
+
+        // Quick month selector dropdown
+        document.querySelectorAll('#quickMonthSelector .dropdown-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                currentMonth = parseInt(this.dataset.month);
+                fetchMonthSubmissions(currentYear, currentMonth);
+            });
+        });
+
+        // Toggle View: Calendar View vs Add Timesheet
+        function setViewMode(mode) {
+            if (mode === 'add') {
+                calendarView.style.display = 'none';
+                addView.style.display = 'block';
+                toggleBtnText.textContent = 'View Calendar';
+                toggleBtnIcon.className = 'fas fa-calendar-alt me-1';
+                toggleBtn.className = 'btn btn-outline-secondary fw-bold px-4 py-2 rounded-3 shadow-sm';
+            } else {
+                calendarView.style.display = 'block';
+                addView.style.display = 'none';
+                toggleBtnText.textContent = 'Add Timesheet';
+                toggleBtnIcon.className = 'fas fa-plus me-1';
+                toggleBtn.className = 'btn btn-success fw-bold px-4 py-2 rounded-3 shadow-sm';
+            }
+        }
+
+        toggleBtn.addEventListener('click', function() {
+            const isAddVisible = (addView.style.display === 'block');
+            setViewMode(isAddVisible ? 'view' : 'add');
+        });
+
+        quickLogForDateBtn.addEventListener('click', function() {
+            timesheetEntryDate.value = selectedDateStr;
+            setViewMode('add');
+        });
+
+        emptyStateLogBtn.addEventListener('click', function() {
+            timesheetEntryDate.value = selectedDateStr;
+            setViewMode('add');
+        });
+
+        cancelAddTimesheetBtn.addEventListener('click', function() {
+            setViewMode('view');
+        });
+
+        // Real-time Row Duration & Idle Hr Calculations
+        function calculateRowDuration(startTimeStr, endTimeStr) {
+            if (!startTimeStr || !endTimeStr) return { formatted: '00:00', hours: 0 };
+            const [sH, sM] = startTimeStr.split(':').map(Number);
+            const [eH, eM] = endTimeStr.split(':').map(Number);
+            const startMinutes = sH * 60 + sM;
+            const endMinutes = eH * 60 + eM;
+            let diff = endMinutes - startMinutes;
+            if (diff <= 0) diff = 0;
+
+            const h = Math.floor(diff / 60);
+            const m = diff % 60;
+            return {
+                formatted: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+                hours: diff / 60.0
+            };
+        }
+
+        function recalculateAllHours() {
+            let totalHoursNum = 0.0;
+            const rows = entryRowsContainer.querySelectorAll('.entry-row');
+
+            rows.forEach(row => {
+                const sInput = row.querySelector('.time-start');
+                const eInput = row.querySelector('.time-end');
+                const durInput = row.querySelector('.row-duration');
+                const calc = calculateRowDuration(sInput.value, eInput.value);
+
+                durInput.value = calc.formatted;
+                totalHoursNum += calc.hours;
+            });
+
+            // Grand Total
+            const gtH = Math.floor(totalHoursNum);
+            const gtM = Math.round((totalHoursNum - gtH) * 60);
+            const gtStr = `${String(gtH).padStart(2, '0')}:${String(gtM).padStart(2, '0')}`;
+            grandTotalHoursVal.textContent = gtStr;
+
+            // Idle Hours (8 - total)
+            const idleDiff = Math.max(0, 8.0 - totalHoursNum);
+            const idleH = Math.floor(idleDiff);
+            const idleM = Math.round((idleDiff - idleH) * 60);
+            const idleStr = `${String(idleH).padStart(2, '0')}:${String(idleM).padStart(2, '0')}`;
+            idleHoursVal.textContent = idleStr;
+
+            if (totalHoursNum >= 8.0) {
+                idleHoursDisplay.classList.add('completed');
+            } else {
+                idleHoursDisplay.classList.remove('completed');
+            }
+        }
+
+        // Attach listeners to row
+        function attachRowListeners(row) {
+            const timeInputs = row.querySelectorAll('.time-start, .time-end');
+            timeInputs.forEach(input => {
+                input.addEventListener('input', recalculateAllHours);
+                input.addEventListener('change', recalculateAllHours);
+            });
+
+            const removeBtn = row.querySelector('.remove-row-btn');
+            removeBtn.addEventListener('click', function() {
+                if (entryRowsContainer.querySelectorAll('.entry-row').length > 1) {
+                    row.remove();
+                    recalculateAllHours();
+                } else {
+                    alert('You must have at least one task entry row.');
+                }
+            });
+        }
+
+        // Attach to initial rows
+        document.querySelectorAll('.entry-row').forEach(attachRowListeners);
+
+        // Add More Row
+        addMoreRowBtn.addEventListener('click', function() {
+            const firstRow = entryRowsContainer.querySelector('.entry-row');
+            const newRow = firstRow.cloneNode(true);
+
+            // Reset inputs
+            newRow.querySelector('input[name="task_description[]"]').value = '';
+            newRow.querySelector('.time-start').value = '10:00';
+            newRow.querySelector('.time-end').value = '18:00';
+            newRow.querySelector('.row-duration').value = '08:00';
+
+            attachRowListeners(newRow);
+            entryRowsContainer.appendChild(newRow);
+            recalculateAllHours();
+        });
+
+        // Initialize Calendar
+        fetchMonthSubmissions(currentYear, currentMonth);
+        recalculateAllHours();
+    })();
+</script>

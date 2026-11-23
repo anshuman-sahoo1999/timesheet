@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mt-4">Dashboard</h1>
+    
+    {% if current_user.role in ['MD', 'HR'] %}
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">System Administration</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('trigger_auto_submit') }}" style="display: inline;">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-sync"></i> Test Auto-Submit Timesheets
+                        </button>
+                    </form>
+                    <small class="text-muted ml-2">This will manually trigger the auto-submit function for testing purposes.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if current_user.role == 'MD' %}
+        {% include 'dashboards/md_dashboard.html' %}
+    {% elif current_user.role == 'BD' %}
+        {% include 'dashboards/bd_dashboard.html' %}
+    {% elif current_user.role == 'PM' %}
+        {% include 'dashboards/pm_dashboard.html' %}
+    {% else %}
+        {% include 'dashboards/emp_dashboard.html' %}
+    {% endif %}
+</div>
+{% endblock %} 

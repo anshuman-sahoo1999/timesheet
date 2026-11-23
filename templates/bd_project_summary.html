@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+
+{% block title %}Project Summary - BD{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Project Summary</h2>
+    <div class="mb-3">
+        <a href="{{ url_for('bd_project_summary_pdf') }}" class="btn btn-success btn-sm me-2">Download PDF</a>
+        <a href="{{ url_for('bd_project_summary_excel') }}" class="btn btn-primary btn-sm">Download Excel</a>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <div style="overflow-x: auto;">
+                <table class="table table-bordered table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Sl. No</th>
+                            <th>Title of the Project</th>
+                            <th>Client</th>
+                            <th>Date of Creation</th>
+                            <th>Date of Approval</th>
+                            <th>Contract Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ project.project_name }}</td>
+                            <td>{{ project.client_name }}</td>
+                            <td>{{ project.created_at.strftime('%d-%b-%Y') if project.created_at else '' }}</td>
+                            <td>{% if project.status == 'Approved' and project.approved_at %}{{ project.approved_at.strftime('%d-%b-%Y') }}{% else %}-{% endif %}</td>
+                            <td>{{ project.contract_value | inr }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-center">No projects found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

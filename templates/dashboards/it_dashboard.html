@@ -1,0 +1,1549 @@
+{% extends "layout.html" %}
+
+{% block title %}IT Administration &bull; Master Accounts & Security Hub{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --it-navy: #0f172a;
+        --it-slate: #1e293b;
+        --it-teal: #0d9488;
+        --it-teal-light: #f0fdfa;
+        --it-indigo: #4f46e5;
+        --it-rose: #e11d48;
+        --it-amber: #d97706;
+        --it-emerald: #059669;
+        --it-gold: #b45309;
+    }
+
+    /* IT Master Header Banner */
+    .it-header-banner {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0d9488 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #ffffff;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .it-header-banner::before {
+        content: '';
+        position: absolute;
+        top: -60px;
+        right: -60px;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(13, 148, 136, 0.3) 0%, rgba(15, 23, 42, 0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .it-banner-title {
+        font-size: 1.55rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .it-banner-subtitle {
+        font-size: 0.88rem;
+        color: #94a3b8;
+        max-width: 720px;
+        margin-bottom: 0;
+        line-height: 1.5;
+    }
+
+    .it-badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 5px 12px;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* KPI Metrics Cards */
+    .it-kpi-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 18px 20px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: 100%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .it-kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.06);
+    }
+
+    .it-kpi-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .it-kpi-val {
+        font-size: 1.65rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: #0f172a;
+    }
+
+    .it-kpi-lbl {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-top: 2px;
+    }
+
+    /* Navigation Tabs */
+    .it-nav-tabs {
+        display: flex;
+        gap: 8px;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 24px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
+    .it-tab-btn {
+        background: transparent;
+        border: none;
+        padding: 10px 20px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #64748b;
+        border-radius: 8px 8px 0 0;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        transition: all 0.2s ease;
+        position: relative;
+        white-space: nowrap;
+    }
+
+    .it-tab-btn:hover {
+        color: #0f172a;
+        background: #f8fafc;
+    }
+
+    .it-tab-btn.active {
+        color: #0d9488;
+        background: #f0fdfa;
+        font-weight: 700;
+    }
+
+    .it-tab-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: #0d9488;
+        border-radius: 3px 3px 0 0;
+    }
+
+    /* Master Account Cards */
+    .master-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .master-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+        transition: all 0.25s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .master-card:hover {
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        border-color: #cbd5e1;
+    }
+
+    .master-card-head {
+        padding: 18px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #f1f5f9;
+        background: #fafafa;
+    }
+
+    .master-card-badge {
+        font-size: 0.70rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 4px 10px;
+        border-radius: 99px;
+    }
+
+    .master-badge-ceo { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .master-badge-bd { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .master-badge-hr { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+    .master-badge-finance { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+
+    .master-card-body {
+        padding: 20px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .master-profile-meta {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .master-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+
+    .avatar-ceo { background: #fffbeb; color: #b45309; border: 2px solid #fef3c7; }
+    .avatar-bd { background: #f0f9ff; color: #0284c7; border: 2px solid #e0f2fe; }
+    .avatar-hr { background: #faf5ff; color: #9333ea; border: 2px solid #f3e8ff; }
+    .avatar-finance { background: #f0fdf4; color: #16a34a; border: 2px solid #dcfce7; }
+
+    .master-name-text {
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 2px;
+        line-height: 1.2;
+    }
+
+    .master-desig-text {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .input-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .input-label {
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .master-input {
+        width: 100%;
+        padding: 9px 12px;
+        font-size: 0.86rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #0f172a;
+        transition: all 0.2s ease;
+    }
+
+    .master-input:focus {
+        border-color: #0d9488;
+        background: #ffffff;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+    }
+
+    .pw-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .pw-input-wrap input {
+        padding-right: 40px;
+    }
+
+    .btn-eye-toggle {
+        position: absolute;
+        right: 10px;
+        background: none;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-eye-toggle:hover {
+        color: #475569;
+    }
+
+    .btn-generate-pw {
+        background: transparent;
+        border: none;
+        color: #0d9488;
+        font-size: 0.74rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+        margin-top: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .btn-generate-pw:hover {
+        text-decoration: underline;
+    }
+
+    .master-actions-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: auto;
+        padding-top: 14px;
+        border-top: 1px dashed #e2e8f0;
+    }
+
+    .btn-update-master {
+        background: #0f172a;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 14px;
+        font-size: 0.84rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-update-master:hover {
+        background: #1e293b;
+        transform: translateY(-1px);
+    }
+
+    .btn-email-master {
+        background: #f0fdfa;
+        color: #0f766e;
+        border: 1px solid #99f6e4;
+        border-radius: 8px;
+        padding: 9px 14px;
+        font-size: 0.84rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-email-master:hover {
+        background: #ccfbf1;
+        color: #115e59;
+        border-color: #5eead4;
+        transform: translateY(-1px);
+    }
+
+    /* Activity Logs Table */
+    .it-table-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        overflow: hidden;
+    }
+
+    .it-table-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: #fafafa;
+    }
+
+    .it-table-filters {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .it-select-filter {
+        padding: 7px 12px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #334155;
+    }
+
+    .it-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+    }
+
+    .it-table th {
+        background: #f8fafc;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .it-table td {
+        padding: 13px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+
+    .it-table tr:hover td {
+        background: #f8fafc;
+    }
+
+    /* Action Badges */
+    .badge-act {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 99px;
+        letter-spacing: 0.03em;
+    }
+
+    .badge-act-login { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-act-failed { background: #ffe4e6; color: #be123c; border: 1px solid #fecdd3; }
+    .badge-act-logout { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    .badge-act-reset { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .badge-act-email { background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; }
+    .badge-act-purge { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    /* Purge Modal */
+    .purge-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+        padding: 16px;
+    }
+
+    .purge-modal-overlay.active {
+        display: flex;
+    }
+
+    .purge-modal-box {
+        background: #ffffff;
+        border-radius: 16px;
+        max-width: 500px;
+        width: 100%;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+        animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes modalScale {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    .purge-modal-header {
+        background: #fee2e2;
+        padding: 18px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #991b1b;
+        border-bottom: 1px solid #fecaca;
+    }
+
+    .purge-modal-body {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .purge-modal-footer {
+        padding: 16px 24px;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    /* Toast Notification */
+    .it-toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9999;
+        min-width: 320px;
+        max-width: 440px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        padding: 16px 18px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        transform: translateY(120%);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .it-toast.show {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    .it-toast.toast-success { border-left: 4px solid #059669; }
+    .it-toast.toast-danger { border-left: 4px solid #e11d48; }
+    .it-toast.toast-info { border-left: 4px solid #0d9488; }
+</style>
+<div class="container-fluid px-4 py-3">
+
+    <!-- IT Header Banner -->
+    <div class="it-header-banner">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <div class="it-banner-title">
+                    <i class="fas fa-server"></i>
+                    <span>IT Administration Control Center</span>
+                </div>
+                <p class="it-banner-subtitle">
+                    Manage Master Portal credentials (CEO, BD, HR, Finance), monitor real-time authentication & security audit trails, and maintain database integrity with project purge controls.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <span class="it-badge-pill">
+                    <span class="online-dot" style="width: 8px; height: 8px; background: #34d399; border-radius: 50%; box-shadow: 0 0 8px #34d399;"></span>
+                    Infrastructure Online
+                </span>
+                <span class="it-badge-pill">
+                    <i class="fas fa-user-lock"></i> IT Lead Auth
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="it-kpi-card">
+                <div class="it-kpi-icon" style="background: #e0f2fe; color: #0284c7;">
+                    <i class="fas fa-users-cog"></i>
+                </div>
+                <div>
+                    <div class="it-kpi-val">4</div>
+                    <div class="it-kpi-lbl">Master Accounts</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="it-kpi-card">
+                <div class="it-kpi-icon" style="background: #dcfce7; color: #16a34a;">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <div>
+                    <div class="it-kpi-val">{{ logins_today }}</div>
+                    <div class="it-kpi-lbl">Logins Today</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="it-kpi-card">
+                <div class="it-kpi-icon" style="background: {% if failed_attempts_today > 0 %}#ffe4e6; color: #e11d48;{% else %}#f1f5f9; color: #64748b;{% endif %}">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <div class="it-kpi-val" style="color: {% if failed_attempts_today > 0 %}#e11d48;{% else %}#0f172a;{% endif %}">
+                        {{ failed_attempts_today }}
+                    </div>
+                    <div class="it-kpi-lbl">Wrong Passwords (24h)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="it-kpi-card">
+                <div class="it-kpi-icon" style="background: #fef3c7; color: #d97706;">
+                    <i class="fas fa-key"></i>
+                </div>
+                <div>
+                    <div class="it-kpi-val">{{ resets_count }}</div>
+                    <div class="it-kpi-lbl">Credential Resets</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Module Navigation Tabs -->
+    <div class="it-nav-tabs">
+        <button type="button" class="it-tab-btn active" id="tabBtnMasters" onclick="switchItTab('masters')">
+            <i class="fas fa-user-shield"></i>
+            <span>Master Accounts Hub</span>
+        </button>
+        <button type="button" class="it-tab-btn" id="tabBtnActivity" onclick="switchItTab('activity')">
+            <i class="fas fa-history"></i>
+            <span>Master Security & Activity Monitor</span>
+        </button>
+        <button type="button" class="it-tab-btn" id="tabBtnProjects" onclick="switchItTab('projects')">
+            <i class="fas fa-database"></i>
+            <span>Project Database Purge</span>
+        </button>
+    </div>
+
+    <!-- ================= TAB 1: MASTER ACCOUNTS ================= -->
+    <div id="paneMasters" class="it-pane">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="fw-bold mb-1" style="color: #0f172a;">Core Master Accounts & Credentials</h5>
+                <p class="text-muted small mb-0">Configure master emails, reset access passwords, and dispatch login credentials directly over corporate email.</p>
+            </div>
+        </div>
+
+        <div class="master-grid">
+            <!-- 1. CEO Master Card -->
+            {% set ceo = master_accounts.get('CEO') %}
+            <div class="master-card" id="card_CEO">
+                <div class="master-card-head">
+                    <span class="master-card-badge master-badge-ceo">
+                        <i class="fas fa-crown me-1"></i> Executive Portal &bull; MD
+                    </span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 small">
+                        <i class="fas fa-check-circle me-1"></i> Active
+                    </span>
+                </div>
+                <div class="master-card-body">
+                    <div class="master-profile-meta">
+                        <div class="master-avatar avatar-ceo">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div>
+                            <div class="master-name-text">{{ ceo.name if ceo else 'Mr. Chinmay Tripathy, CEO' }}</div>
+                            <div class="master-desig-text">Managing Director / CEO &bull; Master Authority</div>
+                        </div>
+                    </div>
+
+                    <div class="input-field-group">
+                        <label class="input-label" for="email_CEO">Configured Email ID</label>
+                        <input type="email" class="master-input" id="email_CEO" value="{{ ceo.email if ceo else 'admin@ecometrix.co.in' }}">
+                    </div>
+
+                    <div class="input-field-group">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="input-label" for="pwd_CEO">Set New Password</label>
+                            <button type="button" class="btn-generate-pw" onclick="generatePassword('CEO')">
+                                <i class="fas fa-random"></i> Generate Strong
+                            </button>
+                        </div>
+                        <div class="pw-input-wrap">
+                            <input type="password" class="master-input" id="pwd_CEO" placeholder="Enter new password to reset">
+                            <button type="button" class="btn-eye-toggle" onclick="togglePassword('CEO')" aria-label="Toggle password">
+                                <i class="fas fa-eye" id="eye_CEO"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="master-actions-row">
+                        <button type="button" class="btn-update-master" onclick="updateMasterCredentials('CEO')">
+                            <i class="fas fa-save"></i> Save Credentials
+                        </button>
+                        <button type="button" class="btn-email-master" onclick="promptSendEmail('CEO')">
+                            <i class="fas fa-paper-plane"></i> Inform CEO Over Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Business Development Master Card -->
+            {% set bd = master_accounts.get('BD') %}
+            <div class="master-card" id="card_BD">
+                <div class="master-card-head">
+                    <span class="master-card-badge master-badge-bd">
+                        <i class="fas fa-chart-line me-1"></i> BD Portal &bull; Indents
+                    </span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 small">
+                        <i class="fas fa-check-circle me-1"></i> Active
+                    </span>
+                </div>
+                <div class="master-card-body">
+                    <div class="master-profile-meta">
+                        <div class="master-avatar avatar-bd">
+                            <i class="fas fa-briefcase"></i>
+                        </div>
+                        <div>
+                            <div class="master-name-text">{{ bd.name if bd else 'Business Development Team' }}</div>
+                            <div class="master-desig-text">Head of Business Development &bull; Master Authority</div>
+                        </div>
+                    </div>
+
+                    <div class="input-field-group">
+                        <label class="input-label" for="email_BD">Configured Email ID</label>
+                        <input type="email" class="master-input" id="email_BD" value="{{ bd.email if bd else 'bd@ecometrix.co.in' }}">
+                    </div>
+
+                    <div class="input-field-group">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="input-label" for="pwd_BD">Set New Password</label>
+                            <button type="button" class="btn-generate-pw" onclick="generatePassword('BD')">
+                                <i class="fas fa-random"></i> Generate Strong
+                            </button>
+                        </div>
+                        <div class="pw-input-wrap">
+                            <input type="password" class="master-input" id="pwd_BD" placeholder="Enter new password to reset">
+                            <button type="button" class="btn-eye-toggle" onclick="togglePassword('BD')" aria-label="Toggle password">
+                                <i class="fas fa-eye" id="eye_BD"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="master-actions-row">
+                        <button type="button" class="btn-update-master" onclick="updateMasterCredentials('BD')">
+                            <i class="fas fa-save"></i> Save Credentials
+                        </button>
+                        <button type="button" class="btn-email-master" onclick="promptSendEmail('BD')">
+                            <i class="fas fa-paper-plane"></i> Inform BD Over Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Human Resources Master Card -->
+            {% set hr = master_accounts.get('HR') %}
+            <div class="master-card" id="card_HR">
+                <div class="master-card-head">
+                    <span class="master-card-badge master-badge-hr">
+                        <i class="fas fa-users me-1"></i> HR Portal &bull; Master
+                    </span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 small">
+                        <i class="fas fa-check-circle me-1"></i> Active
+                    </span>
+                </div>
+                <div class="master-card-body">
+                    <div class="master-profile-meta">
+                        <div class="master-avatar avatar-hr">
+                            <i class="fas fa-user-friends"></i>
+                        </div>
+                        <div>
+                            <div class="master-name-text">{{ hr.name if hr else 'Human Resources Team' }}</div>
+                            <div class="master-desig-text">Head of Human Resources &bull; Master Authority</div>
+                        </div>
+                    </div>
+
+                    <div class="input-field-group">
+                        <label class="input-label" for="email_HR">Configured Email ID</label>
+                        <input type="email" class="master-input" id="email_HR" value="{{ hr.email if hr else 'hr@ecometrix.co.in' }}">
+                    </div>
+
+                    <div class="input-field-group">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="input-label" for="pwd_HR">Set New Password</label>
+                            <button type="button" class="btn-generate-pw" onclick="generatePassword('HR')">
+                                <i class="fas fa-random"></i> Generate Strong
+                            </button>
+                        </div>
+                        <div class="pw-input-wrap">
+                            <input type="password" class="master-input" id="pwd_HR" placeholder="Enter new password to reset">
+                            <button type="button" class="btn-eye-toggle" onclick="togglePassword('HR')" aria-label="Toggle password">
+                                <i class="fas fa-eye" id="eye_HR"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="master-actions-row">
+                        <button type="button" class="btn-update-master" onclick="updateMasterCredentials('HR')">
+                            <i class="fas fa-save"></i> Save Credentials
+                        </button>
+                        <button type="button" class="btn-email-master" onclick="promptSendEmail('HR')">
+                            <i class="fas fa-paper-plane"></i> Inform HR Over Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Finance & Accounts Master Card -->
+            {% set fin = master_accounts.get('FINANCE') %}
+            <div class="master-card" id="card_FINANCE">
+                <div class="master-card-head">
+                    <span class="master-card-badge master-badge-finance">
+                        <i class="fas fa-coins me-1"></i> Finance Portal &bull; Master
+                    </span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 small">
+                        <i class="fas fa-check-circle me-1"></i> Active
+                    </span>
+                </div>
+                <div class="master-card-body">
+                    <div class="master-profile-meta">
+                        <div class="master-avatar avatar-finance">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div>
+                            <div class="master-name-text">{{ fin.name if fin else 'Finance & Accounts Team' }}</div>
+                            <div class="master-desig-text">Head of Finance & Accounts &bull; Master Authority</div>
+                        </div>
+                    </div>
+
+                    <div class="input-field-group">
+                        <label class="input-label" for="email_FINANCE">Configured Email ID</label>
+                        <input type="email" class="master-input" id="email_FINANCE" value="{{ fin.email if fin else 'finance@ecometrix.co.in' }}">
+                    </div>
+
+                    <div class="input-field-group">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="input-label" for="pwd_FINANCE">Set New Password</label>
+                            <button type="button" class="btn-generate-pw" onclick="generatePassword('FINANCE')">
+                                <i class="fas fa-random"></i> Generate Strong
+                            </button>
+                        </div>
+                        <div class="pw-input-wrap">
+                            <input type="password" class="master-input" id="pwd_FINANCE" placeholder="Enter new password to reset">
+                            <button type="button" class="btn-eye-toggle" onclick="togglePassword('FINANCE')" aria-label="Toggle password">
+                                <i class="fas fa-eye" id="eye_FINANCE"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="master-actions-row">
+                        <button type="button" class="btn-update-master" onclick="updateMasterCredentials('FINANCE')">
+                            <i class="fas fa-save"></i> Save Credentials
+                        </button>
+                        <button type="button" class="btn-email-master" onclick="promptSendEmail('FINANCE')">
+                            <i class="fas fa-paper-plane"></i> Inform Finance Over Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TAB 2: SECURITY & ACTIVITY LOGS ================= -->
+    <div id="paneActivity" class="it-pane" style="display: none;">
+        <div class="it-table-card">
+            <div class="it-table-header">
+                <div>
+                    <h6 class="fw-bold mb-1" style="color: #0f172a;">
+                        <i class="fas fa-shield-alt text-teal me-2" style="color: #0d9488;"></i>
+                        Master Admin Authentication & Security Stream
+                    </h6>
+                    <p class="text-muted small mb-0">Live audit log of login timestamps, logouts, wrong password attempts, and password changes.</p>
+                </div>
+                <div class="it-table-filters">
+                    <select id="filterMaster" class="it-select-filter" onchange="loadActivityLogs()">
+                        <option value="ALL">All Master Accounts</option>
+                        <option value="CEO">CEO (Mr. Chinmay Tripathy)</option>
+                        <option value="BD">Business Development (BD)</option>
+                        <option value="HR">Human Resources (HR)</option>
+                        <option value="FINANCE">Finance & Accounts</option>
+                        <option value="IT">IT Administration</option>
+                    </select>
+                    <select id="filterEvent" class="it-select-filter" onchange="loadActivityLogs()">
+                        <option value="ALL">All Event Types</option>
+                        <option value="LOGIN_SUCCESS">Login Success</option>
+                        <option value="LOGIN_FAILED">Wrong Password / Failed Attempt</option>
+                        <option value="LOGOUT">Logout</option>
+                        <option value="PASSWORD_RESET_BY_IT">Password Reset by IT</option>
+                        <option value="CREDENTIAL_EMAIL_SENT">Credential Email Sent</option>
+                        <option value="PROJECT_PURGE">Project Purged</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadActivityLogs()" title="Refresh Logs">
+                        <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="it-table" id="activityLogsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 170px;">Date & Time</th>
+                            <th>Master Account</th>
+                            <th>Event Action</th>
+                            <th>IP Address</th>
+                            <th>Device / Client</th>
+                            <th>Audit Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activityLogsBody">
+                        {% if recent_logs %}
+                            {% for log in recent_logs %}
+                            <tr>
+                                <td class="text-muted small">
+                                    {{ log.created_at.strftime('%d %b %Y, %I:%M:%S %p') if log.created_at else '-' }}
+                                </td>
+                                <td>
+                                    <div class="fw-bold" style="color: #0f172a;">
+                                        {{ log.user.name if log.user else (log.old_values_dict.get('account_name') or log.old_values_dict.get('identifier') or 'Anonymous Attempt') }}
+                                    </div>
+                                    <div class="small text-muted">{{ log.user.email if log.user else (log.old_values_dict.get('identifier') or '') }}</div>
+                                </td>
+                                <td>
+                                    {% if log.action == 'LOGIN_SUCCESS' %}
+                                        <span class="badge-act badge-act-login"><i class="fas fa-check-circle"></i> LOGIN SUCCESS</span>
+                                    {% elif log.action == 'LOGIN_FAILED' %}
+                                        <span class="badge-act badge-act-failed"><i class="fas fa-times-circle"></i> WRONG PASSWORD</span>
+                                    {% elif log.action == 'LOGOUT' %}
+                                        <span class="badge-act badge-act-logout"><i class="fas fa-sign-out-alt"></i> LOGOUT</span>
+                                    {% elif log.action in ['PASSWORD_RESET_BY_IT', 'PASSWORD_CHANGE', 'CREDENTIAL_UPDATE'] %}
+                                        <span class="badge-act badge-act-reset"><i class="fas fa-key"></i> PASSWORD RESET</span>
+                                    {% elif log.action == 'CREDENTIAL_EMAIL_SENT' %}
+                                        <span class="badge-act badge-act-email"><i class="fas fa-envelope"></i> EMAIL SENT</span>
+                                    {% elif log.action == 'PROJECT_PURGE' %}
+                                        <span class="badge-act badge-act-purge"><i class="fas fa-trash-alt"></i> PROJECT PURGED</span>
+                                    {% else %}
+                                        <span class="badge-act badge-act-logout">{{ log.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="font-monospace small text-muted">
+                                    {{ log.ip_address or '127.0.0.1' }}
+                                </td>
+                                <td class="small text-truncate" style="max-width: 200px;" title="{{ log.user_agent or '' }}">
+                                    {{ log.user_agent[:45] ~ '...' if log.user_agent and log.user_agent|length > 45 else (log.user_agent or 'Direct Client') }}
+                                </td>
+                                <td class="small">
+                                    {% if log.action == 'LOGIN_FAILED' %}
+                                        <span class="text-danger fw-semibold">{{ log.old_values_dict.get('reason') or 'Failed login' }}</span>
+                                    {% elif log.action == 'PROJECT_PURGE' %}
+                                        <span class="text-danger fw-semibold">Purged File: {{ log.old_values_dict.get('file_number') }} ({{ log.old_values_dict.get('project_name') }})</span>
+                                    {% elif log.action == 'PASSWORD_RESET_BY_IT' %}
+                                        <span class="text-warning-emphasis fw-semibold">Password updated for {{ log.old_values_dict.get('name') or 'Master Account' }}</span>
+                                    {% elif log.action == 'CREDENTIAL_EMAIL_SENT' %}
+                                        <span class="text-primary fw-semibold">Delivered to {{ log.new_values_dict.get('recipient') }}</span>
+                                    {% else %}
+                                        <span class="text-muted">Authenticated successfully</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    <i class="fas fa-shield-alt fa-2x mb-2 opacity-50"></i>
+                                    <div>No security activity logs recorded yet.</div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TAB 3: PROJECT DATABASE PURGE ================= -->
+    <div id="paneProjects" class="it-pane" style="display: none;">
+        <div class="it-table-card">
+            <div class="it-table-header">
+                <div>
+                    <h6 class="fw-bold mb-1 text-danger">
+                        <i class="fas fa-trash-alt me-2"></i>
+                        Project Record Purge (Database Integrity Operations)
+                    </h6>
+                    <p class="text-muted small mb-0">Permanently delete erroneously created project workflows along with all cascading Job Cards, Tasks, and Timesheets.</p>
+                </div>
+                <div class="it-table-filters">
+                    <input type="text" id="projectSearchInput" class="form-control form-control-sm" placeholder="Search file no, name, client..." onkeyup="filterProjectTable()" style="width: 250px;">
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="it-table" id="projectPurgeTable">
+                    <thead>
+                        <tr>
+                            <th>File Number</th>
+                            <th>Project Name</th>
+                            <th>Client</th>
+                            <th>Contract Value</th>
+                            <th>Workflow Status</th>
+                            <th>Created Date</th>
+                            <th class="text-end">Purge Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if projects %}
+                            {% for p in projects %}
+                            <tr class="project-row" data-search="{{ p.file_number|lower }} {{ p.project_name|lower }} {{ p.client_name|lower }}">
+                                <td class="fw-bold font-monospace text-teal" style="color: #0d9488;">{{ p.file_number }}</td>
+                                <td class="fw-semibold" style="color: #0f172a;">{{ p.project_name }}</td>
+                                <td class="text-muted">{{ p.client_name }}</td>
+                                <td class="fw-semibold">{{ p.contract_value|inr if p.contract_value else '₹ 0.00' }}</td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 rounded-pill small">
+                                        {{ p.status }}
+                                    </span>
+                                </td>
+                                <td class="text-muted small">
+                                    {{ p.created_at.strftime('%d-%b-%Y') if p.created_at else '-' }}
+                                </td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-danger px-3 py-1" data-id="{{ p.id }}" data-fileno="{{ p.file_number }}" data-name="{{ p.project_name }}" onclick="openPurgeModalFromBtn(this)">
+                                        <i class="fas fa-trash-alt me-1"></i> Purge Project
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    <i class="fas fa-folder-open fa-2x mb-2 opacity-50"></i>
+                                    <div>No projects found in the system.</div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= CONFIRM PURGE MODAL ================= -->
+<div class="purge-modal-overlay" id="purgeModalOverlay">
+    <div class="purge-modal-box">
+        <div class="purge-modal-header">
+            <i class="fas fa-exclamation-triangle fa-lg"></i>
+            <h6 class="fw-bold mb-0">Permanently Purge Project Record</h6>
+        </div>
+        <div class="purge-modal-body">
+            <div class="alert alert-danger py-2 px-3 small mb-0" style="background: #fff1f2; border: 1px solid #ffe4e6; color: #be123c;">
+                <strong>Warning: Irreversible Database Purge!</strong> This will delete the Project Indent, linked Job Cards, all Task breakdowns, assignees, timesheet submissions, and budget entries from the entire database.
+            </div>
+
+            <div>
+                <div class="text-muted small text-uppercase fw-bold mb-1">Target Project:</div>
+                <div class="fw-bold fs-6" id="purgeModalProjectName" style="color: #0f172a;">-</div>
+                <div class="font-monospace text-teal small fw-semibold" id="purgeModalFileNumber" style="color: #0d9488;">-</div>
+            </div>
+
+            <div class="input-field-group">
+                <label class="input-label" for="confirmFileNumberInput">
+                    Type file number <span id="confirmTargetNumber" class="text-danger fw-bold font-monospace"></span> to confirm:
+                </label>
+                <input type="text" class="master-input font-monospace" id="confirmFileNumberInput" placeholder="Enter matching file number...">
+            </div>
+        </div>
+        <div class="purge-modal-footer">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="closePurgeModal()">Cancel</button>
+            <button type="button" class="btn btn-sm btn-danger px-3" id="confirmPurgeBtn" onclick="executeProjectPurge()">
+                <i class="fas fa-trash-alt me-1"></i> Permanently Purge
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= SEND EMAIL MODAL ================= -->
+<div class="purge-modal-overlay" id="emailModalOverlay">
+    <div class="purge-modal-box">
+        <div class="purge-modal-header" style="background: #f0fdfa; color: #0f766e; border-color: #99f6e4;">
+            <i class="fas fa-paper-plane fa-lg"></i>
+            <h6 class="fw-bold mb-0">Dispatch Login Credentials Over Email</h6>
+        </div>
+        <div class="purge-modal-body">
+            <p class="small text-muted mb-2">
+                An official notification will be transmitted with the PMS Portal URL, username/email ID, and active password to the concerned Master Admin.
+            </p>
+
+            <div class="p-3 bg-light rounded border">
+                <table class="w-100 small">
+                    <tr>
+                        <td class="text-muted fw-bold py-1" style="width: 35%;">Master Authority:</td>
+                        <td class="fw-bold" id="emailModalMasterName">-</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted fw-bold py-1">Recipient Email:</td>
+                        <td class="font-monospace" id="emailModalRecipient">-</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted fw-bold py-1">Access Password:</td>
+                        <td class="font-monospace fw-bold text-teal" id="emailModalPassword" style="color: #0d9488;">-</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="alert alert-info py-2 px-3 small mb-0" style="background: #eff6ff; border: 1px solid #dbeafe; color: #1d4ed8;">
+                <i class="fas fa-info-circle me-1"></i>
+                Please ensure you have saved credentials before sending, or verify that the password shown above is correct.
+            </div>
+        </div>
+        <div class="purge-modal-footer">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="closeEmailModal()">Cancel</button>
+            <button type="button" class="btn btn-sm btn-success px-3" id="confirmSendEmailBtn" onclick="executeSendEmail()">
+                <i class="fas fa-paper-plane me-1"></i> Send Official Email
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Feedback Container -->
+<div class="it-toast" id="itToast">
+    <div id="toastIcon" class="fs-4"></div>
+    <div>
+        <div class="fw-bold mb-1" id="toastTitle" style="color: #0f172a; font-size: 0.90rem;">Notification</div>
+        <div class="text-muted small" id="toastMessage">Message content goes here.</div>
+    </div>
+</div>
+
+<script>
+    // State variables
+    let currentPurgeIndentId = null;
+    let expectedPurgeFileNumber = '';
+    let emailTargetMasterKey = '';
+
+    // Switch Dashboard Tabs
+    function switchItTab(tabName) {
+        document.querySelectorAll('.it-pane').forEach(p => p.style.display = 'none');
+        document.querySelectorAll('.it-tab-btn').forEach(b => b.classList.remove('active'));
+
+        if (tabName === 'masters') {
+            document.getElementById('paneMasters').style.display = 'block';
+            document.getElementById('tabBtnMasters').classList.add('active');
+            window.location.hash = 'masters';
+        } else if (tabName === 'activity') {
+            document.getElementById('paneActivity').style.display = 'block';
+            document.getElementById('tabBtnActivity').classList.add('active');
+            window.location.hash = 'activity';
+            loadActivityLogs();
+        } else if (tabName === 'projects') {
+            document.getElementById('paneProjects').style.display = 'block';
+            document.getElementById('tabBtnProjects').classList.add('active');
+            window.location.hash = 'projects';
+        }
+
+        // Sync sidebar active status
+        const sideMasters = document.getElementById('sideLinkMasters');
+        const sideActivity = document.getElementById('sideLinkActivity');
+        const sideProjects = document.getElementById('sideLinkProjects');
+        if (sideMasters && sideActivity && sideProjects) {
+            sideMasters.classList.toggle('active', tabName === 'masters');
+            sideActivity.classList.toggle('active', tabName === 'activity');
+            sideProjects.classList.toggle('active', tabName === 'projects');
+        }
+    }
+
+    // Toggle Password Visibility
+    function togglePassword(key) {
+        const inp = document.getElementById(`pwd_${key}`);
+        const icon = document.getElementById(`eye_${key}`);
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            inp.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    // Generate Strong Secure Password
+    function generatePassword(key) {
+        const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+        let pwd = '';
+        for (let i = 0; i < 10; i++) {
+            pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        const inp = document.getElementById(`pwd_${key}`);
+        inp.type = 'text';
+        inp.value = pwd;
+        const icon = document.getElementById(`eye_${key}`);
+        if (icon) icon.classList.replace('fa-eye', 'fa-eye-slash');
+        showToast('info', 'Password Generated', `Generated strong password for ${key} Master.`);
+    }
+
+    // Update Master Credentials via API
+    function updateMasterCredentials(key) {
+        const email = document.getElementById(`email_${key}`).value.trim();
+        const password = document.getElementById(`pwd_${key}`).value.trim();
+
+        if (!email) {
+            showToast('danger', 'Validation Error', 'Email ID cannot be blank.');
+            return;
+        }
+
+        const payload = {
+            master_key: key,
+            email: email,
+            password: password
+        };
+
+        const card = document.getElementById(`card_${key}`);
+        if (card) card.style.opacity = '0.7';
+
+        fetch('/api/it/master/update-credentials', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (card) card.style.opacity = '1';
+            if (data.success) {
+                showToast('success', 'Credentials Updated', data.message);
+                if (data.password_changed) {
+                    // Keep the password visible so IT admin can click "Inform Over Email" right after
+                }
+            } else {
+                showToast('danger', 'Update Failed', data.message || 'Unable to update credentials.');
+            }
+        })
+        .catch(err => {
+            if (card) card.style.opacity = '1';
+            showToast('danger', 'System Error', 'Failed to communicate with server.');
+            console.error(err);
+        });
+    }
+
+    // Open Send Email Confirmation Modal
+    function promptSendEmail(key) {
+        emailTargetMasterKey = key;
+        const email = document.getElementById(`email_${key}`).value.trim();
+        let password = document.getElementById(`pwd_${key}`).value.trim();
+
+        if (!password) {
+            password = prompt(`Please enter the active/new password to transmit to ${key} Master:`, '');
+            if (!password) return;
+            document.getElementById(`pwd_${key}`).value = password;
+        }
+
+        const titles = {
+            'CEO': 'CEO / Managing Director',
+            'BD': 'Business Development Master',
+            'HR': 'Human Resources Master',
+            'FINANCE': 'Finance & Accounts Master'
+        };
+
+        document.getElementById('emailModalMasterName').innerText = `${titles[key] || key} (${key})`;
+        document.getElementById('emailModalRecipient').innerText = email;
+        document.getElementById('emailModalPassword').innerText = password;
+        document.getElementById('emailModalOverlay').classList.add('active');
+    }
+
+    function closeEmailModal() {
+        document.getElementById('emailModalOverlay').classList.remove('active');
+    }
+
+    // Execute Send Email
+    function executeSendEmail() {
+        const btn = document.getElementById('confirmSendEmailBtn');
+        const key = emailTargetMasterKey;
+        const password = document.getElementById(`pwd_${key}`).value.trim();
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Transmitting...';
+
+        fetch('/api/it/master/send-credentials-email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                master_key: key,
+                password: password
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Send Official Email';
+            closeEmailModal();
+
+            if (data.success) {
+                showToast('success', 'Email Transmitted', data.message);
+                loadActivityLogs();
+            } else {
+                showToast('danger', 'Email Failed', data.message || 'Error sending email.');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Send Official Email';
+            closeEmailModal();
+            showToast('danger', 'Network Error', 'Failed to dispatch email.');
+            console.error(err);
+        });
+    }
+
+    // Load & Filter Activity Logs
+    function loadActivityLogs() {
+        const master = document.getElementById('filterMaster').value;
+        const eventType = document.getElementById('filterEvent').value;
+        const refreshIcon = document.getElementById('refreshIcon');
+        if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+        fetch(`/api/it/master/activity-logs?master=${encodeURIComponent(master)}&event_type=${encodeURIComponent(eventType)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+            if (data.success && data.logs) {
+                renderActivityLogsTable(data.logs);
+            }
+        })
+        .catch(err => {
+            if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+            console.error('Error fetching logs:', err);
+        });
+    }
+
+    function renderActivityLogsTable(logs) {
+        const tbody = document.getElementById('activityLogsBody');
+        if (!logs || logs.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        <i class="fas fa-filter fa-2x mb-2 opacity-50"></i>
+                        <div>No matching activity records found for this filter.</div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        logs.forEach(l => {
+            let badgeClass = 'badge-act-logout';
+            let icon = 'fas fa-info-circle';
+            let actionText = l.action;
+
+            if (l.action === 'LOGIN_SUCCESS') {
+                badgeClass = 'badge-act-login';
+                icon = 'fas fa-check-circle';
+                actionText = 'LOGIN SUCCESS';
+            } else if (l.action === 'LOGIN_FAILED') {
+                badgeClass = 'badge-act-failed';
+                icon = 'fas fa-times-circle';
+                actionText = 'WRONG PASSWORD';
+            } else if (l.action === 'LOGOUT') {
+                badgeClass = 'badge-act-logout';
+                icon = 'fas fa-sign-out-alt';
+                actionText = 'LOGOUT';
+            } else if (l.action === 'PASSWORD_RESET_BY_IT' || l.action === 'PASSWORD_CHANGE' || l.action === 'CREDENTIAL_UPDATE') {
+                badgeClass = 'badge-act-reset';
+                icon = 'fas fa-key';
+                actionText = 'PASSWORD RESET';
+            } else if (l.action === 'CREDENTIAL_EMAIL_SENT') {
+                badgeClass = 'badge-act-email';
+                icon = 'fas fa-envelope';
+                actionText = 'EMAIL SENT';
+            } else if (l.action === 'PROJECT_PURGE') {
+                badgeClass = 'badge-act-purge';
+                icon = 'fas fa-trash-alt';
+                actionText = 'PROJECT PURGED';
+            }
+
+            let detailText = 'Action processed';
+            if (l.action === 'LOGIN_FAILED') {
+                detailText = `<span class="text-danger fw-semibold">${l.details.reason || 'Wrong password entered'}</span>`;
+            } else if (l.action === 'PROJECT_PURGE') {
+                detailText = `<span class="text-danger fw-semibold">Purged File: ${l.details.file_number || ''}</span>`;
+            } else if (l.action === 'PASSWORD_RESET_BY_IT') {
+                detailText = `<span class="text-warning-emphasis fw-semibold">Password reset by IT</span>`;
+            } else if (l.action === 'CREDENTIAL_EMAIL_SENT') {
+                detailText = `<span class="text-primary fw-semibold">Sent to ${l.details.recipient || l.email}</span>`;
+            } else if (l.action === 'LOGIN_SUCCESS') {
+                detailText = `<span class="text-success">Authenticated successfully</span>`;
+            }
+
+            html += `
+                <tr>
+                    <td class="text-muted small">${l.timestamp}</td>
+                    <td>
+                        <div class="fw-bold" style="color: #0f172a;">${l.account_name}</div>
+                        <div class="small text-muted">${l.email || ''}</div>
+                    </td>
+                    <td>
+                        <span class="badge-act ${badgeClass}"><i class="${icon}"></i> ${actionText}</span>
+                    </td>
+                    <td class="font-monospace small text-muted">${l.ip_address}</td>
+                    <td class="small text-truncate" style="max-width: 200px;" title="${l.user_agent}">${l.user_agent.length > 45 ? l.user_agent.substring(0, 45) + '...' : l.user_agent}</td>
+                    <td class="small">${detailText}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // Filter Project Table Client-Side
+    function filterProjectTable() {
+        const query = document.getElementById('projectSearchInput').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('.project-row');
+        rows.forEach(r => {
+            const text = r.getAttribute('data-search') || '';
+            r.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+
+    // Purge Modal Controls
+    function openPurgeModalFromBtn(btn) {
+        const id = btn.getAttribute('data-id');
+        const fileNo = btn.getAttribute('data-fileno');
+        const name = btn.getAttribute('data-name');
+        openPurgeModal(id, fileNo, name);
+    }
+
+    function openPurgeModal(id, fileNumber, projectName) {
+        currentPurgeIndentId = id;
+        expectedPurgeFileNumber = fileNumber;
+
+        document.getElementById('purgeModalProjectName').innerText = projectName;
+        document.getElementById('purgeModalFileNumber').innerText = `File: ${fileNumber}`;
+        document.getElementById('confirmTargetNumber').innerText = fileNumber;
+        document.getElementById('confirmFileNumberInput').value = '';
+        document.getElementById('purgeModalOverlay').classList.add('active');
+    }
+
+    function closePurgeModal() {
+        document.getElementById('purgeModalOverlay').classList.remove('active');
+        currentPurgeIndentId = null;
+        expectedPurgeFileNumber = '';
+    }
+
+    // Execute Project Purge
+    function executeProjectPurge() {
+        const entered = document.getElementById('confirmFileNumberInput').value.trim();
+        if (entered.toLowerCase() !== expectedPurgeFileNumber.toLowerCase()) {
+            showToast('danger', 'Confirmation Error', `Please type '${expectedPurgeFileNumber}' to confirm purge.`);
+            return;
+        }
+
+        const btn = document.getElementById('confirmPurgeBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Purging...';
+
+        fetch(`/api/it/projects/purge/${currentPurgeIndentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                confirm_file_number: entered
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Permanently Purge';
+            closePurgeModal();
+
+            if (data.success) {
+                showToast('success', 'Project Purged', data.message);
+                // Remove row from table
+                const rows = document.querySelectorAll('.project-row');
+                rows.forEach(r => {
+                    if (r.innerText.includes(expectedPurgeFileNumber)) {
+                        r.remove();
+                    }
+                });
+                loadActivityLogs();
+            } else {
+                showToast('danger', 'Purge Failed', data.message || 'Error purging project.');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Permanently Purge';
+            closePurgeModal();
+            showToast('danger', 'Server Error', 'Failed to communicate with purge endpoint.');
+            console.error(err);
+        });
+    }
+
+    // Toast Helper
+    let toastTimeout;
+    function showToast(type, title, message) {
+        const toast = document.getElementById('itToast');
+        const iconBox = document.getElementById('toastIcon');
+        const titleEl = document.getElementById('toastTitle');
+        const msgEl = document.getElementById('toastMessage');
+
+        toast.className = `it-toast toast-${type}`;
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+
+        if (type === 'success') {
+            iconBox.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
+        } else if (type === 'danger') {
+            iconBox.innerHTML = '<i class="fas fa-times-circle text-danger"></i>';
+        } else {
+            iconBox.innerHTML = '<i class="fas fa-info-circle text-teal" style="color: #0d9488;"></i>';
+        }
+
+        toast.classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 4500);
+    }
+
+    // Check initial hash on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const hash = window.location.hash.replace('#', '');
+        if (hash === 'activity' || hash === 'projects') {
+            switchItTab(hash);
+        } else {
+            switchItTab('masters');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,918 @@
+{% extends "layout.html" %}
+
+{% block title %}Job Card Review - {{ indent.project_name }} - PMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Executive Review Theme */
+    .review-header-panel {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+    .review-section-card {
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+    .review-section-header {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 16px 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .review-section-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .review-section-body {
+        padding: 22px;
+    }
+    
+    /* KPI Metrics Cards */
+    .kpi-stat-card {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: 16px 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .kpi-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.05);
+    }
+    .kpi-stat-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+    .kpi-stat-value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #0f172a;
+        font-family: 'Plus Jakarta Sans', monospace, sans-serif;
+    }
+    .kpi-stat-subtext {
+        font-size: 0.80rem;
+        color: #64748b;
+        margin-top: 6px;
+    }
+
+    /* Modern Tables */
+    .executive-review-table {
+        margin-bottom: 0;
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+    .executive-review-table thead th {
+        background-color: #f1f5f9;
+        color: #334155;
+        font-weight: 700;
+        font-size: 0.80rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        border-bottom: 2px solid #cbd5e1;
+        padding: 12px 14px;
+        white-space: nowrap;
+    }
+    .executive-review-table tbody td {
+        padding: 12px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+    }
+    .executive-review-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+    .executive-review-table tfoot th {
+        background-color: #f8fafc;
+        border-top: 2px solid #cbd5e1;
+        padding: 12px 14px;
+        font-size: 0.92rem;
+    }
+
+    /* Badges & Pills */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 99px;
+        font-size: 0.80rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+    }
+    .status-pill-submitted {
+        background-color: #fef3c7;
+        color: #b45309;
+        border: 1px solid #fde68a;
+    }
+    .status-pill-approved {
+        background-color: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+    }
+    .status-pill-rejected {
+        background-color: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+    .status-pill-draft {
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    .task-tag {
+        background-color: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+        margin: 2px;
+    }
+
+    /* Executive Budget Abstract */
+    .budget-summary-box {
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .budget-summary-box th {
+        background: #334155;
+        color: #ffffff;
+        font-size: 0.88rem;
+        padding: 12px 18px;
+    }
+    .budget-summary-box td {
+        padding: 12px 18px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.90rem;
+    }
+    .budget-row-highlight {
+        background: #ecfdf5;
+        font-weight: 800;
+        color: #047857;
+    }
+
+    /* Decision Card */
+    .approval-decision-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+        border: 2px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 24px;
+        margin-top: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    <!-- Top Navigation & Action Header -->
+    <div class="review-header-panel d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                {% if current_user.role == 'MD' %}
+                <a href="{{ url_for('ceo_job_cards') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Job Cards Registry
+                </a>
+                {% else %}
+                <a href="{{ url_for('pm_manage_job_cards') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> My Job Cards
+                </a>
+                {% endif %}
+                <span class="text-muted">/</span>
+                <span class="fs-4 fw-bold text-dark">{{ indent.project_name }}</span>
+                <span class="badge bg-light text-dark border font-monospace px-2 py-1 fs-6">{{ indent.file_number }}</span>
+            </div>
+            <div class="text-muted small">
+                <i class="far fa-building me-1"></i> Client: <strong class="text-dark">{{ indent.client_name }}</strong>
+                <span class="mx-2">•</span>
+                <i class="fas fa-sitemap me-1"></i> Department: <strong class="text-dark">{{ indent.department.name if indent.department else 'General Administration' }}</strong>
+                <span class="mx-2">•</span>
+                <i class="fas fa-user-tie me-1"></i> Assigned PM: <strong class="text-dark">{{ indent.project_manager.name if indent.project_manager else 'Not Assigned' }}</strong>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if current_user.role == 'MD' %}
+            <a href="{{ url_for('download_ceo_project_report', indent_id=indent.id) }}" class="btn btn-danger btn-sm shadow-sm">
+                <i class="fas fa-file-pdf me-1"></i> Download CEO Project PDF
+            </a>
+            {% endif %}
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-print me-1"></i> Print Review
+            </button>
+        </div>
+    </div>
+
+    <!-- Official Workflow Status Banner -->
+    {% if job_card.status == 'Approved' %}
+    <div class="alert alert-success d-flex align-items-center justify-content-between p-3 rounded-3 shadow-sm mb-4 border-success">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-check-circle fa-2x text-success me-3"></i>
+            <div>
+                <h5 class="alert-heading mb-1 fw-bold text-success">
+                    Job Card Officially Approved by CEO / MD
+                </h5>
+                <div class="small text-muted">
+                    Approved on <strong>{{ job_card.approved_at.strftime('%d-%b-%Y at %I:%M %p') if job_card.approved_at else 'Active' }}</strong>. 
+                    All task assignments and timesheet logging are authorized and fully live.
+                    {% if job_card.approval_remarks %}
+                    <div class="mt-1 text-dark"><strong>CEO Remarks:</strong> <em>"{{ job_card.approval_remarks }}"</em></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <span class="status-pill status-pill-approved fs-6">
+            <i class="fas fa-check-double"></i> Active & Approved
+        </span>
+    </div>
+    {% elif job_card.status == 'Submitted' %}
+    <div class="alert alert-warning d-flex align-items-center justify-content-between p-3 rounded-3 shadow-sm mb-4 border-warning">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-clock fa-2x text-warning me-3"></i>
+            <div>
+                <h5 class="alert-heading mb-1 fw-bold text-dark">
+                    Submitted by Project Manager — Awaiting Final CEO Approval
+                </h5>
+                <div class="small text-muted">
+                    Submitted on <strong>{{ job_card.submitted_at.strftime('%d-%b-%Y at %I:%M %p') if job_card.submitted_at else 'Recently' }}</strong> 
+                    by <strong>{{ indent.project_manager.name if indent.project_manager else 'Project Manager' }}</strong>. 
+                    Please review each estimation section below and grant approval or request revisions.
+                </div>
+            </div>
+        </div>
+        <span class="status-pill status-pill-submitted fs-6">
+            <i class="fas fa-hourglass-half"></i> Pending CEO Approval
+        </span>
+    </div>
+    {% elif job_card.status == 'Rejected' %}
+    <div class="alert alert-danger d-flex align-items-center justify-content-between p-3 rounded-3 shadow-sm mb-4 border-danger">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-rotate-left fa-2x text-danger me-3"></i>
+            <div>
+                <h5 class="alert-heading mb-1 fw-bold text-danger">
+                    Revision Requested by CEO / MD
+                </h5>
+                <div class="small text-muted">
+                    Job card has been returned to PM for adjustments.
+                    {% if job_card.approval_remarks %}
+                    <div class="mt-1 text-dark"><strong>Revision Instructions:</strong> <em>"{{ job_card.approval_remarks }}"</em></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <span class="status-pill status-pill-rejected fs-6">
+            <i class="fas fa-undo"></i> Revision Requested
+        </span>
+    </div>
+    {% else %}
+    <div class="alert alert-secondary d-flex align-items-center justify-content-between p-3 rounded-3 shadow-sm mb-4 border-secondary">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-edit fa-2x text-secondary me-3"></i>
+            <div>
+                <h5 class="alert-heading mb-1 fw-bold text-dark">
+                    Job Card Draft in Progress
+                </h5>
+                <div class="small text-muted">
+                    Project Manager has saved draft sections. The estimates below reflect current saved progress.
+                </div>
+            </div>
+        </div>
+        <span class="status-pill status-pill-draft fs-6">
+            <i class="fas fa-pencil"></i> Draft Mode
+        </span>
+    </div>
+    {% endif %}
+
+    <!-- Financial & Timeline Executive KPI Strip -->
+    <div class="row g-3 mb-4">
+        <!-- Contract Value -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="kpi-stat-card border-start border-4 border-primary">
+                <div>
+                    <div class="kpi-stat-label">Contract Value</div>
+                    <div class="kpi-stat-value text-primary">₹ {{ contract_val|inr }}</div>
+                </div>
+                <div class="kpi-stat-subtext">
+                    <i class="fas fa-file-contract text-primary me-1"></i> Authorized Client Contract
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Estimated Budget -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="kpi-stat-card border-start border-4 border-warning">
+                <div>
+                    <div class="kpi-stat-label">Total Estimated Budget</div>
+                    <div class="kpi-stat-value text-dark">₹ {{ grand_total|inr }}</div>
+                </div>
+                <div class="kpi-stat-subtext">
+                    <i class="fas fa-calculator text-warning me-1"></i> Resource + Exp + 30% Overhead
+                </div>
+            </div>
+        </div>
+
+        <!-- Projected Gross Profit & Margin -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="kpi-stat-card border-start border-4 {{ 'border-success' if profit >= 0 else 'border-danger' }}">
+                <div>
+                    <div class="kpi-stat-label">Projected Net Profit</div>
+                    <div class="kpi-stat-value {{ 'text-success' if profit >= 0 else 'text-danger' }}">
+                        ₹ {{ profit|inr }}
+                    </div>
+                </div>
+                <div class="kpi-stat-subtext d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-chart-pie me-1"></i> Margin:</span>
+                    <span class="badge {{ 'bg-success' if profit_margin >= 15 else 'bg-warning text-dark' if profit_margin > 0 else 'bg-danger' }} fw-bold">
+                        {{ profit_margin }}%
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PM Proposed Schedule -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="kpi-stat-card border-start border-4 border-info">
+                <div>
+                    <div class="kpi-stat-label">PM Scheduled Timeline</div>
+                    <div class="fs-6 fw-bold text-dark font-monospace mt-1">
+                        {% if job_card.actual_start_date and job_card.actual_end_date %}
+                            {{ job_card.actual_start_date.strftime('%d-%b-%Y') }} to {{ job_card.actual_end_date.strftime('%d-%b-%Y') }}
+                        {% else %}
+                            <span class="text-muted">Not Specified</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="kpi-stat-subtext">
+                    <i class="far fa-calendar-check text-info me-1"></i> Contract: 
+                    {{ indent.contract_start_date.strftime('%d-%b-%y') if indent.contract_start_date else 'N/A' }} - 
+                    {{ indent.contract_end_date.strftime('%d-%b-%y') if indent.contract_end_date else 'N/A' }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SECTION A: PROJECT DELIVERABLES ================= -->
+    <div class="review-section-card">
+        <div class="review-section-header">
+            <h4 class="review-section-title">
+                <i class="fas fa-bullseye text-primary"></i>
+                <span>A. PROJECT DELIVERABLES & SCOPE SPECIFICATIONS</span>
+            </h4>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">
+                Deliverables & Schedule
+            </span>
+        </div>
+        <div class="review-section-body">
+            
+            <!-- (i) Overview of the Project -->
+            <div class="mb-4">
+                <h6 class="fw-bold text-dark text-uppercase small mb-2 text-secondary">
+                    <i class="fas fa-align-left me-1"></i> (i) Project Overview & Technical Scope
+                </h6>
+                <div class="p-3 bg-light rounded-3 border" style="min-height: 80px; font-size: 0.92rem; line-height: 1.6;">
+                    {% if job_card.overview %}
+                        {{ job_card.overview|safe }}
+                    {% else %}
+                        <div class="text-muted fst-italic">No specific overview text entered by Project Manager.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- (ii) Project Scheduling & Date Analysis -->
+            <div class="mb-4">
+                <h6 class="fw-bold text-dark text-uppercase small mb-2 text-secondary">
+                    <i class="far fa-calendar-alt me-1"></i> (ii) Project Scheduling Alignment
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded-3 bg-white">
+                            <div class="text-muted small fw-semibold">Contractual Validity Period:</div>
+                            <div class="fw-bold text-dark fs-6 mt-1 font-monospace">
+                                <i class="far fa-calendar text-primary me-1"></i>
+                                {{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }} 
+                                <span class="text-muted mx-1">→</span>
+                                {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded-3 bg-white">
+                            <div class="text-muted small fw-semibold">PM Planned Execution Dates:</div>
+                            <div class="fw-bold text-dark fs-6 mt-1 font-monospace">
+                                <i class="fas fa-play text-success me-1"></i>
+                                {{ job_card.actual_start_date.strftime('%d-%b-%Y') if job_card.actual_start_date else 'Start N/A' }} 
+                                <span class="text-muted mx-1">→</span>
+                                <i class="fas fa-flag-checkered text-danger me-1"></i>
+                                {{ job_card.actual_end_date.strftime('%d-%b-%Y') if job_card.actual_end_date else 'End N/A' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- (iii) Milestone Deliverables Table -->
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-dark text-uppercase small mb-0 text-secondary">
+                        <i class="fas fa-list-check me-1"></i> (iii) Milestone Deliverables Breakdown
+                    </h6>
+                    <span class="badge bg-light text-dark border">
+                        Total Weightage: <strong class="{{ 'text-success' if total_milestone_pct == 100 else 'text-warning' }}">{{ total_milestone_pct }}%</strong>
+                    </span>
+                </div>
+
+                <div class="table-responsive border rounded-3">
+                    <table class="table executive-review-table align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 25%;">Milestone / Deliverable</th>
+                                <th style="width: 30%;">Deliverable Description</th>
+                                <th style="width: 15%;">Start Date</th>
+                                <th style="width: 15%;">End Date</th>
+                                <th style="width: 10%;" class="text-center">Days</th>
+                                <th style="width: 10%;" class="text-end">Weightage (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if milestones %}
+                                {% for m in milestones %}
+                                <tr>
+                                    <td class="fw-bold text-muted">{{ loop.index }}</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ m.name }}</div>
+                                        {% if m.status %}
+                                        <span class="badge bg-light text-secondary border mt-1" style="font-size: 0.72rem;">{{ m.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-secondary small">{{ m.description or '—' }}</td>
+                                    <td class="font-monospace">{{ m.start_date or '—' }}</td>
+                                    <td class="font-monospace">{{ m.end_date or '—' }}</td>
+                                    <td class="text-center fw-semibold">{{ m.days or '—' }}</td>
+                                    <td class="text-end fw-bold text-primary font-monospace">{{ m.percentage or 0 }}%</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        No formal milestone deliverables registered for this project.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                        {% if milestones %}
+                        <tfoot>
+                            <tr>
+                                <th colspan="6" class="text-end fw-bold">Aggregate Milestone Percentage:</th>
+                                <th class="text-end fw-bold fs-6 font-monospace {{ 'text-success' if total_milestone_pct == 100 else 'text-warning' }}">
+                                    {{ total_milestone_pct }}%
+                                </th>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ================= SECTION B-1: RESOURCE ESTIMATION (CONFIDENTIAL - CEO ONLY) ================= -->
+    <div class="review-section-card">
+        <div class="review-section-header">
+            <div>
+                <h4 class="review-section-title">
+                    <i class="fas fa-users-gear text-success"></i>
+                    <span>B-1. CONFIDENTIAL RESOURCE ALLOCATION & MANPOWER COSTS</span>
+                </h4>
+                <div class="text-muted small mt-1">
+                    <i class="fas fa-shield-halved text-success me-1"></i> 
+                    Authorized Executive View: Salary rates and daily billing calculations are fully visible to CEO / MD.
+                </div>
+            </div>
+            <span class="badge bg-dark text-white px-3 py-1">
+                <i class="fas fa-lock me-1"></i> CEO Confidential View
+            </span>
+        </div>
+        <div class="review-section-body">
+            <div class="table-responsive border rounded-3">
+                <table class="table executive-review-table align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">Sl.</th>
+                            <th style="width: 22%;">Employee Name & Role</th>
+                            <th style="width: 25%;">Assigned Project Tasks</th>
+                            <th style="width: 10%;" class="text-center">Days</th>
+                            {% if current_user.role == 'MD' %}
+                            <th style="width: 13%;" class="text-end">Monthly Salary</th>
+                            <th style="width: 12%;" class="text-end">Daily Rate (₹)</th>
+                            <th style="width: 13%;" class="text-end">Total Cost (₹)</th>
+                            {% else %}
+                            <th style="width: 38%;" class="text-muted">Salary & Daily Rates Kept Confidential</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if resources %}
+                            {% for r in resources %}
+                            <tr>
+                                <td class="fw-bold text-muted">{{ r.sl_no }}</td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ r.name }}</div>
+                                    <small class="text-muted">{{ r.designation }} • {{ r.department }}</small>
+                                </td>
+                                <td>
+                                    {% if r.tasks %}
+                                        {% for t in r.tasks %}
+                                        <span class="task-tag">{{ t }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted small">General Project Execution</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center fw-bold">{{ r.days|int if r.days else 0 }} days</td>
+                                {% if current_user.role == 'MD' %}
+                                <td class="text-end font-monospace text-secondary">
+                                    ₹ {{ r.monthly_salary|inr }}
+                                </td>
+                                <td class="text-end font-monospace text-secondary">
+                                    ₹ {{ r.daily_rate|inr }}
+                                </td>
+                                <td class="text-end font-monospace fw-bold text-dark">
+                                    ₹ {{ r.total_cost|inr }}
+                                </td>
+                                {% else %}
+                                <td class="text-muted small fst-italic">Confidential to Executive Management</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    No manpower resources allocated in this job card.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                    {% if resources and current_user.role == 'MD' %}
+                    <tfoot>
+                        <tr>
+                            <th colspan="6" class="text-end fw-bold">Total Resource Cost (B-1):</th>
+                            <th class="text-end fw-bold fs-6 font-monospace text-success">
+                                ₹ {{ resource_total|inr }}
+                            </th>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SECTION B-2: PROJECT EXPENDITURES ================= -->
+    <div class="review-section-card">
+        <div class="review-section-header">
+            <h4 class="review-section-title">
+                <i class="fas fa-receipt text-warning"></i>
+                <span>B-2. PROJECT OPERATIONAL EXPENDITURES</span>
+            </h4>
+            <span class="badge bg-warning-subtle text-dark border px-3 py-1">
+                Logistics & Operational Budget
+            </span>
+        </div>
+        <div class="review-section-body">
+            <div class="table-responsive border rounded-3">
+                <table class="table executive-review-table align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">Sl.</th>
+                            <th style="width: 22%;">Category</th>
+                            <th style="width: 33%;">Description / Justification</th>
+                            <th style="width: 10%;">Unit Type</th>
+                            <th style="width: 10%;" class="text-center">Qty / Days</th>
+                            <th style="width: 10%;" class="text-end">Unit Rate (₹)</th>
+                            <th style="width: 10%;" class="text-end">Total Amount (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if expenditures %}
+                            {% for e in expenditures %}
+                            <tr>
+                                <td class="fw-bold text-muted">{{ e.sl_no }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border px-2 py-1">
+                                        <i class="fas fa-tag text-warning me-1"></i> {{ e.category }}
+                                    </span>
+                                </td>
+                                <td class="text-secondary small">{{ e.description or '—' }}</td>
+                                <td><span class="text-muted">{{ e.unit_type }}</span></td>
+                                <td class="text-center fw-semibold">{{ e.unit_days }}</td>
+                                <td class="text-end font-monospace text-secondary">₹ {{ e.amount|inr }}</td>
+                                <td class="text-end font-monospace fw-bold text-dark">₹ {{ e.total_amount|inr }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    No operational expenditures logged for this project.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                    {% if expenditures %}
+                    <tfoot>
+                        <tr>
+                            <th colspan="6" class="text-end fw-bold">Total Project Expenditure (B-2):</th>
+                            <th class="text-end fw-bold fs-6 font-monospace text-warning">
+                                ₹ {{ expenditure_total|inr }}
+                            </th>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SECTION C: COMPREHENSIVE BUDGET SUMMARY ================= -->
+    <div class="review-section-card">
+        <div class="review-section-header">
+            <h4 class="review-section-title">
+                <i class="fas fa-scale-balanced text-success"></i>
+                <span>C. COMPREHENSIVE BUDGET SUMMARY & PROFIT MARGIN ANALYSIS</span>
+            </h4>
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">
+                Executive Financial Abstract
+            </span>
+        </div>
+        <div class="review-section-body">
+            <div class="row g-4 align-items-start">
+                
+                <!-- Table of Cost Aggregation -->
+                <div class="col-lg-7">
+                    <div class="table-responsive">
+                        <table class="table budget-summary-box mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Cost Component</th>
+                                    <th class="text-end" style="width: 240px;">Estimated Amount (INR)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <strong>1. Resource Estimation (B-1):</strong>
+                                        <div class="text-muted small">Total manpower costs aggregated from project resource days and salary grades.</div>
+                                    </td>
+                                    <td class="text-end fw-bold font-monospace fs-6">
+                                        ₹ {{ resource_total|inr }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>2. Project Expenditure Estimation (B-2):</strong>
+                                        <div class="text-muted small">Total direct operational, site, travel, and logistical expenditures.</div>
+                                    </td>
+                                    <td class="text-end fw-bold font-monospace fs-6">
+                                        ₹ {{ expenditure_total|inr }}
+                                    </td>
+                                </tr>
+                                <tr class="table-light">
+                                    <td class="fw-bold">
+                                        3. Sub-Total Direct Cost (B-1 + B-2):
+                                    </td>
+                                    <td class="text-end fw-bold font-monospace fs-6 text-primary">
+                                        ₹ {{ sub_total|inr }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>4. Organizational Overhead (30%):</strong>
+                                        <div class="text-muted small">Corporate operational overhead, infrastructure, and administrative margin (30% of Sub-Total).</div>
+                                    </td>
+                                    <td class="text-end fw-bold font-monospace fs-6">
+                                        ₹ {{ overhead_cost|inr }}
+                                    </td>
+                                </tr>
+                                <tr class="budget-row-highlight">
+                                    <td>
+                                        <span class="fs-5">5. GRAND TOTAL BUDGET ESTIMATE:</span>
+                                        <div class="small fw-normal text-muted">Sub-Total + 30% Overheads</div>
+                                    </td>
+                                    <td class="text-end font-monospace fs-5">
+                                        ₹ {{ grand_total|inr }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Margin & Contract Value Card -->
+                <div class="col-lg-5">
+                    <div class="p-4 bg-light rounded-3 border h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                                Commercial Profitability
+                            </h5>
+                            
+                            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                <span class="text-muted">Total Contract Revenue:</span>
+                                <strong class="text-dark font-monospace fs-6">₹ {{ contract_val|inr }}</strong>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                <span class="text-muted">Total Estimated Budget:</span>
+                                <strong class="text-danger font-monospace fs-6">- ₹ {{ grand_total|inr }}</strong>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+                                <span class="fw-bold text-dark fs-6">Projected Net Profit:</span>
+                                <strong class="{{ 'text-success' if profit >= 0 else 'text-danger' }} font-monospace fs-4">
+                                    ₹ {{ profit|inr }}
+                                </strong>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center pt-3">
+                                <span class="fw-bold text-dark">Profit Margin Percentage:</span>
+                                <span class="badge {{ 'bg-success' if profit_margin >= 15 else 'bg-warning text-dark' if profit_margin > 0 else 'bg-danger' }} fs-5 px-3 py-2">
+                                    {{ profit_margin }}%
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top text-muted small">
+                            <i class="fas fa-info-circle text-primary me-1"></i>
+                            {% if profit_margin >= 15 %}
+                            Healthy commercial margins exceeding corporate benchmark (15%+).
+                            {% elif profit_margin > 0 %}
+                            Positive profit margin within acceptable operating limits.
+                            {% else %}
+                            <span class="text-danger fw-bold"><i class="fas fa-triangle-exclamation"></i> Warning:</span> Estimated budget exceeds contract revenue!
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SECTION D: CEO DECISION & APPROVAL ACTION HUB ================= -->
+    {% if current_user.role == 'MD' %}
+    <div class="approval-decision-card shadow-sm mb-5">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-1">
+                    <i class="fas fa-stamp text-success me-2"></i>Executive Job Card Approval & Ratification
+                </h4>
+                <p class="text-muted mb-0 small">
+                    As Chief Executive Officer, you can grant final approval to activate this project and allocate team timesheets, or return with revision notes to Project Manager <strong>{{ indent.project_manager.name if indent.project_manager else 'Concerned PM' }}</strong>.
+                </p>
+            </div>
+
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <!-- Request Revision Button -->
+                <button type="button" class="btn btn-outline-danger px-4 py-2 fw-bold" data-bs-toggle="modal" data-bs-target="#revisionModal">
+                    <i class="fas fa-rotate-left me-2"></i>Request Revision
+                </button>
+
+                <!-- Approve Job Card Button -->
+                <button type="button" class="btn btn-success px-4 py-2 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#approvalModal">
+                    <i class="fas fa-check-circle me-2"></i>Approve Job Card
+                </button>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card bg-light border p-3 rounded-3 mb-5 text-center">
+        <div class="text-muted">
+            <i class="fas fa-lock me-1"></i> You are viewing this Job Card in Project Manager mode. 
+            Final approval and commercial rate modifications are reserved for CEO / MD.
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Modal: CEO Job Card Approval -->
+<div class="modal fade" id="approvalModal" tabindex="-1" aria-labelledby="approvalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold" id="approvalModalLabel">
+                    <i class="fas fa-check-double me-2"></i>Confirm Job Card Approval
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('process_job_card', card_id=job_card.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="action" value="approve">
+                <div class="modal-body p-4">
+                    <p class="mb-3 text-secondary">
+                        Are you sure you want to approve the Job Card and Budget Estimation for project <strong>{{ indent.project_name }}</strong>?
+                    </p>
+                    
+                    <div class="bg-light p-3 rounded-3 border mb-3 small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Contract Value:</span>
+                            <strong class="font-monospace">₹ {{ contract_val|inr }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Approved Budget:</span>
+                            <strong class="font-monospace">₹ {{ grand_total|inr }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Projected Profit Margin:</span>
+                            <strong class="text-success font-monospace">{{ profit_margin }}%</strong>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">CEO Approval Remarks (Optional):</label>
+                        <textarea class="form-control" name="remarks" rows="3" placeholder="Enter remarks, special instructions, or milestone guidelines for PM..."></textarea>
+                    </div>
+
+                    <div class="alert alert-info py-2 px-3 small mb-0">
+                        <i class="fas fa-info-circle me-1"></i> Approving will immediately notify PM <strong>{{ indent.project_manager.name }}</strong> and circulate allocation notices to all assigned engineers.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-4">
+                        <i class="fas fa-check me-1"></i> Confirm & Authorize
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: CEO Request Revision -->
+<div class="modal fade" id="revisionModal" tabindex="-1" aria-labelledby="revisionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold" id="revisionModalLabel">
+                    <i class="fas fa-undo me-2"></i>Return Job Card for Revision
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('process_job_card', card_id=job_card.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="action" value="reject">
+                <div class="modal-body p-4">
+                    <p class="mb-3 text-secondary">
+                        Please indicate the adjustments required from Project Manager <strong>{{ indent.project_manager.name }}</strong> before final ratification:
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Revision Instructions & Feedback <span class="text-danger">*</span>:</label>
+                        <textarea class="form-control" name="remarks" rows="4" required placeholder="Specify deliverables to adjust, manpower reallocation, or expenditure budget cuts..."></textarea>
+                    </div>
+
+                    <div class="alert alert-warning py-2 px-3 small mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i> The Project Manager will be notified via email and in-app alert to make corrections and re-submit.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger fw-bold px-4">
+                        <i class="fas fa-rotate-left me-1"></i> Send Back for Revision
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

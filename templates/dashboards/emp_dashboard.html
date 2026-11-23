@@ -1,0 +1,226 @@
+{% extends "layout.html" %}
+
+{% block title %}Employee Dashboard - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 px-md-3 py-2">
+    <!-- Top Greeting Header matching Screenshot -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold mb-1 text-dark">Employee Dashboard</h3>
+            <p class="text-secondary mb-0">
+                <span class="fw-semibold text-success fs-6">{{ greeting }}, {{ current_user.name }}</span>
+                <span class="text-muted ms-2 small">&bull; Employee ID: {{ current_user.emp_id }}</span>
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill fw-medium">
+                <i class="far fa-building me-1 text-success"></i> {{ current_user.department.name if current_user.department else 'General' }}
+            </span>
+            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill fw-semibold">
+                <i class="fas fa-check-circle me-1"></i> Active
+            </span>
+        </div>
+    </div>
+
+    {% if current_user.has_hr_permission('timesheet_review') or current_user.has_hr_permission('employee_create') or current_user.has_hr_permission('report_generation') %}
+    <!-- Delegated HR Power Banner for Authorized Staff -->
+    <div class="card border-0 bg-primary-subtle rounded-4 p-3 mb-4 shadow-sm border-start border-4 border-primary">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <span class="p-2 bg-primary text-white rounded-3">
+                    <i class="fas fa-user-shield fs-5"></i>
+                </span>
+                <div>
+                    <h6 class="fw-bold text-dark mb-0">Authorized HR Department Functions</h6>
+                    <small class="text-secondary">You have been granted delegated administrative powers by the HR Department.</small>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                {% if current_user.has_hr_permission('timesheet_review') %}
+                <a href="{{ url_for('verify_timesheets') }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-clipboard-check me-1"></i> Verify Timesheets
+                </a>
+                <a href="{{ url_for('hr_bulk_verification') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-tasks me-1"></i> Bulk Verification
+                </a>
+                {% endif %}
+                {% if current_user.has_hr_permission('employee_create') or current_user.has_hr_permission('employee_edit') %}
+                <a href="{{ url_for('manage_employees') }}" class="btn btn-sm btn-info text-white">
+                    <i class="fas fa-users me-1"></i> Manage Staff
+                </a>
+                {% endif %}
+                {% if current_user.has_hr_permission('report_generation') %}
+                <a href="{{ url_for('reports_page') }}" class="btn btn-sm btn-success">
+                    <i class="fas fa-chart-line me-1"></i> Reports
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- =========================================================================
+         PRIMARY TIMESHEET PORTAL (Interactive Calendar & Dynamic Form)
+    ========================================================================== -->
+    {% include 'timesheets/employee_timesheet_view.html' %}
+
+    <!-- Collapsible Tasks & Metrics Section -->
+    <div class="mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-dark mb-0">
+                <i class="fas fa-tasks text-success me-2"></i>My Assigned Tasks & Deadlines
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#taskKanbanCollapse" aria-expanded="true">
+                <i class="fas fa-chevron-down me-1"></i> Toggle Task Board
+            </button>
+        </div>
+
+        <div class="collapse show" id="taskKanbanCollapse">
+            {% if pending_approval_task_count and pending_approval_task_count > 0 %}
+            <div class="alert alert-info border-info-subtle shadow-sm rounded-3 d-flex align-items-center p-3 mb-3">
+                <i class="fas fa-info-circle fa-lg text-info me-3"></i>
+                <div class="small">
+                    <strong>Notice:</strong> You have <strong>{{ pending_approval_task_count }}</strong> assigned task(s) under project Job Cards currently submitted to the CEO for budget approval. They will automatically appear on your active task board and timesheet selector once approved.
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick KPI Row -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fs-4 fw-bold text-dark">{{ completed_count + in_progress_count + pending_count + on_hold_count }}</div>
+                                <div class="text-muted small">Total Tasks</div>
+                            </div>
+                            <span class="p-2 bg-light rounded-circle text-secondary"><i class="fas fa-tasks"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fs-4 fw-bold text-success">{{ completed_count }}</div>
+                                <div class="text-muted small">Completed</div>
+                            </div>
+                            <span class="p-2 bg-success-subtle rounded-circle text-success"><i class="fas fa-check-circle"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fs-4 fw-bold text-primary">{{ total_hours_this_month or 0 }} hrs</div>
+                                <div class="text-muted small">Hours This Month</div>
+                            </div>
+                            <span class="p-2 bg-primary-subtle rounded-circle text-primary"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fs-4 fw-bold text-danger">{{ overdue_tasks|length }}</div>
+                                <div class="text-muted small">Overdue Tasks</div>
+                            </div>
+                            <span class="p-2 bg-danger-subtle rounded-circle text-danger"><i class="fas fa-exclamation-triangle"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kanban Columns -->
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                <div class="row g-3">
+                    <!-- To Do Column -->
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100 border">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0 text-secondary"><i class="fas fa-list me-2"></i>To Do ({{ categorized_tasks.to_do|length }})</h6>
+                            </div>
+                            {% if categorized_tasks.to_do %}
+                                {% for task in categorized_tasks.to_do %}
+                                <div class="card border shadow-sm rounded-3 p-3 mb-2 bg-white">
+                                    <span class="badge bg-light text-primary border mb-1 small text-wrap text-start">
+                                        {{ task.job_card.indent.project_name if task.job_card and task.job_card.indent else 'Project Task' }}
+                                    </span>
+                                    <p class="small text-dark fw-medium mb-2">{{ task.description }}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted"><i class="far fa-calendar-alt me-1"></i>{{ task.timeline_end.strftime('%d-%b') if task.timeline_end else 'No due date' }}</small>
+                                        <form action="{{ url_for('update_task_status', task_id=task.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" name="status" value="In Progress" class="btn btn-sm btn-outline-primary py-0 px-2 small">
+                                                Start
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small text-center py-4 mb-0">No tasks in To Do</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- In Progress Column -->
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100 border">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0 text-primary"><i class="fas fa-spinner fa-spin me-2"></i>In Progress ({{ categorized_tasks.in_progress|length }})</h6>
+                            </div>
+                            {% if categorized_tasks.in_progress %}
+                                {% for task in categorized_tasks.in_progress %}
+                                <div class="card border border-primary-subtle shadow-sm rounded-3 p-3 mb-2 bg-white">
+                                    <span class="badge bg-primary-subtle text-primary border mb-1 small text-wrap text-start">
+                                        {{ task.job_card.indent.project_name if task.job_card and task.job_card.indent else 'Project Task' }}
+                                    </span>
+                                    <p class="small text-dark fw-medium mb-2">{{ task.description }}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted"><i class="far fa-calendar-alt me-1"></i>{{ task.timeline_end.strftime('%d-%b') if task.timeline_end else 'No due date' }}</small>
+                                        <form action="{{ url_for('update_task_status', task_id=task.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" name="status" value="Completed" class="btn btn-sm btn-success py-0 px-2 small">
+                                                Done
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small text-center py-4 mb-0">No tasks in progress</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Completed Column -->
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100 border">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0 text-success"><i class="fas fa-check-circle me-2"></i>Completed ({{ categorized_tasks.completed|length }})</h6>
+                            </div>
+                            {% if categorized_tasks.completed %}
+                                {% for task in categorized_tasks.completed %}
+                                <div class="card border border-success-subtle shadow-sm rounded-3 p-3 mb-2 bg-white">
+                                    <span class="badge bg-success-subtle text-success border mb-1 small text-wrap text-start">
+                                        {{ task.job_card.indent.project_name if task.job_card and task.job_card.indent else 'Project Task' }}
+                                    </span>
+                                    <p class="small text-dark fw-medium mb-1 text-decoration-line-through">{{ task.description }}</p>
+                                    <small class="text-success fw-semibold"><i class="fas fa-check me-1"></i>Finished</small>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small text-center py-4 mb-0">No completed tasks yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

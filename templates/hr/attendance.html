@@ -1,0 +1,430 @@
+{% extends "layout.html" %}
+
+{% block title %}HR - Attendance Management{% endblock %}
+
+{% block content %}
+<div class ="container-fluid"></div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-calendar-check"></i> Employee Attendance & Work Records</h4>
+                    <p class="text-muted">Comprehensive view of employee attendance, hours worked, and project participation</p>
+                </div>
+                <div class="card-body">
+                    <!-- Summary Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-users"></i> Total Employees</h5>
+                                    <h3>{{ employee_data|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-clock"></i> Total Hours</h5>
+                                    <h3>{{ employee_data|sum(attribute='total_hours')|round(1) }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-project-diagram"></i> Active Projects</h5>
+                                    <h3>{{ employee_data|sum(attribute='total_projects') }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-building"></i> Departments</h5>
+                                    <h3>{{ employee_data|map(attribute='department')|unique|list|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Department Filter -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="department_filter" class="form-label">
+                                    <i class="fas fa-filter"></i> Filter by Department
+                                </label>
+                                <select class="form-control" id="department_filter">
+                                    <option value="">All Departments</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.name }}">{{ dept.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="hours_filter" class="form-label">
+                                    <i class="fas fa-clock"></i> Filter by Hours
+                                </label>
+                                <select class="form-control" id="hours_filter">
+                                    <option value="">All Hours</option>
+                                    <option value="0-40">0-40 hours</option>
+                                    <option value="40-80">40-80 hours</option>
+                                    <option value="80+">80+ hours</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="role_filter" class="form-label">
+                                    <i class="fas fa-user-tag"></i> Filter by Role
+                                </label>
+                                <select class="form-control" id="role_filter">
+                                    <option value="">All Roles</option>
+                                    {% for role in roles %}
+                                    <option value="{{ role.name }}">{{ role.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" onclick="exportAttendanceData()">
+                                    <i class="fas fa-download"></i> Export Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Employee Attendance Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="attendanceTable">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-id-card"></i> Employee ID</th>
+                                    <th><i class="fas fa-user"></i> Name</th>
+                                    <th><i class="fas fa-building"></i> Department</th>
+                                    <th><i class="fas fa-user-tag"></i> Designation</th>
+                                    <th><i class="fas fa-clock"></i> Total Hours</th>
+                                    <th><i class="fas fa-project-diagram"></i> Projects</th>
+                                    <th><i class="fas fa-calendar"></i> Last Activity</th>
+                                    <th><i class="fas fa-chart-line"></i> Performance</th>
+                                    <th><i class="fas fa-cogs"></i> Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for data in employee_data %}
+                                <tr data-department="{{ data.department }}" data-hours="{{ data.total_hours }}">
+                                    <td>{{ data.employee.emp_id }}</td>
+                                    <td>
+                                        <strong>{{ data.employee.name }}</strong><br>
+                                        <small class="text-muted">{{ data.employee.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-info">{{ data.department }}</span>
+                                    </td>
+                                    <td>{{ data.employee.designation or 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ 'success' if data.total_hours > 80 else 'warning' if data.total_hours > 40 else 'secondary' }}">
+                                            {{ "%.1f"|format(data.total_hours) }} hrs
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-primary">{{ data.total_projects }}</span>
+                                    </td>
+                                    <td>
+                                        {% if data.employee.weekly_timesheets %}
+                                            {% set last_timesheet = data.employee.weekly_timesheets|sort(attribute='created_at')|last %}
+                                            {{ last_timesheet.created_at.strftime('%d %b %Y') }}
+                                        {% else %}
+                                            <span class="text-muted">No activity</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if data.total_hours > 0 %}
+                                            {% set avg_hours = data.total_hours / data.total_projects if data.total_projects > 0 else 0 %}
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-{{ 'success' if avg_hours > 40 else 'warning' if avg_hours > 20 else 'danger' }}" 
+                                                     style="width: {{ (avg_hours / 50 * 100)|round }}%">
+                                                    {{ "%.1f"|format(avg_hours) }} hrs/project
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">No data</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="viewEmployeeDetails({{ data.employee.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="viewTimesheets({{ data.employee.id }})">
+                                                <i class="fas fa-clock"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success" 
+                                                    onclick="generateReport({{ data.employee.id }})">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Details Modal -->
+<div class="modal fade" id="employeeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Employee Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="employeeModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentFilter = document.getElementById('department_filter');
+    const hoursFilter = document.getElementById('hours_filter');
+    const roleFilter = document.getElementById('role_filter'); // Added role filter
+    const table = document.getElementById('attendanceTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+    function filterTable() {
+        const selectedDept = departmentFilter.value;
+        const selectedHours = hoursFilter.value;
+        const selectedRole = roleFilter.value; // Get selected role
+
+        for (let row of rows) {
+            const dept = row.getAttribute('data-department');
+            const hours = parseFloat(row.getAttribute('data-hours'));
+            
+            const deptMatch = !selectedDept || dept === selectedDept;
+            let hoursMatch = true;
+            
+            if (selectedHours) {
+                if (selectedHours === '0-40') {
+                    hoursMatch = hours >= 0 && hours <= 40;
+                } else if (selectedHours === '40-80') {
+                    hoursMatch = hours > 40 && hours <= 80;
+                } else if (selectedHours === '80+') {
+                    hoursMatch = hours > 80;
+                }
+            }
+            
+            // Add role filter logic
+            const employeeRole = row.querySelector('td:nth-child(4)').textContent.trim(); // Assuming role is in 4th column
+            const roleMatch = !selectedRole || employeeRole === selectedRole;
+
+            row.style.display = deptMatch && hoursMatch && roleMatch ? '' : 'none';
+        }
+    }
+
+    departmentFilter.addEventListener('change', filterTable);
+    hoursFilter.addEventListener('change', filterTable);
+    roleFilter.addEventListener('change', filterTable); // Add event listener for role filter
+});
+
+function viewEmployeeDetails(employeeId) {
+    const modal = new bootstrap.Modal(document.getElementById('employeeModal'));
+    document.getElementById('employeeModalBody').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading employee details...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Fetch employee details via AJAX
+    fetch(`/api/employee/${employeeId}/details`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const employee = data.employee;
+                document.getElementById('employeeModalBody').innerHTML = `
+                    <div class="employee-details">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Personal Information</h6>
+                                <p><strong>Name:</strong> ${employee.name}</p>
+                                <p><strong>Employee ID:</strong> ${employee.emp_id}</p>
+                                <p><strong>Email:</strong> ${employee.email}</p>
+                                <p><strong>Designation:</strong> ${employee.designation}</p>
+                                <p><strong>Place:</strong> ${employee.place}</p>
+                                <p><strong>Role:</strong> <span class="badge bg-${employee.role_color}">${employee.role}</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Department Information</h6>
+                                <p><strong>Department:</strong> ${employee.department}</p>
+                                <p><strong>Monthly Salary:</strong> ₹${employee.monthly_salary}</p>
+                                <p><strong>Status:</strong> <span class="badge bg-${employee.status_color}">${employee.status}</span></p>
+                                <p><strong>Joined:</strong> ${employee.created_at}</p>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary">Performance Statistics</h6>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h4 class="text-primary">${employee.total_projects}</h4>
+                                            <small>Total Projects</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h4 class="text-success">${employee.completed_tasks}</h4>
+                                            <small>Completed Tasks</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h4 class="text-warning">${employee.pending_tasks}</h4>
+                                            <small>Pending Tasks</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h4 class="text-info">${employee.total_hours}</h4>
+                                            <small>Total Hours</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        ${employee.recent_timesheets.length > 0 ? 
+                        `<hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary">Recent Timesheets</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Week</th>
+                                                <th>Project</th>
+                                                <th>Hours</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${employee.recent_timesheets.map(ts => 
+                                                `<tr>
+                                                    <td>${ts.week}</td>
+                                                    <td>${ts.project}</td>
+                                                    <td>${ts.hours}</td>
+                                                    <td><span class="badge bg-${ts.status_color}">${ts.status}</span></td>
+                                                </tr>`
+                                            ).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                `;
+            } else {
+                document.getElementById('employeeModalBody').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Failed to load employee details.
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('employeeModalBody').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Error loading employee details: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function viewTimesheets(employeeId) {
+    window.location.href = `/hr/timesheets?employee_id=${employeeId}`;
+}
+
+function generateReport(employeeId) {
+    // Generate detailed employee report
+    fetch(`/export/employee/${employeeId}/report`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `csrf_token={{ csrf_token() }}`
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Report generation failed');
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `employee_report_${employeeId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showNotification('Employee report generated successfully', 'success');
+    })
+    .catch(error => {
+        showNotification('Report generation failed: ' + error.message, 'error');
+    });
+}
+
+function exportAttendanceData() {
+    const departmentFilter = document.getElementById('department_filter')?.value || '';
+    const roleFilter = document.getElementById('role_filter')?.value || '';
+    
+    fetch('/export/attendance/excel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `department_filter=${departmentFilter}&role_filter=${roleFilter}&csrf_token={{ csrf_token() }}`
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Export failed');
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showNotification('Attendance data exported successfully', 'success');
+    })
+    .catch(error => {
+        showNotification('Export failed: ' + error.message, 'error');
+    });
+}
+</script>
+{% endblock %} 

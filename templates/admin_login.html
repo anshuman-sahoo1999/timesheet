@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In &bull; EMC Project Monitoring System</title>
+    
+    <!-- Anti-caching & Session Protection -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script>
+        // Prevent Back-button navigation back into protected dashboard sessions
+        (function() {
+            try {
+                sessionStorage.setItem('is_logged_out', 'true');
+                if (window.history && window.history.pushState) {
+                    window.history.pushState(null, document.title, window.location.href);
+                    window.addEventListener('popstate', function() {
+                        window.history.pushState(null, document.title, window.location.href);
+                    });
+                }
+                window.addEventListener('pageshow', function(event) {
+                    if (event.persisted) {
+                        window.location.reload();
+                    }
+                });
+            } catch(e) {}
+        })();
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-green: #0e8749;
+            --brand-green-hover: #0b733d;
+            --brand-green-light: #ecfdf5;
+            --brand-green-glow: rgba(14, 135, 73, 0.16);
+            --text-main: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --border-focus: #0e8749;
+            --input-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --radius-md: 8px;
+            --radius-lg: 16px;
+            --transition-fast: 0.15s ease;
+            --transition-smooth: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--text-main);
+            background: #f8fafc;
+        }
+
+        /* Clean ambient image canvas */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px 16px;
+            background-color: #f1f5f9;
+            background-image: url("{{ url_for('static', filename='pms_login_bg.png') }}");
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
+            position: relative;
+        }
+
+        /* Centered Card Wrapper */
+        .login-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 410px;
+            margin: auto 0;
+            animation: cardAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes cardAppear {
+            from {
+                opacity: 0;
+                transform: translateY(8px) scale(0.99);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Card Surface with crisp glassmorphism */
+        .auth-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            border-radius: var(--radius-lg);
+            padding: 22px 26px 18px;
+            box-shadow: 
+                0 4px 6px -1px rgba(15, 23, 42, 0.06),
+                0 22px 42px -10px rgba(15, 23, 42, 0.25),
+                0 0 0 1px rgba(255, 255, 255, 0.95) inset;
+            transition: box-shadow var(--transition-smooth);
+        }
+
+        .auth-card:hover {
+            box-shadow: 
+                0 6px 12px -2px rgba(15, 23, 42, 0.08),
+                0 26px 50px -10px rgba(15, 23, 42, 0.32),
+                0 0 0 1px rgba(255, 255, 255, 1) inset;
+        }
+
+        /* Brand & Header Section */
+        .brand-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .logo-wrap {
+            margin-bottom: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-logo {
+            height: 34px;
+            width: auto;
+            object-fit: contain;
+            transition: transform var(--transition-smooth);
+        }
+
+        .brand-logo:hover {
+            transform: scale(1.02);
+        }
+
+        .system-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 8px;
+            border-radius: 99px;
+            background: var(--brand-green-light);
+            border: 1px solid rgba(14, 135, 73, 0.18);
+            font-size: 0.67rem;
+            font-weight: 600;
+            color: var(--brand-green);
+            letter-spacing: 0.02em;
+            margin-bottom: 4px;
+        }
+
+        .live-dot {
+            width: 5px;
+            height: 5px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+
+        .card-subtitle {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* Form elements */
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .input-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: var(--input-bg);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            transition: var(--transition-smooth);
+            overflow: hidden;
+            height: 36px;
+        }
+
+        .input-box:focus-within {
+            background: #ffffff;
+            border-color: var(--brand-green);
+            box-shadow: 0 0 0 3px var(--brand-green-glow);
+        }
+
+        .input-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-left: 10px;
+            color: #94a3b8;
+            flex-shrink: 0;
+            pointer-events: none;
+        }
+
+        .input-box:focus-within .input-icon {
+            color: var(--brand-green);
+        }
+
+        .form-control {
+            width: 100%;
+            height: 100%;
+            padding: 0 8px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            color: var(--text-main);
+            background: transparent;
+            border: none;
+            outline: none;
+        }
+
+        .form-control::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .btn-toggle-pw {
+            background: transparent;
+            border: none;
+            padding: 0 8px;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color var(--transition-fast);
+        }
+
+        .btn-toggle-pw:hover {
+            color: var(--text-main);
+        }
+
+        /* Caps Lock Notice */
+        .caps-notice {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: #b45309;
+            background: #fffbeb;
+            border: 1px solid #fef3c7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 1px;
+        }
+
+        /* Options row */
+        .form-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 1px;
+            margin-bottom: 1px;
+        }
+
+        .checkbox-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .checkbox-container input {
+            display: none;
+        }
+
+        .custom-check {
+            width: 15px;
+            height: 15px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 4px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-fast);
+        }
+
+        .checkbox-container input:checked + .custom-check {
+            background: var(--brand-green);
+            border-color: var(--brand-green);
+        }
+
+        .custom-check svg {
+            display: none;
+            stroke: #ffffff;
+            stroke-width: 2.5;
+        }
+
+        .checkbox-container input:checked + .custom-check svg {
+            display: block;
+        }
+
+        .forgot-link {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: var(--brand-green);
+            text-decoration: none;
+            transition: color var(--transition-fast);
+        }
+
+        .forgot-link:hover {
+            color: var(--brand-green-hover);
+            text-decoration: underline;
+        }
+
+        /* Primary Sign In Button */
+        .btn-submit {
+            width: 100%;
+            height: 38px;
+            border: none;
+            border-radius: var(--radius-md);
+            background: linear-gradient(180deg, #0f9350 0%, #0b733d 100%);
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 0.86rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 3px 8px rgba(14, 135, 73, 0.22);
+            transition: all var(--transition-smooth);
+            margin-top: 2px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(14, 135, 73, 0.28);
+            background: linear-gradient(180deg, #109f57 0%, #0c7c42 100%);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(14, 135, 73, 0.18);
+        }
+
+        /* Spinner for loading state */
+        .btn-submit .btn-spinner {
+            display: none;
+            width: 15px;
+            height: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        .btn-submit.loading .btn-text,
+        .btn-submit.loading .btn-arrow {
+            display: none;
+        }
+
+        .btn-submit.loading .btn-spinner {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* SSO Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 10px 0 8px;
+            color: #94a3b8;
+            font-size: 0.66rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        .divider span {
+            padding: 0 8px;
+        }
+
+        /* SSO Button Row */
+        .sso-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .sso-btn {
+            height: 33px;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            color: var(--text-secondary);
+        }
+
+        .sso-btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        .sso-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Alert notifications */
+        .alert-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 7px;
+            padding: 7px 9px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            line-height: 1.35;
+            margin-bottom: 8px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .alert-danger {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fee2e2;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #dcfce7;
+        }
+
+        .alert-info {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #dbeafe;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Center-aligned Legal Footer */
+        .footer-wrap {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 14px;
+            text-align: center;
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 0.72rem;
+            color: #0f172a;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 5px 16px;
+            border-radius: 99px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Modal Dialog */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-panel {
+            background: #ffffff;
+            border-radius: 14px;
+            max-width: 360px;
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes modalPop {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-icon-wrap {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--brand-green-light);
+            color: var(--brand-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 9px;
+        }
+
+        .modal-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 5px;
+        }
+
+        .modal-body {
+            font-size: 0.80rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+            margin-bottom: 16px;
+        }
+
+        .modal-close-btn {
+            width: 100%;
+            height: 34px;
+            border: 1px solid var(--border-light);
+            background: #f8fafc;
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.82rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .modal-close-btn:hover {
+            background: #f1f5f9;
+        }
+
+        /* Device & Mobile Responsiveness */
+        @media (max-width: 640px) {
+            body {
+                padding: 16px 12px;
+                min-height: 100vh;
+                height: auto;
+                background-attachment: scroll;
+            }
+
+            .login-wrapper {
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .auth-card {
+                padding: 20px 18px 16px;
+                border-radius: 14px;
+            }
+
+            .card-title {
+                font-size: 1.22rem;
+            }
+
+            .brand-logo {
+                height: 32px;
+            }
+
+            /* Prevents iOS Safari auto-zoom on form focus */
+            .form-control {
+                font-size: 16px;
+            }
+
+            .footer-note {
+                font-size: 0.68rem;
+                padding: 4px 10px;
+            }
+        }
+
+        @media (max-height: 600px) and (min-width: 641px) {
+            body {
+                padding: 12px 16px;
+                min-height: 100vh;
+                height: auto;
+            }
+            .login-wrapper {
+                margin: auto 0;
+            }
+        }
+
+        /* Desktop/PC Mode Only Live Clock (Plain text, no background card, glassmorphic styled) */
+        .desktop-clock-display {
+            display: none;
+            position: absolute;
+            right: calc(100% + clamp(65px, 6vw, 105px));
+            top: 50%;
+            transform: translateY(-50%);
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+            user-select: none;
+            pointer-events: none;
+            z-index: 2;
+            white-space: nowrap;
+        }
+
+        @media (min-width: 900px) {
+            .desktop-clock-display {
+                display: flex;
+            }
+        }
+
+        .clock-time-line {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .clock-big-time {
+            font-size: clamp(4.4rem, 5.8vw, 6.2rem);
+            font-weight: 800;
+            line-height: 0.90;
+            letter-spacing: -0.04em;
+            color: #ffffff;
+            text-shadow: 
+                0 3px 12px rgba(15, 23, 42, 0.55),
+                0 8px 30px rgba(15, 23, 42, 0.4),
+                0 0 35px rgba(255, 255, 255, 0.35);
+        }
+
+        .clock-ampm {
+            font-size: clamp(1.4rem, 1.9vw, 1.9rem);
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.95);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            text-shadow: 
+                0 2px 8px rgba(15, 23, 42, 0.5),
+                0 5px 18px rgba(15, 23, 42, 0.35);
+        }
+
+        .clock-calendar-line {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-top: 6px;
+        }
+
+        .clock-day-text {
+            font-size: clamp(1.45rem, 1.8vw, 1.9rem);
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.015em;
+            line-height: 1.2;
+            text-shadow: 
+                0 2px 8px rgba(15, 23, 42, 0.5),
+                0 5px 18px rgba(15, 23, 42, 0.3);
+        }
+
+        .clock-date-text {
+            font-size: clamp(1.15rem, 1.45vw, 1.45rem);
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.95);
+            letter-spacing: 0.01em;
+            text-shadow: 
+                0 2px 8px rgba(15, 23, 42, 0.45),
+                0 4px 14px rgba(15, 23, 42, 0.25);
+        }
+    </style>
+</head>
+<body>
+
+    <main class="login-wrapper">
+        <!-- Desktop/PC Mode Only Live Time & Date Display (Left of Form) -->
+        <aside class="desktop-clock-display" aria-label="Current Time and Date">
+            <div class="clock-time-line">
+                <span id="liveClockTime" class="clock-big-time">11:48</span>
+                <span id="liveClockAmPm" class="clock-ampm">AM</span>
+            </div>
+            <div class="clock-calendar-line">
+                <div id="liveClockDay" class="clock-day-text">Wednesday</div>
+                <div id="liveClockDate" class="clock-date-text">21 October 2026</div>
+            </div>
+        </aside>
+
+        <div class="auth-card">
+            
+            <!-- Brand & Heading Header -->
+            <div class="brand-section">
+                <div class="logo-wrap">
+                    <img src="{{ url_for('static', filename='emc_logo_clean.png') }}" alt="EMC - Unlocking Transformation" class="brand-logo">
+                </div>
+                
+                <div class="system-pill">
+                    <span class="live-dot"></span>
+                    <span>Project Monitoring System</span>
+                </div>
+
+                <h1 class="card-title">Welcome back</h1>
+                <p class="card-subtitle">Sign in to your timesheet & project portal</p>
+            </div>
+
+            <!-- Flashed Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        {% if 'Logged Out' not in message and 'Boom' not in message and 'Champ' not in message and 'breather' not in message %}
+                        <div class="alert-box alert-{{ category if category in ['danger', 'success', 'info', 'warning'] else 'danger' }}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <span>{{ message|safe }}</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Login Form -->
+            <form method="POST" action="{{ url_for('login') }}" class="login-form" id="loginForm" autocomplete="on">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Username / Email -->
+                <div class="form-group">
+                    <label for="email" class="form-label">Username / Work Email</label>
+                    <div class="input-box">
+                        <span class="input-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </span>
+                        <input type="text" class="form-control" id="email" name="email" required placeholder="Enter username or work email" autocomplete="username">
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <div class="form-label">
+                        <span>Password</span>
+                    </div>
+                    <div class="input-box">
+                        <span class="input-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </span>
+                        <input type="password" class="form-control" id="password" name="password" required placeholder="•••••••••" autocomplete="current-password">
+                        <button type="button" class="btn-toggle-pw" id="togglePasswordBtn" aria-label="Toggle password visibility">
+                            <svg id="eyeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Caps Lock alert -->
+                    <div class="caps-notice" id="capsNotice">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <span>Caps Lock is ON</span>
+                    </div>
+                </div>
+
+                <!-- Remember Me & Forgot Password -->
+                <div class="form-meta-row">
+                    <label class="checkbox-container">
+                        <input type="checkbox" name="remember" id="remember" checked>
+                        <span class="custom-check">
+                            <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+                                <path d="M1 4L3.8 7L9 1" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <span>Remember me</span>
+                    </label>
+
+                    <a href="javascript:void(0)" class="forgot-link" id="forgotBtn">Forgot password?</a>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <span class="btn-text">Sign In</span>
+                    <svg class="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                    <span class="btn-spinner"></span>
+                </button>
+            </form>
+
+            <!-- Social / SSO Divider -->
+            <div class="divider">
+                <span>or continue with</span>
+            </div>
+
+            <!-- SSO Provider Buttons -->
+            <div class="sso-row">
+                <!-- Microsoft 365 -->
+                <button type="button" class="sso-btn" id="ssoMsBtn" title="Sign in with Microsoft 365" aria-label="Sign in with Microsoft 365">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="2" y="2" width="9" height="9" fill="#F25022"/>
+                        <rect x="13" y="2" width="9" height="9" fill="#7FBA00"/>
+                        <rect x="2" y="13" width="9" height="9" fill="#00A4EF"/>
+                        <rect x="13" y="13" width="9" height="9" fill="#FFB900"/>
+                    </svg>
+                </button>
+
+                <!-- Google Workspace -->
+                <button type="button" class="sso-btn" id="ssoGoogleBtn" title="Sign in with Google Workspace" aria-label="Sign in with Google Workspace">
+                    <svg viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                </button>
+
+                <!-- Enterprise Mail -->
+                <button type="button" class="sso-btn" id="ssoMailBtn" title="Corporate Single Sign-On" aria-label="Corporate Single Sign-On">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                    </svg>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Centered Legal Footer -->
+        <div class="footer-wrap">
+            <div class="footer-note">
+                <span>&copy; <span id="copyrightYear">{{ current_year if current_year is defined else '2026' }}</span> Ecometrix Consultants Pvt. Ltd. All rights reserved.</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Support / Assistance Modal -->
+    <div class="modal-backdrop" id="supportModal" role="dialog" aria-modal="true">
+        <div class="modal-panel">
+            <div class="modal-icon-wrap" id="modalIcon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 16v-4"></path>
+                    <path d="M12 8h.01"></path>
+                </svg>
+            </div>
+            <h3 class="modal-title" id="modalHeading">Account Assistance</h3>
+            <p class="modal-body" id="modalContent">
+                Please contact your PMS Administrator or IT support team at <strong>admin@ecometrix.co.in</strong> for assistance.
+            </p>
+            <button type="button" class="modal-close-btn" id="closeModal">Understood</button>
+        </div>
+    </div>
+
+    <script>
+        // Password Visibility Toggle
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const passwordInput = document.getElementById('password');
+        const eyeIcon = document.getElementById('eyeIcon');
+        const capsNotice = document.getElementById('capsNotice');
+
+        const eyeOpen = `
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        `;
+        const eyeClosed = `
+            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
+            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
+            <line x1="2" y1="2" x2="22" y2="22"></line>
+        `;
+
+        toggleBtn.addEventListener('click', function() {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.innerHTML = eyeClosed;
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.innerHTML = eyeOpen;
+            }
+        });
+
+        // Caps Lock detection
+        passwordInput.addEventListener('keyup', function(e) {
+            if (e.getModifierState && e.getModifierState('CapsLock')) {
+                capsNotice.style.display = 'flex';
+            } else {
+                capsNotice.style.display = 'none';
+            }
+        });
+
+        // Form Submit Loading Feedback
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            try {
+                // Clear logged_out flag when user is submitting credentials to log in
+                sessionStorage.removeItem('is_logged_out');
+            } catch(e) {}
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.classList.add('loading');
+        });
+
+        // Automatically update copyright year at the close of every year (Dec 31 00:00 PM -> Jan 1)
+        function updateCopyrightYear() {
+            const yearEl = document.getElementById('copyrightYear');
+            if (yearEl) {
+                yearEl.textContent = new Date().getFullYear();
+            }
+        }
+        updateCopyrightYear();
+        // Check periodically so the year changes seamlessly when crossing midnight on Dec 31
+        setInterval(updateCopyrightYear, 60000);
+
+        // Modal Handlers
+        const modal = document.getElementById('supportModal');
+        const modalHeading = document.getElementById('modalHeading');
+        const modalContent = document.getElementById('modalContent');
+        const closeModal = document.getElementById('closeModal');
+
+        function openModal(heading, contentHtml) {
+            modalHeading.textContent = heading;
+            modalContent.innerHTML = contentHtml;
+            modal.style.display = 'flex';
+        }
+
+        {% if blocked_modal %}
+        window.addEventListener('DOMContentLoaded', function() {
+            const iconWrap = document.getElementById('modalIcon');
+            if (iconWrap) {
+                iconWrap.style.background = '#fee2e2';
+                iconWrap.style.color = '#ef4444';
+                iconWrap.innerHTML = '<i class="fas fa-user-lock" style="font-size: 20px;"></i>';
+            }
+            openModal(
+                'Access Blocked',
+                '<div style="text-align: center; padding: 4px 0;">' +
+                '<p style="font-size: 0.96rem; font-weight: 700; color: #dc2626; margin-bottom: 12px; line-height: 1.5;">You\'ve been blocked by the HR Admin. To unblock please reach to the HR Department.</p>' +
+                '<div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; font-size: 0.80rem; color: #7f1d1d; text-align: left; margin-bottom: 8px;">' +
+                '<strong>Employee Account:</strong> {{ blocked_employee_name }}<br>' +
+                '<strong>Status:</strong> Temporarily Blocked by HR Admin<br>' +
+                '<strong>Assistance:</strong> Contact HR Administration directly.' +
+                '</div>' +
+                '</div>'
+            );
+        });
+        {% elif resigned_modal %}
+        window.addEventListener('DOMContentLoaded', function() {
+            const iconWrap = document.getElementById('modalIcon');
+            if (iconWrap) {
+                iconWrap.style.background = '#fef3c7';
+                iconWrap.style.color = '#d97706';
+                iconWrap.innerHTML = '<i class="fas fa-user-slash" style="font-size: 20px;"></i>';
+            }
+            openModal(
+                'Account Archived',
+                '<div style="text-align: center; padding: 4px 0;">' +
+                '<p style="font-size: 0.94rem; font-weight: 600; color: #b45309; margin-bottom: 12px; line-height: 1.5;">This employee account has been marked as Resigned and archived. Access has been suspended.</p>' +
+                '<p style="font-size: 0.80rem; color: #64748b; margin: 0;">Please contact the HR Department if you require access to historical records or separation documentation.</p>' +
+                '</div>'
+            );
+        });
+        {% endif %}
+
+        document.getElementById('forgotBtn').addEventListener('click', function() {
+            openModal(
+                'Password Assistance',
+                'For security, password resets are handled centrally. Please contact your IT Helpdesk or Administrator at <strong>admin@ecometrix.co.in</strong> to reset your access.'
+            );
+        });
+
+        const showSSOInfo = (provider) => {
+            openModal(
+                `${provider} Sign-In`,
+                `Single Sign-On with <strong>${provider}</strong> is enabled for corporate accounts. Please use your registered <strong>@ecometrix.co.in</strong> enterprise identity.`
+            );
+        };
+
+        document.getElementById('ssoMsBtn').addEventListener('click', () => showSSOInfo('Microsoft 365'));
+        document.getElementById('ssoGoogleBtn').addEventListener('click', () => showSSOInfo('Google Workspace'));
+        document.getElementById('ssoMailBtn').addEventListener('click', () => showSSOInfo('Corporate Mail'));
+
+        // Desktop Live Clock: updates time, day, and date in real-time
+        function updateLiveDesktopClock() {
+            const now = new Date();
+            
+            // 12-hour format with AM/PM
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const hoursFormatted = String(hours).padStart(2, '0');
+            
+            const timeEl = document.getElementById('liveClockTime');
+            const ampmEl = document.getElementById('liveClockAmPm');
+            if (timeEl) timeEl.textContent = `${hoursFormatted}:${minutes}`;
+            if (ampmEl) ampmEl.textContent = ampm;
+            
+            // Day of the week
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayEl = document.getElementById('liveClockDay');
+            if (dayEl) dayEl.textContent = dayNames[now.getDay()];
+            
+            // Full Date format: Day Month Year (e.g. 21 October 2026)
+            const monthNames = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            const dateEl = document.getElementById('liveClockDate');
+            if (dateEl) {
+                dateEl.textContent = `${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+            }
+        }
+        updateLiveDesktopClock();
+        setInterval(updateLiveDesktopClock, 1000);
+
+        closeModal.addEventListener('click', function() {
+            modal.style.display = 'none';
+        });
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

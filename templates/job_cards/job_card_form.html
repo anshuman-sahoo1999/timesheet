@@ -1,0 +1,642 @@
+{% extends "layout.html" %}
+
+{% block title %}Manage Job Card - PMS{% endblock %}
+
+{% block content %}
+<script type="text/javascript">
+  var INDENT_ID = {{ indent.id|int }};
+</script>
+<div class="container-fluid">
+    <h1 class="mt-4">Job Card: {{ indent.project_name }}</h1>
+    <form method="POST" onsubmit="document.getElementById('estimated_value').value = document.getElementById('total-budget').textContent; return true;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" id="estimated_value" name="estimated_value" value="0.00"/>
+        <!-- Project Details Section -->
+        <div class="card mb-4">
+            <div class="card-header">Project Details</div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Project Name:</strong> {{ indent.project_name }}</div>
+                    <div class="col-md-4"><strong>Department:</strong> {{ indent.department.name }}</div>
+                    <div class="col-md-4"><strong>Project Code:</strong> {{ indent.file_number }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Client Name:</strong> {{ indent.client_name }}</div>
+                    <div class="col-md-4"><strong>Contract Start Date:</strong> {{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }}</div>
+                    <div class="col-md-4"><strong>Contract End Date:</strong> {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        <!-- Add Scope and Deliverables fields below Project Details -->
+        <div class="card mb-4">
+            <div class="card-header">Scope & Deliverables</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="scope" class="form-label">Scope of Work</label>
+                    <textarea class="form-control" id="scope" name="scope" rows="2" required>{{ job_card.scope if job_card else '' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="deliverables" class="form-label">Deliverables</label>
+                    <textarea class="form-control" id="deliverables" name="deliverables" rows="2" required>{{ job_card.deliverables if job_card else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+        <!-- Scheduling Section -->
+        <div class="card mb-4">
+            <div class="card-header">Scheduling</div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        <label for="project_start_date" class="form-label">Project Start Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="project_start_date" name="project_start_date" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="project_end_date" class="form-label">Project End Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="project_end_date" name="project_end_date" required>
+                    </div>
+                </div>
+                <div class="row mb-2" id="schedule-alert-row" style="display:none;">
+                    <div class="col-12">
+                        <div class="alert alert-danger blink" id="schedule-alert">
+                            Project End Date exceeds Contract End Date! Please provide justification below.
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-2" id="justification-row" style="display:none;">
+                    <div class="col-12">
+                        <label for="justification" class="form-label">Justification (required if exceeding contract date)</label>
+                        <textarea class="form-control" id="justification" name="justification" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Team Assignment Section -->
+        <div class="card mb-4">
+            <div class="card-header">Team Assignment</div>
+            <div class="card-body">
+                <div id="team-container"></div>
+                <button type="button" id="add-team-btn" class="btn btn-secondary mt-2">Add Team Member</button>
+            </div>
+        </div>
+        <!-- Budgeting Section -->
+        <div class="card mb-4">
+            <div class="card-header">Budgeting</div>
+            <div class="card-body">
+                <div class="table-responsive" id="budget-table-container">
+                    <table class="table table-bordered" id="budget-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Amount (₹)</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="budget-tbody">
+                            <!-- Budget rows will be added here -->
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" id="add-budget-row-btn" class="btn btn-secondary mt-2">Add Budget Item</button>
+                <div class="mt-3">
+                    <strong>Subtotal: ₹<span id="subtotal-budget">0.00</span></strong><br>
+                    <strong>Total Budget (with 20% overhead): ₹<span id="total-budget">0.00</span></strong>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4 d-flex flex-column flex-sm-row gap-2">
+            <button type="submit" class="btn btn-success px-4 py-2">Save and Submit for Approval</button>
+            <a href="{{ url_for('pm_projects') }}" class="btn btn-light border px-4 py-2 text-center">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Scheduling validation
+    const contractEndDateStr = "{{ indent.contract_end_date.strftime('%Y-%m-%d') if indent.contract_end_date else '' }}";
+    const contractEndDate = contractEndDateStr ? new Date(contractEndDateStr) : null;
+    const projectEndDateInput = document.getElementById('project_end_date');
+    const scheduleAlertRow = document.getElementById('schedule-alert-row');
+    const justificationRow = document.getElementById('justification-row');
+    const justificationInput = document.getElementById('justification');
+
+    function checkSchedule() {
+        if (!projectEndDateInput.value || !contractEndDate) return;
+        const projectEndDate = new Date(projectEndDateInput.value);
+        if (projectEndDate > contractEndDate) {
+            scheduleAlertRow.style.display = '';
+            justificationRow.style.display = '';
+            justificationInput.required = true;
+        } else {
+            scheduleAlertRow.style.display = 'none';
+            justificationRow.style.display = 'none';
+            justificationInput.required = false;
+        }
+    }
+    if (projectEndDateInput) {
+        projectEndDateInput.addEventListener('change', checkSchedule);
+        checkSchedule();
+    }
+
+    // Team Assignment Section
+    let teamIdx = 0;
+    const teamContainer = document.getElementById('team-container');
+    const addTeamBtn = document.getElementById('add-team-btn');
+    function createTeamRow() {
+        const row = document.createElement('div');
+        row.classList.add('row', 'g-2', 'mb-3', 'p-2', 'p-md-3', 'border', 'rounded', 'bg-light', 'align-items-end', 'team-row');
+        row.innerHTML = `
+            <div class="col-12 col-md-3">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Task Description</label>
+                <input type="text" name="task_desc_${teamIdx}" class="form-control task-desc" placeholder="Describe the task" required>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Employee</label>
+                <select name="team_member_${teamIdx}" class="form-select team-member" required>
+                    <option value="">Select Employee</option>
+                    {% for emp in all_employees %}
+                    <option value="{{ emp.id }}" data-salary="{{ emp.monthly_salary or 0 }}">{{ emp.name }} ({{ emp.designation }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Man Days</label>
+                <input type="number" name="man_days_${teamIdx}" class="form-control man-days-input" min="1" value="1" required>
+            </div>
+            <div class="col-6 col-md-1">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Hours</label>
+                <input type="number" name="man_hours_${teamIdx}" class="form-control man-hours-output" value="8" readonly>
+            </div>
+            <div class="col-8 col-md-2">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Start Date</label>
+                <input type="date" name="timeline_start_${teamIdx}" class="form-control timeline-start" required min="{{ indent.contract_start_date.strftime('%Y-%m-%d') if indent.contract_start_date else '' }}" max="{{ indent.contract_end_date.strftime('%Y-%m-%d') if indent.contract_end_date else '' }}">
+            </div>
+            <div class="col-4 col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm w-100 remove-team-btn py-2">
+                    <i class="fas fa-trash-alt d-md-none me-1"></i>Del
+                </button>
+            </div>
+        `;
+        teamContainer.appendChild(row);
+        // Man hours auto-calc
+        const manDaysInput = row.querySelector('.man-days-input');
+        const manHoursOutput = row.querySelector('.man-hours-output');
+        manDaysInput.addEventListener('input', function() {
+            manHoursOutput.value = parseInt(this.value) * 8;
+        });
+        // Prevent duplicate team assignments and check occupancy
+        row.querySelector('.team-member').addEventListener('change', function() {
+            const selectedEmp = this.value;
+            const selectedTask = row.querySelector('.task-desc').value;
+            const startDate = row.querySelector('.timeline-start').value;
+            const endDate = row.querySelector('.timeline-end').value;
+            
+            // Check for duplicate assignments
+            document.querySelectorAll('.team-row').forEach(r => {
+                if (r !== row && r.querySelector('.team-member').value === selectedEmp && r.querySelector('.task-desc').value === selectedTask) {
+                    alert('This employee is already assigned to this task!');
+                    this.value = '';
+                    return;
+                }
+            });
+            
+            // Check occupancy if employee and dates are selected
+            if (selectedEmp && startDate && endDate) {
+                checkEmployeeOccupancy(selectedEmp, startDate, endDate, this);
+            }
+        });
+        
+        // Check occupancy when dates change
+        row.querySelector('.timeline-start').addEventListener('change', function() {
+            const selectedEmp = row.querySelector('.team-member').value;
+            const startDate = this.value;
+            const endDate = row.querySelector('.timeline-end').value;
+            
+            if (selectedEmp && startDate && endDate) {
+                checkEmployeeOccupancy(selectedEmp, startDate, endDate, row.querySelector('.team-member'));
+            }
+        });
+        
+        row.querySelector('.timeline-end').addEventListener('change', function() {
+            const selectedEmp = row.querySelector('.team-member').value;
+            const startDate = row.querySelector('.timeline-start').value;
+            const endDate = this.value;
+            
+            if (selectedEmp && startDate && endDate) {
+                checkEmployeeOccupancy(selectedEmp, startDate, endDate, row.querySelector('.team-member'));
+            }
+        });
+        teamIdx++;
+    }
+    if (addTeamBtn && teamContainer) {
+        addTeamBtn.addEventListener('click', createTeamRow);
+        teamContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-team-btn')) {
+                e.target.closest('.team-row').remove();
+            }
+        });
+        teamContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('save-add-another-btn')) {
+                const row = e.target.closest('.team-row');
+                const taskDesc = row.querySelector('.task-desc').value;
+                const teamMember = row.querySelector('.team-member').value;
+                const manDays = row.querySelector('.man-days-input').value;
+                const manHours = row.querySelector('.man-hours-output').value;
+                const startDate = row.querySelector('.timeline-start').value;
+                const endDate = row.querySelector('.timeline-end').value;
+                if (!taskDesc || !teamMember || !manDays || !manHours || !startDate || !endDate) {
+                    alert('Please fill all fields before saving.');
+                    return;
+                }
+                let indentId = INDENT_ID;
+                if (!indentId) {
+                    alert('Could not determine indent ID.');
+                    return;
+                }
+                fetch(`/job-card/${indentId}/add-task`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({
+                        task_desc: taskDesc,
+                        team_member: teamMember,
+                        man_days: manDays,
+                        man_hours: manHours,
+                        timeline_start: startDate,
+                        timeline_end: endDate
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Clear the row for new entry
+                        row.querySelector('.task-desc').value = '';
+                        row.querySelector('.team-member').selectedIndex = 0;
+                        row.querySelector('.man-days-input').value = 1;
+                        row.querySelector('.man-hours-output').value = 8;
+                        row.querySelector('.timeline-start').value = '';
+                        row.querySelector('.timeline-end').value = '';
+                        alert('Team assignment saved!');
+                        updateAssignmentTable();
+                    } else {
+                        alert('Error: ' + (data.error || JSON.stringify(data) || 'Could not save assignment.'));
+                    }
+                })
+                .catch(() => alert('Error: Could not save assignment.'));
+            }
+        });
+        teamContainer.addEventListener('input', function(e) {
+            const row = e.target.closest('.team-row');
+            if (!row) return;
+            const manDaysInput = row.querySelector('.man-days-input');
+            const manHoursInput = row.querySelector('.man-hours-output');
+            const startDateInput = row.querySelector('.timeline-start');
+            const endDateInput = row.querySelector('.timeline-end');
+            const manDays = parseInt(manDaysInput.value) || 1;
+            manHoursInput.value = manDays * 8;
+            // Auto-calculate end date if start date is set
+            if (startDateInput.value) {
+                const startDate = new Date(startDateInput.value);
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + manDays - 1);
+                endDateInput.value = endDate.toISOString().slice(0, 10);
+            }
+        });
+        // Add one team row by default
+        if (teamContainer.children.length === 0) {
+            createTeamRow();
+        }
+    } else {
+        console.error('Team Assignment DOM elements not found.');
+    }
+
+    // Function to check employee occupancy
+    function checkEmployeeOccupancy(employeeId, startDate, endDate, selectElement) {
+        fetch('/api/check-employee-occupancy', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify({
+                employee_id: employeeId,
+                start_date: startDate,
+                end_date: endDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.occupancy.is_occupied) {
+                // Show warning modal
+                showOccupancyWarning(data.occupancy.message, selectElement);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking occupancy:', error);
+        });
+    }
+
+    // Function to show occupancy warning modal
+    function showOccupancyWarning(message, selectElement) {
+        const modalHtml = `
+            <div class="modal fade" id="occupancyWarningModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Employee Occupancy Warning
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-3"><strong>Warning:</strong></p>
+                            <p class="text-muted">${message}</p>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                This employee is already assigned to another project during this timeline.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-2"></i>Cancel Assignment
+                            </button>
+                            <button type="button" class="btn btn-warning" onclick="proceedWithAssignment()">
+                                <i class="fas fa-check me-2"></i>Proceed Anyway
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('occupancyWarningModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('occupancyWarningModal'));
+        modal.show();
+        
+        // Store reference to select element for later use
+        window.currentOccupancySelect = selectElement;
+    }
+
+    // Function to proceed with assignment despite occupancy warning
+    function proceedWithAssignment() {
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('occupancyWarningModal'));
+        modal.hide();
+        
+        // Show success message
+        showAlert('Assignment will proceed despite occupancy warning.', 'warning');
+    }
+
+    // Function to show alerts
+    function showAlert(message, type = 'info') {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        // Add alert to the top of the form
+        const form = document.querySelector('form');
+        form.insertAdjacentHTML('afterbegin', alertHtml);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+
+    // Budgeting Section
+    let budgetIdx = 0;
+    const budgetTbody = document.getElementById('budget-tbody');
+    const addBudgetBtn = document.getElementById('add-budget-row-btn');
+    const totalBudgetSpan = document.getElementById('total-budget');
+    const subtotalBudgetSpan = document.getElementById('subtotal-budget');
+    const budgetCategories = [
+        'Manpower',
+        'Survey',
+        'Local Transportation',
+        'Accommodation',
+        'Air Travel',
+        'Printing & Stationaries',
+        'Others'
+    ];
+    function createBudgetRow(category = '', description = '', amount = '') {
+        const row = document.createElement('tr');
+        row.classList.add('budget-row');
+        row.innerHTML = `
+            <td>
+                <select name="budget_category_${budgetIdx}" class="form-select budget-category" ${category === 'Manpower' ? 'readonly' : ''}>
+                    <option value="">Select Category</option>
+                    ${budgetCategories.map(cat => `<option value="${cat}" ${cat === category ? 'selected' : ''}>${cat}</option>`).join('')}
+                </select>
+            </td>
+            <td>
+                <input type="text" name="budget_description_${budgetIdx}" class="form-control budget-description" value="${description}" placeholder="Enter description">
+            </td>
+            <td>
+                <input type="number" name="budget_amount_${budgetIdx}" class="form-control budget-amount" value="${amount}" min="0" step="0.01" placeholder="0.00">
+            </td>
+            <td>
+                <button type="button" class="btn btn-danger btn-sm remove-budget-btn">Remove</button>
+            </td>
+        `;
+        budgetTbody.appendChild(row);
+        budgetIdx++;
+        calculateTotalBudget();
+    }
+    function calculateManpowerCost() {
+        let totalManpowerCost = 0;
+        const teamRows = document.querySelectorAll('.team-row');
+        teamRows.forEach(row => {
+            const employeeSelect = row.querySelector('select[name^="team_member_"]');
+            const manDaysInput = row.querySelector('input[name^="man_days_"]');
+            if (employeeSelect && manDaysInput && employeeSelect.value) {
+                const employeeId = employeeSelect.value;
+                const manDays = parseInt(manDaysInput.value) || 0;
+                const employeeOption = employeeSelect.querySelector(`option[value="${employeeId}"]`);
+                const salaryText = employeeOption ? employeeOption.getAttribute('data-salary') : '0';
+                const salary = parseFloat(salaryText) || 0;
+                const dailyRate = (salary / 30) * 1.2;
+                const manpowerCost = dailyRate * manDays;
+                totalManpowerCost += manpowerCost;
+            }
+        });
+        return totalManpowerCost;
+    }
+    function updateManpowerRow() {
+        const manpowerRow = Array.from(document.querySelectorAll('.budget-row')).find(row => {
+            const catSel = row.querySelector('.budget-category');
+            return catSel && catSel.value === 'Manpower';
+        });
+        if (manpowerRow) {
+            const amountInput = manpowerRow.querySelector('.budget-amount');
+            const manpowerCost = calculateManpowerCost();
+            amountInput.value = manpowerCost.toFixed(2);
+            calculateTotalBudget();
+        }
+    }
+    function calculateTotalBudget() {
+        let subtotal = 0;
+        const amountInputs = document.querySelectorAll('.budget-amount');
+        amountInputs.forEach(input => {
+            subtotal += parseFloat(input.value) || 0;
+        });
+        document.getElementById('subtotal-budget').textContent = subtotal.toFixed(2);
+        const total = subtotal * 1.2;
+        document.getElementById('total-budget').textContent = total.toFixed(2);
+        // Update hidden estimated_value field
+        const estimatedValueInput = document.getElementById('estimated_value');
+        if (estimatedValueInput) {
+            estimatedValueInput.value = total.toFixed(2);
+        }
+    }
+    if (addBudgetBtn && budgetTbody) {
+        addBudgetBtn.addEventListener('click', () => createBudgetRow());
+        budgetTbody.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-budget-btn')) {
+                e.target.closest('.budget-row').remove();
+                calculateTotalBudget();
+            }
+        });
+        budgetTbody.addEventListener('input', function(e) {
+            if (e.target.classList.contains('budget-amount')) {
+                calculateTotalBudget();
+            }
+        });
+        // Update manpower cost when team assignment changes
+        teamContainer.addEventListener('input', function(e) {
+            if (e.target.classList.contains('man-days-input') || e.target.classList.contains('timeline-start')) {
+                updateManpowerRow();
+            }
+        });
+        // Add initial budget rows
+        createBudgetRow('Manpower', 'Team manpower cost (auto-calculated)', '0.00');
+        createBudgetRow('Survey', '', '');
+        createBudgetRow('Local Transportation', '', '');
+        createBudgetRow('Accommodation', '', '');
+        createBudgetRow('Air Travel', '', '');
+        createBudgetRow('Printing & Stationaries', '', '');
+        createBudgetRow('Others', '', '');
+        updateManpowerRow();
+    } else {
+        console.error('Budgeting DOM elements not found.');
+    }
+
+    // Add a table to display current assignments
+    const assignmentTableContainer = document.createElement('div');
+    assignmentTableContainer.innerHTML = `
+        <div class="mt-4">
+            <h5>Current Team Assignments</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered" id="assignmentTable">
+                    <thead>
+                        <tr>
+                            <th>Assignee Name</th>
+                            <th>Task Description</th>
+                            <th>Man Days</th>
+                            <th>Man Hours</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    teamContainer.parentNode.appendChild(assignmentTableContainer);
+
+    // Function to fetch and update the assignment table
+    function updateAssignmentTable() {
+        let indentId = INDENT_ID;
+        if (!indentId) return;
+        fetch(`/job-card/${indentId}/assignments`)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.querySelector('#assignmentTable tbody');
+                tbody.innerHTML = '';
+                let totalManpowerCost = 0;
+                if (data.assignments && data.assignments.length > 0) {
+                    data.assignments.forEach(a => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${a.assignee_name}</td>
+                            <td>${a.task_description}</td>
+                            <td>${a.man_days}</td>
+                            <td>${a.man_hours}</td>
+                            <td>${a.start_date}</td>
+                            <td>${a.end_date}</td>
+                            <td><button class='btn btn-danger btn-sm delete-assignment-btn' data-task-id='${a.task_id}'>Delete</button></td>
+                        `;
+                        tbody.appendChild(tr);
+                        // Calculate manpower cost using salary-based formula
+                        const monthlySalary = parseFloat(a.monthly_salary) || 0;
+                        const dailyRate = (monthlySalary / 30) * 1.2;
+                        const manpowerCost = dailyRate * (parseInt(a.man_days) || 0);
+                        totalManpowerCost += manpowerCost;
+                    });
+                } else {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = '<td colspan="7" class="text-center">No assignments yet.</td>';
+                    tbody.appendChild(tr);
+                }
+                // Update Manpower budget row (if present)
+                const manpowerRow = Array.from(document.querySelectorAll('.budget-row')).find(row => {
+                    const catSel = row.querySelector('.budget-category');
+                    return catSel && catSel.value === 'Manpower';
+                });
+                if (manpowerRow) {
+                    const amountInput = manpowerRow.querySelector('.budget-amount');
+                    amountInput.value = totalManpowerCost.toFixed(2);
+                    calculateTotalBudget();
+                }
+            });
+    }
+    // Call once on page load
+    updateAssignmentTable();
+
+    // Handle delete assignment
+    assignmentTableContainer.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-assignment-btn')) {
+            const taskId = e.target.getAttribute('data-task-id');
+            if (confirm('Are you sure you want to delete this assignment?')) {
+                let indentId = INDENT_ID;
+                if (!indentId) return;
+                fetch(`/job-card/${indentId}/delete-assignment/${taskId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        updateAssignmentTable();
+                    } else {
+                        alert('Error: ' + (data.error || 'Could not delete assignment.'));
+                    }
+                });
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

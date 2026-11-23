@@ -1,0 +1,190 @@
+{% extends "layout.html" %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Notifications</h2>
+        <button type="button" class="btn btn-outline-secondary" onclick="markAllAsRead()">
+            <i class="fas fa-check-double"></i> Mark All as Read
+        </button>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if notifications.items %}
+        <div class="notifications-list">
+            {% for notification in notifications.items %}
+            <div class="card mb-3 notification-card {% if not notification.is_read %}border-primary{% endif %}" 
+                 data-notification-id="{{ notification.id }}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-1">
+                                {% if not notification.is_read %}
+                                    <span class="badge bg-primary me-2">New</span>
+                                {% endif %}
+                                {{ notification.title }}
+                            </h6>
+                            <p class="card-text text-muted mb-2">{{ notification.message }}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-clock"></i> {{ notification.created_at.strftime('%d %b %Y %H:%M') }}
+                            </small>
+                        </div>
+                        <div class="notification-actions">
+                            {% if not notification.is_read %}
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="markAsRead({{ notification.id }})">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="deleteNotification({{ notification.id }})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if notifications.pages > 1 %}
+        <nav aria-label="Notification pagination">
+            <ul class="pagination justify-content-center">
+                {% if notifications.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('notifications', page=notifications.prev_num) }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in notifications.iter_pages() %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == notifications.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('notifications', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if notifications.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('notifications', page=notifications.next_num) }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-info text-center">
+            <i class="fas fa-bell-slash fa-3x mb-3"></i>
+            <h5>No notifications</h5>
+            <p class="mb-0">You're all caught up! No new notifications at the moment.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function markAsRead(notificationId) {
+    fetch(`/notifications/mark-read/${notificationId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const notificationCard = document.querySelector(`[data-notification-id="${notificationId}"]`);
+            notificationCard.classList.remove('border-primary');
+            notificationCard.querySelector('.badge').remove();
+            notificationCard.querySelector('.btn-outline-primary').remove();
+        }
+    })
+    .catch(error => {
+        console.error('Error marking notification as read:', error);
+    });
+}
+
+function markAllAsRead() {
+    const unreadNotifications = document.querySelectorAll('.notification-card.border-primary');
+    const promises = Array.from(unreadNotifications).map(card => {
+        const notificationId = card.getAttribute('data-notification-id');
+        return fetch(`/notifications/mark-read/${notificationId}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            }
+        });
+    });
+    
+    Promise.all(promises)
+        .then(() => {
+            unreadNotifications.forEach(card => {
+                card.classList.remove('border-primary');
+                const badge = card.querySelector('.badge');
+                if (badge) badge.remove();
+                const markReadBtn = card.querySelector('.btn-outline-primary');
+                if (markReadBtn) markReadBtn.remove();
+            });
+        })
+        .catch(error => {
+            console.error('Error marking all notifications as read:', error);
+        });
+}
+
+function deleteNotification(notificationId) {
+    if (confirm('Are you sure you want to delete this notification?')) {
+        fetch(`/notifications/delete/${notificationId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const notificationCard = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                notificationCard.remove();
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting notification:', error);
+        });
+    }
+}
+</script>
+
+<style>
+.notification-card {
+    transition: all 0.3s ease;
+}
+
+.notification-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.notification-card.border-primary {
+    border-left: 4px solid #007bff !important;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.notification-actions .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %} 

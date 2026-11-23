@@ -1,0 +1,1286 @@
+{% extends "layout.html" %}
+
+{% block title %}Project Manager Dashboard - PMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pm-chart-card {
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+    }
+    .pm-chart-card .card-header {
+        background: #ffffff;
+        border-bottom: 1px solid #f1f5f9;
+        padding: 14px 20px;
+    }
+    .pm-chart-card .card-body {
+        padding: 16px 20px;
+        height: 290px;
+        max-height: 290px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+    .chart-box-wrapper {
+        position: relative;
+        height: 250px;
+        max-height: 250px;
+        width: 100%;
+    }
+    .roadmap-project-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+    .roadmap-project-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+    }
+    .roadmap-header-row {
+        padding: 14px 18px;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        user-select: none;
+    }
+    .roadmap-header-row:hover {
+        background: #f1f5f9;
+    }
+    .roadmap-toggle-btn {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        color: #3b82f6;
+    }
+    .roadmap-header-row:hover .roadmap-toggle-btn {
+        background: #eff6ff;
+        border-color: #3b82f6;
+    }
+    .roadmap-chevron-icon {
+        transition: transform 0.25s ease;
+    }
+    .roadmap-project-card.is-expanded .roadmap-chevron-icon {
+        transform: rotate(180deg);
+    }
+    .roadmap-project-card.is-expanded .roadmap-header-row {
+        background: #f1f5f9;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .roadmap-details-body {
+        padding: 18px 20px;
+        background: #ffffff;
+    }
+    .milestone-pill-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        flex: 1;
+        min-width: 220px;
+        max-width: 320px;
+        transition: transform 0.15s ease;
+    }
+    .milestone-pill-card:hover {
+        transform: translateY(-2px);
+    }
+    .milestone-pill-card.status-completed {
+        border-color: #a7f3d0;
+        background: #f0fdf4;
+    }
+    .milestone-pill-card.status-inprogress {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+    }
+    .milestone-pill-card.status-pending {
+        border-color: #fef08a;
+        background: #fefce8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Pending CEO Approval Alert Banner -->
+    {% if pending_job_cards and pending_job_cards > 0 %}
+    <div class="alert alert-warning border-warning shadow-sm rounded-3 d-flex align-items-center justify-content-between p-3 mb-4" data-aos="fade-down">
+        <div class="d-flex align-items-center">
+            <div class="p-2 bg-warning text-dark rounded-circle me-3 shadow-sm">
+                <i class="fas fa-hourglass-half fa-lg"></i>
+            </div>
+            <div>
+                <h6 class="alert-heading mb-1 fw-bold text-dark">
+                    Job Card & Budget Estimate Pending CEO Approval ({{ pending_job_cards }})
+                </h6>
+                <div class="small text-muted">
+                    You have submitted the Job Card and budget estimation to the CEO / MD. Tasks and timesheet logging will automatically unlock for team members once executive approval is granted.
+                </div>
+            </div>
+        </div>
+        <a href="{{ url_for('pm_manage_job_cards') }}" class="btn btn-sm btn-warning text-dark fw-bold px-3">
+            <i class="fas fa-tasks me-1"></i>Track Job Cards
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4" data-aos="fade-up">
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="kpi-value">{{ pm_projects|length }}</div>
+                        <div class="kpi-label">Total Projects</div>
+                    </div>
+                    <i class="fas fa-project-diagram fa-2x opacity-75 d-none d-sm-block"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="kpi-value">{{ completed_count }}</div>
+                        <div class="kpi-label">Completed</div>
+                    </div>
+                    <i class="fas fa-check-circle fa-2x opacity-75 d-none d-sm-block"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="kpi-value">{{ in_progress_count }}</div>
+                        <div class="kpi-label">Active Projects</div>
+                    </div>
+                    <i class="fas fa-spinner fa-2x opacity-75 d-none d-sm-block"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="kpi-value">{{ team_members|length }}</div>
+                        <div class="kpi-label">Team Members</div>
+                    </div>
+                    <i class="fas fa-users fa-2x opacity-75 d-none d-sm-block"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Overview Chart & Team Performance -->
+    <div class="row g-3 mb-4" data-aos="fade-up">
+        <div class="col-12 col-md-6">
+            <div class="card pm-chart-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fs-6 fw-bold text-dark">
+                        <i class="fas fa-chart-pie text-success me-2"></i>My Project Overview
+                    </h5>
+                    <span class="badge bg-light text-muted border">Live Status</span>
+                </div>
+                <div class="card-body">
+                    {% set total_overview = completed_count + in_progress_count + pending_count + on_hold_count %}
+                    {% if total_overview == 0 %}
+                    <div class="d-flex flex-column align-items-center justify-content-center text-muted h-100 py-3 text-center">
+                        <i class="fas fa-chart-pie fa-3x mb-2 text-secondary opacity-50"></i>
+                        <div class="fw-semibold small">No Project Status Data</div>
+                        <small class="text-secondary">Project distributions will appear once status is recorded.</small>
+                    </div>
+                    {% else %}
+                    <div class="chart-box-wrapper">
+                        <canvas id="projectOverviewChart"></canvas>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="card pm-chart-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fs-6 fw-bold text-dark">
+                        <i class="fas fa-chart-bar text-primary me-2"></i>Team Performance
+                    </h5>
+                    <span class="badge bg-light text-muted border">Completion Rate</span>
+                </div>
+                <div class="card-body">
+                    {% if team_performance|length == 0 %}
+                    <div class="d-flex flex-column align-items-center justify-content-center text-muted h-100 py-3 text-center">
+                        <i class="fas fa-user-clock fa-3x mb-2 text-secondary opacity-50"></i>
+                        <div class="fw-semibold small">No Team Members Assigned Yet</div>
+                        <small class="text-secondary" style="max-width: 280px;">Team completion performance will automatically display here once tasks are allocated.</small>
+                    </div>
+                    {% else %}
+                    <div class="chart-box-wrapper">
+                        <canvas id="teamPerformanceChart"></canvas>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Milestone & Project Schedule Roadmap Section -->
+    <div class="row mb-4" data-aos="fade-up">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 14px; background: #ffffff; border: 1px solid #e2e8f0 !important; overflow: hidden;">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="p-2 rounded-3 bg-primary-subtle text-primary">
+                            <i class="fas fa-stream"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fs-6 fw-bold text-dark">
+                                Milestone & Project Schedule Roadmap
+                            </h5>
+                            <small class="text-muted">High-level contract timeline, milestone deliverables, and completion status</small>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleAllRoadmapsBtn" onclick="toggleAllRoadmaps()" style="font-size: 0.78rem; border-radius: 6px;">
+                            <i class="fas fa-expand-alt me-1"></i>Expand All
+                        </button>
+                        <span class="badge bg-light text-muted border px-2 py-1 small">
+                            <i class="far fa-calendar text-primary me-1"></i>Today: {{ today_date.strftime('%d-%b-%Y') if today_date else 'Active' }}
+                        </span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 small" id="roadmapTotalCountBadge">
+                            {{ pm_roadmap|length }} Managed Project{{ 's' if pm_roadmap|length != 1 else '' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-3 p-md-4">
+                    {% if pm_roadmap|length == 0 %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-calendar-times fa-3x mb-2 text-secondary opacity-50"></i>
+                        <h6 class="fw-semibold">No Managed Projects Available</h6>
+                        <small class="text-muted">When projects are assigned to you by the CEO, their timeline and milestone roadmap will appear here.</small>
+                    </div>
+                    {% else %}
+                    <!-- Project Roadmap Accordion List -->
+                    <div class="d-flex flex-column gap-3" id="roadmapProjectList">
+                        {% for item in pm_roadmap %}
+                        <div class="roadmap-project-card" data-roadmap-index="{{ loop.index0 }}">
+                            <!-- Clickable Summary Header Row with Down Arrow -->
+                            <div class="roadmap-header-row d-flex justify-content-between align-items-center flex-wrap gap-2"
+                                 data-bs-toggle="collapse" 
+                                 data-bs-target="#roadmapCollapse_{{ loop.index }}" 
+                                 aria-expanded="false" 
+                                 aria-controls="roadmapCollapse_{{ loop.index }}">
+                                <div class="d-flex align-items-center gap-3">
+                                    <!-- Down Arrow Button -->
+                                    <div class="roadmap-toggle-btn" title="Click to view/collapse roadmap details">
+                                        <i class="fas fa-chevron-down roadmap-chevron-icon" style="font-size: 0.8rem;"></i>
+                                    </div>
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                            <h6 class="mb-0 fw-bold text-dark fs-6">{{ item.project.project_name }}</h6>
+                                            <span class="badge bg-light text-dark font-monospace border small">{{ item.project.file_number }}</span>
+                                            <span class="badge {% if item.project.status == 'Completed' %}bg-success{% elif item.project.status in ['In Progress', 'Approved', 'Active'] %}bg-primary{% else %}bg-warning text-dark{% endif %} small">
+                                                {{ item.project.status }}
+                                            </span>
+                                            {% if item.jc_is_approved %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle small">
+                                                <i class="fas fa-check-circle me-1"></i>JC: Approved
+                                            </span>
+                                            {% elif item.jc_is_pending %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small" title="Job Card submitted to CEO for budget approval. Tasks activate once approved.">
+                                                <i class="fas fa-clock me-1"></i>JC: Pending CEO Approval
+                                            </span>
+                                            {% elif item.jc_is_rejected %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle small">
+                                                <i class="fas fa-undo me-1"></i>JC: Revision Requested
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-secondary-subtle text-secondary border small">
+                                                <i class="fas fa-pencil me-1"></i>JC: Draft / Not Created
+                                            </span>
+                                            {% endif %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle small font-monospace">
+                                                <i class="fas fa-flag-checkered me-1"></i>{{ item.milestone_progress }}% Milestones
+                                            </span>
+                                        </div>
+                                        <div class="text-muted small">
+                                            <i class="far fa-building me-1"></i>{{ item.project.client_name }} • 
+                                            <i class="far fa-calendar-alt ms-1 me-1"></i>Contract: 
+                                            <strong>{{ item.project.contract_start_date.strftime('%d-%b-%Y') if item.project.contract_start_date else 'N/A' }}</strong> to 
+                                            <strong>{{ item.project.contract_end_date.strftime('%d-%b-%Y') if item.project.contract_end_date else 'N/A' }}</strong> 
+                                            ({{ item.total_days }} days)
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+                                    {% if item.is_overdue %}
+                                    <span class="badge bg-danger text-white">
+                                        <i class="fas fa-exclamation-circle me-1"></i>Overdue
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark border font-monospace">
+                                        <i class="fas fa-hourglass-half text-warning me-1"></i>{{ item.days_remaining }} days left
+                                    </span>
+                                    {% endif %}
+                                    <a href="{{ url_for('view_indent_details', indent_id=item.project.id) }}" class="btn btn-sm btn-outline-primary" style="border-radius: 6px; font-size: 0.8rem;">
+                                        <i class="fas fa-eye me-1"></i>Details Hub
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Down Details Content -->
+                            <div class="collapse roadmap-collapse-body" id="roadmapCollapse_{{ loop.index }}">
+                                <div class="roadmap-details-body">
+                                    <!-- Progress Trackers -->
+                                    <div class="row g-3 align-items-center mb-3">
+                                        <div class="col-12 col-md-6">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="small fw-semibold text-muted">
+                                                    <i class="fas fa-flag-checkered text-success me-1"></i>Milestones Completed
+                                                </span>
+                                                <span class="small font-monospace fw-bold text-success">{{ item.milestone_progress }}%</span>
+                                            </div>
+                                            <div class="progress" style="height: 8px; border-radius: 4px;">
+                                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ item.milestone_progress }}%;" aria-valuenow="{{ item.milestone_progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="small fw-semibold text-muted">
+                                                    <i class="far fa-clock text-primary me-1"></i>Contract Duration Elapsed
+                                                </span>
+                                                <span class="small font-monospace fw-bold text-primary">{{ item.timeline_pct }}%</span>
+                                            </div>
+                                            <div class="progress" style="height: 8px; border-radius: 4px;">
+                                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ item.timeline_pct }}%;" aria-valuenow="{{ item.timeline_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Milestones Horizon List -->
+                                    <div>
+                                        <div class="small fw-bold text-dark text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                            Milestone Deliverables Schedule
+                                        </div>
+                                        {% if item.milestones|length == 0 %}
+                                        <div class="p-3 bg-light rounded text-center text-muted small border">
+                                            <i class="fas fa-info-circle me-1 text-primary"></i>No milestones defined in Job Card yet. 
+                                            <a href="{{ url_for('pm_project_details', indent_id=item.project.id) }}" class="ms-1 fw-bold text-decoration-none">
+                                                Define Milestones in Job Card &rarr;
+                                            </a>
+                                        </div>
+                                        {% else %}
+                                        <div class="d-flex gap-2 overflow-x-auto pb-1" style="scrollbar-width: thin;">
+                                            {% for m in item.milestones %}
+                                            <div class="milestone-pill-card status-{{ (m.status or 'pending')|lower|replace(' ', '') }}">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <span class="badge {% if m.status == 'Completed' %}bg-success{% elif m.status == 'In Progress' %}bg-primary{% else %}bg-warning text-dark{% endif %} small" style="font-size: 0.7rem;">
+                                                        {% if m.status == 'Completed' %}
+                                                        <i class="fas fa-check-circle me-1"></i>Completed
+                                                        {% elif m.status == 'In Progress' %}
+                                                        <i class="fas fa-spinner fa-spin me-1"></i>In Progress
+                                                        {% else %}
+                                                        <i class="fas fa-clock me-1"></i>Pending
+                                                        {% endif %}
+                                                    </span>
+                                                    <span class="badge bg-white text-dark border font-monospace small" style="font-size: 0.7rem;">
+                                                        {{ m.percentage }}%
+                                                    </span>
+                                                </div>
+                                                <div class="fw-bold text-dark small text-truncate" title="{{ m.name }}">
+                                                    {{ m.name }}
+                                                </div>
+                                                <div class="text-muted font-monospace mt-1" style="font-size: 0.72rem;">
+                                                    <i class="far fa-calendar-alt me-1"></i>{{ m.start_date or 'TBD' }} &rarr; {{ m.end_date or 'TBD' }}
+                                                </div>
+                                                {% if m.description %}
+                                                <div class="text-secondary text-truncate mt-1" style="font-size: 0.72rem;" title="{{ m.description }}">
+                                                    {{ m.description }}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Roadmap Pagination Controls (5 projects per page) -->
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-3 mt-3 border-top" id="roadmapPaginationContainer">
+                        <div class="text-muted small" id="roadmapPaginationInfo">
+                            Showing 1 to {{ [5, pm_roadmap|length]|min }} of {{ pm_roadmap|length }} projects
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="d-flex align-items-center gap-1 text-muted small me-2">
+                                <span>Show:</span>
+                                <select id="roadmapPageSizeSelect" class="form-select form-select-sm" style="width: 70px;" onchange="changeRoadmapPageSize(this.value)">
+                                    <option value="5" selected>5</option>
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                </select>
+                            </div>
+                            <ul class="pagination pagination-sm mb-0" id="roadmapPaginationControls"></ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Management Tabs -->
+    <div class="row mb-4" data-aos="fade-up">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header pb-0 border-bottom-0">
+                    <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto text-nowrap pb-1" id="pmTabs" role="tablist" style="scrollbar-width: none;">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active px-3 py-2" id="projects-tab" data-bs-toggle="tab" data-bs-target="#projects" type="button" role="tab">
+                                <i class="fas fa-project-diagram me-2"></i>My Projects
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link px-3 py-2" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab">
+                                <i class="fas fa-tasks me-2"></i>Task Management
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link px-3 py-2" id="team-tab" data-bs-toggle="tab" data-bs-target="#team" type="button" role="tab">
+                                <i class="fas fa-users me-2"></i>Team Management
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link px-3 py-2" id="timesheets-tab" data-bs-toggle="tab" data-bs-target="#timesheets" type="button" role="tab">
+                                <i class="fas fa-clock me-2"></i>Timesheet Review
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="pmTabContent">
+                        <!-- Projects Tab -->
+                        <div class="tab-pane fade show active" id="projects" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Project Name</th>
+                                            <th>Client</th>
+                                            <th>Status</th>
+                                            <th>Progress</th>
+                                            <th>End Date</th>
+                                            <th>Team Size</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for project in pm_projects %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ project.project_name }}</strong><br>
+                                                <small class="text-muted">{{ project.file_number }}</small>
+                                            </td>
+                                            <td>{{ project.client_name }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if project.status == 'Completed' else 'primary' if project.status in ['In Progress', 'Active'] else 'warning text-dark' if project.status == 'Approved' else 'secondary' }} mb-1">
+                                                    {{ project.status }}
+                                                </span><br>
+                                                {% if project.job_card %}
+                                                    {% if project.job_card.status == 'Approved' %}
+                                                        <span class="badge bg-success-subtle text-success border border-success-subtle small"><i class="fas fa-check-circle me-1"></i>JC: Approved</span>
+                                                    {% elif project.job_card.status == 'Submitted' %}
+                                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small"><i class="fas fa-clock me-1"></i>JC: Pending CEO</span>
+                                                    {% elif project.job_card.status == 'Rejected' %}
+                                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle small"><i class="fas fa-undo me-1"></i>JC: Revision Req.</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary-subtle text-secondary border small"><i class="fas fa-pencil me-1"></i>JC: Draft</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="badge bg-secondary-subtle text-secondary border small"><i class="fas fa-plus me-1"></i>JC: Not Created</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar bg-success" style="width: {{ (project.progress|default(0)|float)|round(1) }}%"></div>
+                                                </div>
+                                                <small class="text-muted fw-semibold">{{ (project.progress|default(0)|float)|round(1) }}%</small>
+                                            </td>
+                                            <td>{{ project.contract_end_date.strftime('%d-%b-%Y') if project.contract_end_date else 'N/A' }}</td>
+                                            <td>
+                                                <span class="badge bg-light text-dark border">{{ project.team_size|default(0) }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{{ url_for('view_indent_details', indent_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye me-1"></i>View
+                                                    </a>
+                                                    {% if project.job_card %}
+                                                    <a href="{{ url_for('edit_job_card', card_id=project.job_card.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                        <i class="fas fa-edit me-1"></i>Edit
+                                                    </a>
+                                                    {% else %}
+                                                    <a href="{{ url_for('create_job_card', indent_id=project.id) }}" class="btn btn-sm btn-outline-success">
+                                                        <i class="fas fa-plus me-1"></i>Create JC
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tasks Tab -->
+                        <div class="tab-pane fade" id="tasks" role="tabpanel">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="taskSearch" placeholder="Search tasks...">
+                                        <button class="btn btn-outline-secondary" type="button">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                                        <i class="fas fa-plus me-2"></i>Add Task
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="tasksTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Task</th>
+                                            <th>Project</th>
+                                            <th>Assignees</th>
+                                            <th>Status</th>
+                                            <th>Timeline</th>
+                                            <th>Progress</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if all_tasks|length == 0 %}
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4 text-muted">
+                                                <i class="fas fa-hourglass-half fa-2x mb-2 text-warning opacity-75"></i>
+                                                <div class="fw-semibold">No Active Tasks for Execution</div>
+                                                <small class="text-muted">
+                                                    {% if pending_card_tasks and pending_card_tasks|length > 0 %}
+                                                    You have {{ pending_card_tasks|length }} task(s) under Job Cards currently awaiting CEO budget approval. Once approved by the CEO, they will automatically activate and unlock for team members.
+                                                    {% else %}
+                                                    Tasks will appear here once Job Cards are created and approved.
+                                                    {% endif %}
+                                                </small>
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        {% for task in all_tasks %}
+                                        <tr data-task-id="{{ task.id }}" draggable="true">
+                                            <td>{{ task.description }}</td>
+                                            <td>{{ task.job_card.indent.project_name }}</td>
+                                            <td>
+                                                {% for assignee in task.assignees %}
+                                                    <span class="badge bg-info me-1">{{ assignee.name }}</span>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if task.status == 'Completed' else 'warning' if task.status == 'In Progress' else 'secondary' }}">
+                                                    {{ task.status }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if task.timeline_start and task.timeline_end %}
+                                                    {{ task.timeline_start.strftime('%d-%b') }} to {{ task.timeline_end.strftime('%d-%b') }}
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar bg-success" style="width: {{ task.progress|default(0) }}%"></div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="editTask({{ task.id }})">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success" onclick="updateTaskStatus({{ task.id }}, 'Completed')">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Team Tab -->
+                        <div class="tab-pane fade" id="team" role="tabpanel">
+                            <div class="row">
+                                {% for member in team_performance %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                                    {{ member.employee.name[0] }}
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">{{ member.employee.name }}</h6>
+                                                    <small class="text-muted">{{ member.employee.department.name if member.employee.department else 'No Department' }}</small>
+                                                </div>
+                                            </div>
+                                            <div class="row text-center">
+                                                <div class="col-4">
+                                                    <div class="text-primary fw-bold">{{ member.total_tasks }}</div>
+                                                    <small class="text-muted">Total Tasks</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="text-success fw-bold">{{ member.completed_tasks }}</div>
+                                                    <small class="text-muted">Completed</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="text-warning fw-bold">{{ member.overdue_tasks }}</div>
+                                                    <small class="text-muted">Overdue</small>
+                                                </div>
+                                            </div>
+                                            <div class="mt-3">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="text-muted">Timesheet Status:</span>
+                                                    <span class="badge bg-{{ 'success' if member.timesheet_status == 'Submitted' else 'warning' }}">
+                                                        {{ member.timesheet_status }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Timesheets Tab -->
+                        <div class="tab-pane fade" id="timesheets" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Employee</th>
+                                            <th>Project</th>
+                                            <th>Task</th>
+                                            <th>Week</th>
+                                            <th>Hours</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for timesheet in pending_timesheets %}
+                                        <tr>
+                                            <td>{{ timesheet.employee.name if timesheet.employee else 'N/A' }}</td>
+                                            <td>
+                                                {% if timesheet.task and timesheet.task.job_card and timesheet.task.job_card.indent %}
+                                                    {{ timesheet.task.job_card.indent.project_name }}
+                                                {% else %}
+                                                    <span class="text-muted">General / Non-Project</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if timesheet.task and timesheet.task.description %}
+                                                    {{ timesheet.task.description[:50] }}{% if timesheet.task.description|length > 50 %}...{% endif %}
+                                                {% elif timesheet.progress_description %}
+                                                    {{ timesheet.progress_description[:50] }}{% if timesheet.progress_description|length > 50 %}...{% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ timesheet.week_start_date.strftime('%d-%b') if timesheet.week_start_date else '' }} to {{ timesheet.week_end_date.strftime('%d-%b') if timesheet.week_end_date else '' }}</td>
+                                            <td>{{ timesheet.total_hours }} hrs</td>
+                                            <td>
+                                                <span class="badge bg-warning">{{ timesheet.status }}</span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" onclick="viewTimesheet({{ timesheet.id }})">
+                                                    <i class="fas fa-eye me-1"></i>Review
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Add New Task
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addTaskForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="taskProject" class="form-label">Project</label>
+                                <select class="form-control" id="taskProject" required>
+                                    <option value="">Select Project</option>
+                                    {% for project in pm_projects %}
+                                    <option value="{{ project.id }}">{{ project.project_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="taskDescription" class="form-label">Task Description</label>
+                                <input type="text" class="form-control" id="taskDescription" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="taskStartDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="taskStartDate" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="taskEndDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="taskEndDate" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="taskHours" class="form-label">Estimated Hours</label>
+                                <input type="number" class="form-control" id="taskHours" min="1" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="taskAssignees" class="form-label">Assignees</label>
+                        <select class="form-control" id="taskAssignees" multiple required>
+                            {% for member in team_performance %}
+                            <option value="{{ member.employee.id }}">{{ member.employee.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveTask()">Save Task</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Task Modal -->
+<div class="modal fade" id="editTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Edit Task
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTaskForm">
+                    <input type="hidden" id="editTaskId">
+                    <div class="form-group mb-3">
+                        <label for="editTaskDescription" class="form-label">Task Description</label>
+                        <input type="text" class="form-control" id="editTaskDescription" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="editTaskManDays" class="form-label">Man Days</label>
+                        <input type="number" class="form-control" id="editTaskManDays" min="0">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="editTaskManHours" class="form-label">Man Hours</label>
+                        <input type="number" class="form-control" id="editTaskManHours" min="0">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="editTaskStartDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="editTaskStartDate" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="editTaskEndDate" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="editTaskEndDate" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="editTaskStatus" class="form-label">Status</label>
+                        <select class="form-control" id="editTaskStatus" required>
+                            <option value="To Do">To Do</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="On Hold">On Hold</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="editTaskAssignees" class="form-label">Assignees</label>
+                        <select class="form-control" id="editTaskAssignees" multiple required>
+                            {% for member in team_performance %}
+                            <option value="{{ member.employee.id }}">{{ member.employee.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveTaskEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timesheet Review Modal -->
+<div class="modal fade" id="timesheetReviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-invoice me-2"></i>Timesheet Review
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Employee:</strong> <span id="timesheetReviewEmployee"></span></p>
+                        <p><strong>Project:</strong> <span id="timesheetReviewProject"></span></p>
+                        <p><strong>Task:</strong> <span id="timesheetReviewTask"></span></p>
+                        <p><strong>Week:</strong> <span id="timesheetReviewWeek"></span></p>
+                        <p><strong>Hours:</strong> <span id="timesheetReviewHours"></span></p>
+                        <p><strong>Progress:</strong> <span id="timesheetReviewProgress"></span></p>
+                        <p><strong>Status:</strong> <span id="timesheetReviewStatus"></span></p>
+                        <input type="hidden" id="timesheetReviewId">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="approveTimesheet({{ csrf_token() }})">Approve</button>
+                <button type="button" class="btn btn-danger" onclick="rejectTimesheet({{ csrf_token() }})">Reject</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script>
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    // Project Overview Chart
+    const projectOverviewCanvas = document.getElementById('projectOverviewChart');
+    if (projectOverviewCanvas) {
+        new Chart(projectOverviewCanvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'In Progress / Active', 'Pending', 'On Hold'],
+                datasets: [{
+                    data: [
+                        {{ completed_count }},
+                        {{ in_progress_count }},
+                        {{ pending_count }},
+                        {{ on_hold_count }}
+                    ],
+                    backgroundColor: [
+                        '#10b981',
+                        '#3b82f6',
+                        '#f59e0b',
+                        '#94a3b8'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 12,
+                            font: {
+                                family: "'Plus Jakarta Sans', sans-serif",
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Team Performance Chart
+    const teamPerformanceCanvas = document.getElementById('teamPerformanceChart');
+    if (teamPerformanceCanvas) {
+        new Chart(teamPerformanceCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: [{% for member in team_performance %}'{{ member.employee.name }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Completion Rate (%)',
+                    data: [{% for member in team_performance %}{{ (member.completed_tasks / member.total_tasks * 100) if member.total_tasks > 0 else 0 }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: 'rgba(59, 130, 246, 0.85)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 12,
+                            font: {
+                                family: "'Plus Jakarta Sans', sans-serif",
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize Roadmap Collapse & Pagination
+    initRoadmapPagination();
+});
+
+// Roadmap Pagination & Accordion Logic
+let roadmapPageSize = 5;
+let currentRoadmapPage = 1;
+let allRoadmapsExpanded = false;
+
+function initRoadmapPagination() {
+    // Chevron rotation on collapse show/hide
+    document.querySelectorAll('.roadmap-collapse-body').forEach(collapseEl => {
+        collapseEl.addEventListener('show.bs.collapse', function() {
+            const card = this.closest('.roadmap-project-card');
+            if (card) {
+                card.classList.add('is-expanded');
+            }
+        });
+        collapseEl.addEventListener('hide.bs.collapse', function() {
+            const card = this.closest('.roadmap-project-card');
+            if (card) {
+                card.classList.remove('is-expanded');
+            }
+        });
+    });
+
+    renderRoadmapPagination();
+}
+
+function renderRoadmapPagination() {
+    const cards = document.querySelectorAll('.roadmap-project-card');
+    const totalProjects = cards.length;
+    const paginationContainer = document.getElementById('roadmapPaginationContainer');
+
+    if (totalProjects === 0) {
+        if (paginationContainer) paginationContainer.style.display = 'none';
+        return;
+    }
+
+    const totalPages = Math.ceil(totalProjects / roadmapPageSize) || 1;
+    if (currentRoadmapPage > totalPages) currentRoadmapPage = totalPages;
+    if (currentRoadmapPage < 1) currentRoadmapPage = 1;
+
+    // Show/hide project cards based on current page
+    const startIndex = (currentRoadmapPage - 1) * roadmapPageSize;
+    const endIndex = startIndex + roadmapPageSize;
+
+    cards.forEach((card, idx) => {
+        if (idx >= startIndex && idx < endIndex) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Update pagination info text
+    const infoEl = document.getElementById('roadmapPaginationInfo');
+    if (infoEl) {
+        const displayStart = startIndex + 1;
+        const displayEnd = Math.min(totalProjects, endIndex);
+        infoEl.textContent = `Showing ${displayStart} to ${displayEnd} of ${totalProjects} project${totalProjects !== 1 ? 's' : ''}`;
+    }
+
+    // Render pagination controls
+    const controls = document.getElementById('roadmapPaginationControls');
+    if (!controls) return;
+    controls.innerHTML = '';
+
+    if (totalPages <= 1) {
+        controls.style.display = 'none';
+    } else {
+        controls.style.display = 'flex';
+
+        // Prev Button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentRoadmapPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="javascript:void(0)" onclick="setRoadmapPage(${currentRoadmapPage - 1})" aria-label="Previous"><i class="fas fa-chevron-left" style="font-size: 0.75rem;"></i></a>`;
+        controls.appendChild(prevLi);
+
+        // Page Numbers
+        for (let p = 1; p <= totalPages; p++) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${currentRoadmapPage === p ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="javascript:void(0)" onclick="setRoadmapPage(${p})">${p}</a>`;
+            controls.appendChild(pageLi);
+        }
+
+        // Next Button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentRoadmapPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="javascript:void(0)" onclick="setRoadmapPage(${currentRoadmapPage + 1})" aria-label="Next"><i class="fas fa-chevron-right" style="font-size: 0.75rem;"></i></a>`;
+        controls.appendChild(nextLi);
+    }
+}
+
+function setRoadmapPage(page) {
+    currentRoadmapPage = page;
+    renderRoadmapPagination();
+}
+
+function changeRoadmapPageSize(newSize) {
+    roadmapPageSize = parseInt(newSize) || 5;
+    currentRoadmapPage = 1;
+    renderRoadmapPagination();
+}
+
+function toggleAllRoadmaps() {
+    const collapsibles = document.querySelectorAll('.roadmap-collapse-body');
+    allRoadmapsExpanded = !allRoadmapsExpanded;
+
+    collapsibles.forEach(c => {
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(c, { toggle: false });
+        if (allRoadmapsExpanded) {
+            bsCollapse.show();
+        } else {
+            bsCollapse.hide();
+        }
+    });
+
+    const btn = document.getElementById('toggleAllRoadmapsBtn');
+    if (btn) {
+        btn.innerHTML = allRoadmapsExpanded ? 
+            '<i class="fas fa-compress-alt me-1"></i>Collapse All' : 
+            '<i class="fas fa-expand-alt me-1"></i>Expand All';
+    }
+}
+
+// Task management functions
+function editTask(taskId) {
+    // Fetch task details and populate edit modal
+    fetch(`/api/task/${taskId}/details`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const task = data.task;
+                
+                // Populate the edit modal
+                document.getElementById('editTaskId').value = task.id;
+                document.getElementById('editTaskDescription').value = task.description;
+                document.getElementById('editTaskManDays').value = task.man_days;
+                document.getElementById('editTaskManHours').value = task.man_hours;
+                document.getElementById('editTaskStartDate').value = task.timeline_start;
+                document.getElementById('editTaskEndDate').value = task.timeline_end;
+                document.getElementById('editTaskStatus').value = task.status;
+                
+                // Populate assignees
+                const assigneeSelect = document.getElementById('editTaskAssignees');
+                assigneeSelect.innerHTML = '';
+                task.available_assignees.forEach(emp => {
+                    const option = document.createElement('option');
+                    option.value = emp.id;
+                    option.textContent = emp.name;
+                    option.selected = task.assignees.some(a => a.id === emp.id);
+                    assigneeSelect.appendChild(option);
+                });
+                
+                // Show the modal
+                const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+                editModal.show();
+            } else {
+                showNotification('Failed to load task details', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error loading task details: ' + error.message, 'error');
+        });
+}
+
+function saveTaskEdit() {
+    const taskId = document.getElementById('editTaskId').value;
+    const formData = new FormData();
+    formData.append('description', document.getElementById('editTaskDescription').value);
+    formData.append('man_days', document.getElementById('editTaskManDays').value);
+    formData.append('man_hours', document.getElementById('editTaskManHours').value);
+    formData.append('timeline_start', document.getElementById('editTaskStartDate').value);
+    formData.append('timeline_end', document.getElementById('editTaskEndDate').value);
+    formData.append('status', document.getElementById('editTaskStatus').value);
+    
+    const assignees = Array.from(document.getElementById('editTaskAssignees').selectedOptions).map(opt => opt.value);
+    formData.append('assignees', JSON.stringify(assignees));
+    formData.append('csrf_token', '{{ csrf_token() }}');
+
+    fetch(`/api/task/${taskId}/update`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Task updated successfully', 'success');
+            location.reload();
+        } else {
+            showNotification('Failed to update task: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error updating task: ' + error.message, 'error');
+    });
+}
+
+function updateTaskStatus(taskId, status) {
+    fetch(`/task/update-status/${taskId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `status=${status}&csrf_token={{ csrf_token() }}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Task status updated successfully', 'success');
+            location.reload();
+        } else {
+            showNotification('Failed to update task status', 'error');
+        }
+    });
+}
+
+function saveTask() {
+    const formData = new FormData();
+    formData.append('project_id', document.getElementById('taskProject').value);
+    formData.append('description', document.getElementById('taskDescription').value);
+    formData.append('start_date', document.getElementById('taskStartDate').value);
+    formData.append('end_date', document.getElementById('taskEndDate').value);
+    formData.append('hours', document.getElementById('taskHours').value);
+    formData.append('assignees', Array.from(document.getElementById('taskAssignees').selectedOptions).map(opt => opt.value));
+    formData.append('csrf_token', '{{ csrf_token() }}');
+
+    fetch('/job-card/add-task', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Task added successfully', 'success');
+            location.reload();
+        } else {
+            showNotification('Failed to add task', 'error');
+        }
+    });
+}
+
+function viewTimesheet(timesheetId) {
+    // Fetch timesheet details and show in modal
+    fetch(`/api/timesheet/${timesheetId}/details`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const timesheet = data.timesheet;
+                
+                // Populate timesheet review modal
+                document.getElementById('timesheetReviewEmployee').textContent = timesheet.employee_name;
+                document.getElementById('timesheetReviewProject').textContent = timesheet.project_name;
+                document.getElementById('timesheetReviewTask').textContent = timesheet.task_description;
+                document.getElementById('timesheetReviewWeek').textContent = `${timesheet.week_start} to ${timesheet.week_end}`;
+                document.getElementById('timesheetReviewHours').textContent = timesheet.total_hours;
+                document.getElementById('timesheetReviewProgress').textContent = timesheet.progress_description;
+                document.getElementById('timesheetReviewStatus').textContent = timesheet.status;
+                document.getElementById('timesheetReviewId').value = timesheetId;
+                
+                // Show the modal
+                const reviewModal = new bootstrap.Modal(document.getElementById('timesheetReviewModal'));
+                reviewModal.show();
+            } else {
+                showNotification('Failed to load timesheet details', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error loading timesheet details: ' + error.message, 'error');
+        });
+}
+
+// Search functionality
+document.getElementById('taskSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#tasksTable tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %} 

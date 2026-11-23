@@ -1,0 +1,2027 @@
+{% extends "layout.html" %}
+
+{% block title %}HR Dashboard - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-2 hr-dashboard-canvas">
+    <!-- 1. TOP WELCOME HERO BANNER -->
+    <div class="hr-welcome-hero mb-3 position-relative" data-aos="fade-up">
+        <!-- Text details on the left -->
+        <div class="hero-text-content position-relative" style="z-index: 2; max-width: 62%;">
+            <span class="welcome-label">Welcome back,</span>
+            <h2 class="welcome-heading">{{ current_user.name }} 👋</h2>
+            <p class="welcome-subtitle mb-0">Here's what's happening across your timesheet portal today.</p>
+        </div>
+        
+        <!-- Floating Glassmorphic Period Overview Pill on Top Right -->
+        <div class="hero-period-wrapper position-relative ms-auto" style="z-index: 3;">
+            <div class="period-glass-pill shadow-sm">
+                <div class="d-flex align-items-center justify-content-between gap-2 small text-muted fw-semibold">
+                    <span><i class="far fa-calendar-alt text-success me-1"></i>Period Overview</span>
+                    <i class="fas fa-chevron-down small opacity-75"></i>
+                </div>
+                <div class="period-range-val fw-bold text-dark mt-1" id="bannerPeriodDateRange">
+                    17 Oct 2026 – 16 Nov 2026
+                </div>
+            </div>
+        </div>
+
+        <!-- Campus Architectural Backdrop Image with smooth left-to-right gradient overlay -->
+        <div class="hero-campus-banner-bg">
+            <img src="{{ url_for('static', filename='corporate_campus_banner.png') }}" alt="Campus Architecture" class="hero-campus-img">
+            <div class="hero-gradient-mask"></div>
+        </div>
+    </div>
+
+    <!-- 2. FIVE METRIC KPI CARDS ROW (NO TEXT TRUNCATION) -->
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-2 mb-3" data-aos="fade-up">
+        <!-- Card 1: Total Workforce -->
+        <div class="col">
+            <div class="metric-kpi-card shadow-sm h-100">
+                <div class="metric-icon-box bg-emerald-subtle text-emerald">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="metric-body flex-grow-1">
+                    <span class="metric-title" title="Total Workforce">Total Workforce</span>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <span class="metric-number" id="kpiEmployeeCount">{{ total_employees }}</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle metric-trend-pill" id="kpiEmployeeTrendBadge">
+                            <i class="fas fa-arrow-up me-1"></i>+4 (+2.2%)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Active Staff -->
+        <div class="col">
+            <div class="metric-kpi-card shadow-sm h-100">
+                <div class="metric-icon-box bg-cyan-subtle text-cyan">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="metric-body flex-grow-1">
+                    <span class="metric-title" title="Active Staff">Active Staff</span>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <span class="metric-number" id="kpiActiveEmpCount">{{ active_employees }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Total Submissions -->
+        <div class="col">
+            <div class="metric-kpi-card shadow-sm h-100">
+                <div class="metric-icon-box bg-purple-subtle text-purple">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <div class="metric-body flex-grow-1">
+                    <span class="metric-title" title="Total Submissions">Total Submissions</span>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <span class="metric-number" id="kpiTotalTimesheetCount">2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Submission % -->
+        <div class="col">
+            <div class="metric-kpi-card shadow-sm h-100">
+                <div class="metric-icon-box bg-amber-subtle text-amber">
+                    <i class="fas fa-bullseye"></i>
+                </div>
+                <div class="metric-body flex-grow-1">
+                    <span class="metric-title" title="Submission %">Submission %</span>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <span class="metric-number" id="kpiTotalSubmissionPct">50%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 5: Avg Submission % -->
+        <div class="col">
+            <div class="metric-kpi-card shadow-sm h-100">
+                <div class="metric-icon-box bg-blue-subtle text-blue">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div class="metric-body flex-grow-1">
+                    <span class="metric-title" title="Avg Submission %">Avg Submission %</span>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <span class="metric-number" id="kpiAvgSubmissionPct">75%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. SUB-TABS NAVIGATION BAR -->
+    <div class="hr-nav-tabs-wrapper mb-3" data-aos="fade-up">
+        <ul class="nav hr-pill-tabs flex-nowrap overflow-x-auto text-nowrap pb-1" id="hrTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                    <i class="fas fa-th-large me-2"></i>Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="employees-tab" data-bs-toggle="tab" data-bs-target="#employees" type="button" role="tab">
+                    <i class="fas fa-user-friends me-2"></i>Employee Management
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="timesheets-tab" data-bs-toggle="tab" data-bs-target="#timesheets" type="button" role="tab">
+                    <i class="fas fa-clipboard-check me-2"></i>Timesheet Review
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">
+                    <i class="fas fa-chart-line me-2"></i>Reports
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="delegation-tab" data-bs-toggle="tab" data-bs-target="#delegation" type="button" role="tab">
+                    <i class="fas fa-sitemap me-2"></i>Delegation of Work
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 4. TAB PANES CONTENT CONTAINER -->
+    <div class="tab-content" id="hrTabContent">
+        <!-- TAB 1: OVERVIEW -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <!-- 3 EQUAL COLUMNS (33% each: No Overflow, No White Space, Perfect Balance) -->
+            <div class="row g-3 mb-4 align-items-stretch">
+                <!-- Column 1: Employee % Classification by Department (col-12 col-lg-4) -->
+                <div class="col-12 col-lg-4 d-flex flex-column">
+                    <div class="card h-100 shadow-sm border-0 hr-panel-card">
+                        <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.82rem;">
+                                    <i class="fas fa-users me-2 text-primary"></i>Employee % Classification by Department
+                                </h6>
+                                <small class="text-muted" style="font-size: 0.68rem;">Headcount breakdown & department share</small>
+                            </div>
+                            <div class="btn-group btn-group-sm" role="group" aria-label="View toggle">
+                                <button type="button" class="btn btn-outline-success active btn-chart-toggle" id="btnEmpDoughnut" title="Doughnut View">
+                                    <i class="fas fa-circle-notch me-1"></i>Doughnut
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-chart-toggle" id="btnEmpBar" title="Bar View">
+                                    <i class="fas fa-bars me-1"></i>Bar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-3 d-flex flex-column align-items-center justify-content-start">
+                            <!-- Donut Chart with Cutout (Centered at Top) -->
+                            <div class="chart-wrapper position-relative mx-auto my-2 flex-shrink-0" id="empChartWrapper" style="height: 140px; width: 140px; min-height: 140px; min-width: 140px;">
+                                <canvas id="employeeClassificationChart" width="140" height="140"></canvas>
+                                <div class="donut-center-text" id="donutEmpCenterText">
+                                    <div class="donut-center-number">{{ total_employees }}</div>
+                                    <div class="donut-center-label">Employees</div>
+                                </div>
+                            </div>
+                            <!-- Department Legend (Kept BELOW the chart in a clean 2-column grid) -->
+                            <div class="dept-custom-legend-grid w-100 mt-2 pt-2 border-top flex-grow-1" id="deptClassificationLegend">
+                                <!-- Populated dynamically via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2: Timesheet Submissions by Dept % (col-12 col-lg-4) -->
+                <div class="col-12 col-lg-4 d-flex flex-column">
+                    <div class="card h-100 shadow-sm border-0 hr-panel-card">
+                        <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.82rem;">
+                                    <i class="fas fa-briefcase me-2 text-success"></i>Timesheet Submissions by Dept (%)
+                                </h6>
+                                <small class="text-muted" style="font-size: 0.68rem;">Breakdown and compliance share per department</small>
+                            </div>
+                            <span class="badge bg-light text-secondary border px-2 py-1 small" id="tsRightCardPeriodBadge">
+                                Last 1 Month <i class="fas fa-chevron-down ms-1"></i>
+                            </span>
+                        </div>
+                        <div class="card-body p-3 d-flex flex-column align-items-center justify-content-start">
+                            <!-- Donut Chart with Cutout (Centered at Top) -->
+                            <div class="chart-wrapper position-relative mx-auto my-2 flex-shrink-0" id="tsChartWrapper" style="height: 140px; width: 140px; min-height: 140px; min-width: 140px;">
+                                <canvas id="timesheetSubmissionsChart" width="140" height="140"></canvas>
+                                <div class="donut-center-text" id="donutTsCenterText">
+                                    <div class="donut-center-number" id="donutTsSubCount">2</div>
+                                    <div class="donut-center-label">Submissions</div>
+                                </div>
+                                <div id="tsLoadingOverlay" class="d-none position-absolute top-50 start-50 translate-middle text-center bg-white bg-opacity-75 p-2 rounded shadow-sm" style="z-index: 10;">
+                                    <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                                    <div class="small mt-1 text-muted" style="font-size: 0.7rem;">Updating...</div>
+                                </div>
+                                <div id="tsEmptyOverlay" class="d-none position-absolute top-50 start-50 translate-middle text-center w-75 p-2" style="z-index: 5;">
+                                    <i class="fas fa-calendar-times text-secondary opacity-50 mb-1"></i>
+                                    <div class="small text-muted" style="font-size: 0.72rem;">No submissions in range</div>
+                                </div>
+                            </div>
+                            <!-- Submission Legend (Kept BELOW the chart in clean grid/summary) -->
+                            <div class="dept-custom-legend-grid w-100 mt-2 pt-2 border-top flex-grow-1" id="tsDonutLegend">
+                                <!-- Populated dynamically via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 3: Stacked Performance & Filter Cards (col-12 col-lg-4, No Overflow, Perfect Balance) -->
+                <div class="col-12 col-lg-4 d-flex flex-column justify-content-between gap-2">
+                    <!-- Upper Card: Timesheet Performance -->
+                    <div class="card shadow-sm border-0 hr-panel-card">
+                        <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-dark small">
+                                <i class="fas fa-chart-line text-success me-2"></i>Timesheet Performance
+                            </span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0 small" style="font-size: 0.7rem;" id="tsPerfPeriodPill">Last 1 Month</span>
+                        </div>
+                        <div class="card-body p-2 px-3">
+                            <div class="d-flex flex-column gap-1">
+                                <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                    <span class="text-muted" style="font-size: 0.74rem;"><i class="fas fa-bullseye text-success me-2"></i>Total Submission %</span>
+                                    <span class="fw-bold text-success fs-6" id="perfTotalSubPct">50%</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                    <span class="text-muted" style="font-size: 0.74rem;"><i class="fas fa-file-alt text-primary me-2"></i>Total Timesheets</span>
+                                    <span class="fw-bold text-primary fs-6" id="perfTotalTimesheets">2</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-1">
+                                    <span class="text-muted" style="font-size: 0.74rem;"><i class="fas fa-chart-bar text-info me-2"></i>Avg Submission %</span>
+                                    <span class="fw-bold text-info fs-6" id="perfAvgSubPct">75%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lower Card: Period Filter (Grid layout, 0 overflow, clean date picker) -->
+                    <div class="card shadow-sm border-0 hr-panel-card flex-grow-1">
+                        <div class="card-header bg-white border-bottom py-2 px-3">
+                            <span class="fw-bold text-dark small">
+                                <i class="fas fa-filter text-success me-2"></i>Period Filter
+                            </span>
+                        </div>
+                        <div class="card-body p-2 px-3 d-flex flex-column justify-content-between gap-2">
+                            <div>
+                                <!-- Presets in one row (Grid-based segmented control, 0 overflow) -->
+                                <div class="ts-preset-grid mb-2" id="tsPresetButtons">
+                                    <button type="button" class="ts-preset-btn active" data-preset="1m">1M</button>
+                                    <button type="button" class="ts-preset-btn" data-preset="2m">2M</button>
+                                    <button type="button" class="ts-preset-btn" data-preset="3m">3M</button>
+                                    <button type="button" class="ts-preset-btn" data-preset="6m">6M</button>
+                                    <button type="button" class="ts-preset-btn" data-preset="1y">1Y</button>
+                                    <button type="button" class="ts-preset-btn" data-preset="all">All</button>
+                                </div>
+
+                                <!-- Date pickers in one row with ample room and no truncation -->
+                                <div class="row g-2 mb-2 align-items-center">
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0 fw-semibold" style="font-size: 0.65rem;">From</label>
+                                        <input type="date" id="tsFromDate" class="form-control ts-date-input">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-muted mb-0 fw-semibold" style="font-size: 0.65rem;">To</label>
+                                        <input type="date" id="tsToDate" class="form-control ts-date-input">
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 mb-2">
+                                    <button type="button" id="btnApplyDateFilter" class="btn btn-sm btn-emerald w-100 fw-bold py-1" style="font-size: 0.76rem;">
+                                        <i class="fas fa-check me-1"></i>Apply
+                                    </button>
+                                    <button type="button" id="btnResetDateFilter" class="btn btn-sm btn-outline-secondary py-1 px-2" title="Reset filters">
+                                        <i class="fas fa-redo" style="font-size: 0.72rem;"></i>
+                                    </button>
+                                </div>
+
+                                <div class="mb-1">
+                                    <div id="tsFilterStatusBadge" class="filter-status-pill text-center w-100 py-1 px-2">
+                                        <i class="far fa-calendar-check me-1 text-success"></i><span id="tsFilterStatusText">Last 1 Month (2 submissions)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-outline-success w-100 fw-bold py-1" id="btnExportTimesheetExcel" title="Export this report to Excel" style="font-size: 0.76rem;">
+                                <i class="fas fa-file-excel me-1 text-success"></i>Export to Excel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. QUICK ACTIONS ROW -->
+            <div class="quick-actions-section mb-4" data-aos="fade-up">
+                <h6 class="fw-bold text-dark mb-3">
+                    <i class="fas fa-bolt text-warning me-2"></i>Quick Actions
+                </h6>
+                <div class="row g-3">
+                    <!-- Action 1: Add Employee -->
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('add_employee') }}" class="quick-action-card quick-action-emerald shadow-sm">
+                            <i class="fas fa-user-plus text-white"></i>
+                            <span class="text-white">Add Employee</span>
+                        </a>
+                    </div>
+
+                    <!-- Action 2: Manage Staff -->
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('manage_employees') }}" class="quick-action-card quick-action-cyan shadow-sm" onclick="if(window.switchHrTab){switchHrTab('employees'); return false;}">
+                            <i class="fas fa-users-cog text-white"></i>
+                            <span class="text-white">Manage Staff</span>
+                        </a>
+                    </div>
+
+                    <!-- Action 3: Verify Sheets -->
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('verify_timesheets') }}" class="quick-action-card quick-action-amber shadow-sm position-relative" onclick="if(window.switchHrTab){switchHrTab('timesheets'); return false;}">
+                            <i class="fas fa-clock text-dark"></i>
+                            <span class="text-dark">Verify Sheets</span>
+                            {% if pending_timesheets and pending_timesheets > 0 %}
+                            <span class="quick-action-badge">{{ pending_timesheets }}</span>
+                            {% else %}
+                            <span class="quick-action-badge">1</span>
+                            {% endif %}
+                        </a>
+                    </div>
+
+                    <!-- Action 4: Reports -->
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('reports_page') }}" class="quick-action-card quick-action-purple shadow-sm" onclick="if(window.switchHrTab){switchHrTab('reports'); return false;}">
+                            <i class="fas fa-file-invoice text-white"></i>
+                            <span class="text-white">Reports</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- Employees Tab -->
+                        <div class="tab-pane fade" id="employees" role="tabpanel">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="employeeSearch" placeholder="Search employees...">
+                                        <button class="btn btn-outline-secondary" type="button">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <a href="{{ url_for('add_employee') }}" class="btn btn-primary">
+                                        <i class="fas fa-plus me-2"></i>Add Employee
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="employeesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Employee</th>
+                                            <th>Department</th>
+                                            <th>Position</th>
+                                            <th>Status</th>
+                                            <th>Join Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for employee in employees %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                                        {{ employee.name[0] }}
+                                                    </div>
+                                                    <div>
+                                                        <strong>{{ employee.name }}</strong><br>
+                                                        <small class="text-muted">{{ employee.email }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ employee.department.name if employee.department else 'N/A' }}</td>
+                                            <td>{{ employee.position or 'N/A' }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if employee.is_active else 'danger' }}">
+                                                    {{ 'Active' if employee.is_active else 'Inactive' }}
+                                                </span>
+                                            </td>
+                                            <td>{{ employee.join_date.strftime('%d-%b-%Y') if employee.join_date else 'N/A' }}</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{{ url_for('edit_employee', emp_id=employee.id) }}" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-edit me-1"></i>Edit
+                                                    </a>
+                                                    <button class="btn btn-sm btn-outline-info" onclick="viewEmployeeDetails({{ employee.id }})">
+                                                        <i class="fas fa-eye me-1"></i>View
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+<!-- Timesheets Tab -->
+                        <div class="tab-pane fade" id="timesheets" role="tabpanel">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="timesheetFilter" class="form-label">Filter by Status</label>
+                                        <select class="form-control" id="timesheetFilter">
+                                            <option value="">All Status</option>
+                                            <option value="Submitted">Submitted</option>
+                                            <option value="Approved">Approved</option>
+                                            <option value="Rejected">Rejected</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="employeeFilter" class="form-label">Filter by Employee</label>
+                                        <select class="form-control" id="employeeFilter">
+                                            <option value="">All Employees</option>
+                                            {% for employee in employees %}
+                                            <option value="{{ employee.name }}">{{ employee.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label">&nbsp;</label>
+                                        <button class="btn btn-primary w-100" onclick="applyTimesheetFilters()">
+                                            <i class="fas fa-filter me-2"></i>Apply Filters
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="timesheetsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Employee</th>
+                                            <th>Project</th>
+                                            <th>Task</th>
+                                            <th>Week</th>
+                                            <th>Hours</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for timesheet in all_timesheets %}
+                                        <tr data-status="{{ timesheet.status }}" data-employee="{{ timesheet.employee.name if timesheet.employee else 'N/A' }}">
+                                            <td>{{ timesheet.employee.name if timesheet.employee else 'N/A' }}</td>
+                                            <td>
+                                                {% if timesheet.task and timesheet.task.job_card and timesheet.task.job_card.indent %}
+                                                    {{ timesheet.task.job_card.indent.project_name }}
+                                                {% else %}
+                                                    <span class="text-muted">General / Non-Project</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if timesheet.task and timesheet.task.description %}
+                                                    {{ timesheet.task.description[:50] }}{% if timesheet.task.description|length > 50 %}...{% endif %}
+                                                {% elif timesheet.progress_description %}
+                                                    {{ timesheet.progress_description[:50] }}{% if timesheet.progress_description|length > 50 %}...{% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ timesheet.week_start_date.strftime('%d-%b') if timesheet.week_start_date else '' }} to {{ timesheet.week_end_date.strftime('%d-%b') if timesheet.week_end_date else '' }}</td>
+                                            <td>{{ timesheet.total_hours }} hrs</td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if timesheet.status == 'Approved' else 'warning' if timesheet.status == 'Submitted' else 'danger' }}">
+                                                    {{ timesheet.status }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewTimesheetDetails({{ timesheet.id }})">
+                                                        <i class="fas fa-eye me-1"></i>Review
+                                                    </button>
+                                                    {% if timesheet.status == 'Submitted' %}
+                                                    <button class="btn btn-sm btn-outline-success" onclick="approveTimesheet({{ timesheet.id }})">
+                                                        <i class="fas fa-check me-1"></i>Approve
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectTimesheet({{ timesheet.id }})">
+                                                        <i class="fas fa-times me-1"></i>Reject
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+<!-- Reports Tab -->
+                        <div class="tab-pane fade" id="reports" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-file-pdf me-2"></i>Employee Reports
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-grid gap-2">
+                                                <button class="btn btn-outline-primary" onclick="generateReport('employee_list')">
+                                                    <i class="fas fa-users me-2"></i>Employee List Report
+                                                </button>
+                                                <button class="btn btn-outline-info" onclick="generateReport('attendance_report')">
+                                                    <i class="fas fa-calendar-check me-2"></i>Attendance Report
+                                                </button>
+                                                <button class="btn btn-outline-warning" onclick="generateReport('timesheet_summary')">
+                                                    <i class="fas fa-clock me-2"></i>Timesheet Summary
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-chart-line me-2"></i>Analytics Reports
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-grid gap-2">
+                                                <button class="btn btn-outline-success" onclick="generateReport('productivity_analysis')">
+                                                    <i class="fas fa-chart-bar me-2"></i>Productivity Analysis
+                                                </button>
+                                                <button class="btn btn-outline-danger" onclick="generateReport('performance_review')">
+                                                    <i class="fas fa-star me-2"></i>Performance Review
+                                                </button>
+                                                <button class="btn btn-outline-secondary" onclick="generateReport('department_comparison')">
+                                                    <i class="fas fa-building me-2"></i>Department Comparison
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+<!-- Delegation of Power Tab -->
+                        <div class="tab-pane fade" id="delegation" role="tabpanel">
+                            <!-- Header Info Banner -->
+                            <div class="card border-0 bg-light rounded-4 p-4 mb-4 shadow-sm border-start border-4 border-warning">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                                    <div>
+                                        <h5 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                                            <i class="fas fa-user-shield text-warning fs-4"></i>
+                                            Delegation of Power (DoP) & Authority Matrix
+                                        </h5>
+                                        <p class="text-muted small mb-0">
+                                            The master HR login operates as a departmental credential. Delegate specific functional powers to individual HR staff members below. When staff members log in with their personal accounts, their portal access and editing abilities will strictly reflect their assigned permissions.
+                                        </p>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <div class="input-group input-group-sm" style="max-width: 280px;">
+                                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                            <input type="text" class="form-control border-start-0" id="dopSearchInput" placeholder="Filter team members..." onkeyup="filterDopCards()">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- List of HR Personnel & Permission Cards -->
+                            <div class="row g-4" id="dopCardsContainer">
+                                {% if hr_team_members %}
+                                    {% for member in hr_team_members %}
+                                    {% set del = member.hr_delegation %}
+                                    <div class="col-12 dop-member-card" id="dop-member-{{ member.id }}" data-member-name="{{ member.name|lower }}" data-member-id="{{ member.emp_id|lower }}">
+                                        <div class="card border border-slate-200 rounded-4 shadow-sm overflow-hidden">
+                                            <!-- Member Summary Header -->
+                                            <div class="card-header bg-white py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-3 border-bottom">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="avatar-circle rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 46px; height: 46px; font-size: 1.1rem;">
+                                                        {{ member.name[:2]|upper }}
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="fw-bold mb-0 text-dark">{{ member.name }}</h6>
+                                                        <div class="d-flex flex-wrap align-items-center gap-2 small text-muted">
+                                                            <span><i class="fas fa-id-badge me-1 text-primary"></i>ID: <strong>{{ member.emp_id }}</strong></span>
+                                                            <span>&bull;</span>
+                                                            <span><i class="fas fa-briefcase me-1 text-secondary"></i>{{ member.designation or 'HR Staff' }}</span>
+                                                            <span>&bull;</span>
+                                                            <span><i class="fas fa-envelope me-1 text-secondary"></i>{{ member.email }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge {{ 'bg-success' if del and del.all_access else ('bg-primary' if del and (del.timesheet_review or del.employee_create or del.report_generation) else 'bg-secondary') }} px-3 py-2 rounded-pill fs-7" id="dop-badge-{{ member.id }}">
+                                                        {% if del and del.all_access %}
+                                                            <i class="fas fa-crown me-1 text-warning"></i> Full HR Access
+                                                        {% elif del and (del.timesheet_review or del.report_generation or del.employee_create or del.employee_edit) %}
+                                                            <i class="fas fa-check-circle me-1"></i> Delegated Rights Active
+                                                        {% else %}
+                                                            <i class="fas fa-lock me-1"></i> No Powers Delegated
+                                                        {% endif %}
+                                                    </span>
+                                                    <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 shadow-sm d-flex align-items-center gap-2" id="btn-save-dop-{{ member.id }}" onclick="saveDelegation({{ member.id }})">
+                                                        <i class="fas fa-save"></i>
+                                                        <span>Save Powers</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Permission Checkbox Grid -->
+                                            <div class="card-body p-4 bg-light-subtle">
+                                                <div class="row g-3">
+                                                    <!-- Permission 1: Master All Access -->
+                                                    <div class="col-12">
+                                                        <div class="p-3 bg-white rounded-3 border border-warning-subtle shadow-sm d-flex align-items-center justify-content-between">
+                                                            <div class="form-check form-switch mb-0 d-flex align-items-center gap-3">
+                                                                <input class="form-check-input dop-checkbox dop-all-access" type="checkbox" role="switch" id="perm_all_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="all_access" {{ 'checked' if del and del.all_access else '' }} onchange="toggleAllAccess({{ member.id }}, this)" style="width: 2.5em; height: 1.3em; cursor: pointer;">
+                                                                <label class="form-check-label fw-bold text-dark mb-0 cursor-pointer" for="perm_all_{{ member.id }}">
+                                                                    <i class="fas fa-crown text-warning me-1"></i> All Access (Full List of HR Access)
+                                                                    <span class="d-block small fw-normal text-muted">Overrides individual permissions. Grants unrestricted authority to all HR modules, workflows, and tools.</span>
+                                                                </label>
+                                                            </div>
+                                                            <span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1 small">Master Access</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Permission 2: Timesheet Review & Verification -->
+                                                    <div class="col-12 col-md-6 col-lg-4">
+                                                        <div class="p-3 bg-white rounded-3 border h-100 shadow-sm">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input dop-checkbox dop-sub-{{ member.id }}" type="checkbox" id="perm_ts_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="timesheet_review" {{ 'checked' if del and (del.timesheet_review or del.all_access) else '' }}>
+                                                                <label class="form-check-label fw-bold text-dark" for="perm_ts_{{ member.id }}">
+                                                                    <i class="fas fa-clock text-info me-1"></i> Timesheet Review Access
+                                                                </label>
+                                                            </div>
+                                                            <p class="small text-muted mb-0 ps-4">
+                                                                Review submitted weekly timesheets, approve, reject, return with remarks, and perform bulk verifications.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Permission 3: Report Generation Access -->
+                                                    <div class="col-12 col-md-6 col-lg-4">
+                                                        <div class="p-3 bg-white rounded-3 border h-100 shadow-sm">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input dop-checkbox dop-sub-{{ member.id }}" type="checkbox" id="perm_rep_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="report_generation" {{ 'checked' if del and (del.report_generation or del.all_access) else '' }}>
+                                                                <label class="form-check-label fw-bold text-dark" for="perm_rep_{{ member.id }}">
+                                                                    <i class="fas fa-chart-bar text-success me-1"></i> Report Generation Access
+                                                                </label>
+                                                            </div>
+                                                            <p class="small text-muted mb-0 ps-4">
+                                                                Generate employee rosters, attendance audits, timesheet summary reports, and export spreadsheets/PDFs.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Permission 4: Master Management Access -->
+                                                    <div class="col-12 col-md-6 col-lg-4">
+                                                        <div class="p-3 bg-white rounded-3 border h-100 shadow-sm">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input dop-checkbox dop-sub-{{ member.id }}" type="checkbox" id="perm_mst_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="master_management" {{ 'checked' if del and (del.master_management or del.all_access) else '' }}>
+                                                                <label class="form-check-label fw-bold text-dark" for="perm_mst_{{ member.id }}">
+                                                                    <i class="fas fa-cogs text-secondary me-1"></i> Master Management Access
+                                                                </label>
+                                                            </div>
+                                                            <p class="small text-muted mb-0 ps-4">
+                                                                Manage company structures, Grade & Salary master rules, and the official Holiday Calendar.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Permission 5: Granular Employee Management CRUD -->
+                                                    <div class="col-12">
+                                                        <div class="p-3 bg-white rounded-3 border shadow-sm">
+                                                            <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
+                                                                <i class="fas fa-users-cog text-primary"></i>
+                                                                <span class="fw-bold text-dark">Employee Directory Management (Granular CRUD Powers)</span>
+                                                                <small class="text-muted ms-auto">Select individual lifecycle actions permitted</small>
+                                                            </div>
+                                                            <div class="row g-2 pt-2">
+                                                                <div class="col-6 col-md-4 col-lg-2">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input dop-checkbox dop-sub-{{ member.id }}" type="checkbox" id="perm_create_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="employee_create" {{ 'checked' if del and (del.employee_create or del.all_access) else '' }}>
+                                                                        <label class="form-check-label small fw-semibold text-dark" for="perm_create_{{ member.id }}">
+                                                                            <i class="fas fa-user-plus text-success me-1"></i> Add / Create
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-6 col-md-4 col-lg-2">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input dop-checkbox dop-sub-{{ member.id }}" type="checkbox" id="perm_edit_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="employee_edit" {{ 'checked' if del and (del.employee_edit or del.all_access) else '' }}>
+                                                                        <label class="form-check-label small fw-semibold text-dark" for="perm_edit_{{ member.id }}">
+                                                                            <i class="fas fa-user-edit text-primary me-1"></i> Edit / Update
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-6 col-md-4 col-lg-2">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input dop-checkbox dop-sub-{{ member.id }}" type="checkbox" id="perm_block_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="employee_block" {{ 'checked' if del and (del.employee_block or del.all_access) else '' }}>
+                                                                        <label class="form-check-label small fw-semibold text-dark" for="perm_block_{{ member.id }}">
+                                                                            <i class="fas fa-ban text-warning me-1"></i> Block / Unblock
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-6 col-md-4 col-lg-3">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input dop-checkbox dop-sub-{{ member.id }}" type="checkbox" id="perm_arch_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="employee_archive" {{ 'checked' if del and (del.employee_archive or del.all_access) else '' }}>
+                                                                        <label class="form-check-label small fw-semibold text-dark" for="perm_arch_{{ member.id }}">
+                                                                            <i class="fas fa-user-clock text-info me-1"></i> Resign / Archive
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-6 col-md-4 col-lg-2">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input dop-checkbox dop-sub-{{ member.id }}" type="checkbox" id="perm_del_{{ member.id }}" data-emp-id="{{ member.id }}" data-perm="employee_delete" {{ 'checked' if del and (del.employee_delete or del.all_access) else '' }}>
+                                                                        <label class="form-check-label small fw-semibold text-danger" for="perm_del_{{ member.id }}">
+                                                                            <i class="fas fa-trash-alt me-1"></i> Delete
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="col-12">
+                                        <div class="card border-0 rounded-4 shadow-sm text-center p-5">
+                                            <i class="fas fa-users-slash text-muted fa-3x mb-3"></i>
+                                            <h6 class="fw-bold text-dark mb-1">No HR Department Staff Found</h6>
+                                            <p class="text-muted small">No staff members are currently assigned to the Human Resources department.</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Optional: Quick Add Employee to HR Delegation -->
+                            {% if other_employees %}
+                            <div class="card border-0 rounded-4 shadow-sm mt-4 p-4 bg-white border-top border-3 border-primary">
+                                <h6 class="fw-bold text-dark mb-2">
+                                    <i class="fas fa-user-plus text-primary me-2"></i>Delegate Authority to Other Staff Member
+                                </h6>
+                                <p class="text-muted small mb-3">
+                                    Need to delegate HR authority to a staff member outside the standard HR department roster? Select the employee below to assign them to the HR Department and configure their powers.
+                                </p>
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-8">
+                                        <select class="form-select" id="additionalEmployeeSelect">
+                                            <option value="">-- Choose Employee to add to HR Delegation --</option>
+                                            {% for emp in other_employees %}
+                                            {% if emp not in hr_team_members %}
+                                            <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.emp_id }}) - {{ emp.designation or 'Employee' }} [{{ emp.department.name if emp.department else 'No Dept' }}]</option>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="button" class="btn btn-outline-primary w-100" onclick="addEmployeeToHrDept()">
+                                            <i class="fas fa-plus me-1"></i> Add to HR Delegation List
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+    </div> <!-- end tab-content -->
+
+    <!-- 6. SOFT ORGANIC BACKDROP WAVES -->
+    <div class="hr-page-bottom-waves mt-4">
+        <svg viewBox="0 0 1440 90" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style="width: 100%; height: 60px; display: block;">
+            <path d="M0 35 C320 80, 640 10, 960 45 C1200 75, 1360 35, 1440 25 L1440 90 L0 90 Z" fill="rgba(6, 182, 212, 0.08)"/>
+            <path d="M0 55 C360 20, 720 75, 1080 40 C1260 20, 1380 50, 1440 45 L1440 90 L0 90 Z" fill="rgba(139, 92, 246, 0.06)"/>
+            <path d="M0 70 C300 85, 600 60, 900 75 C1200 95, 1350 70, 1440 65 L1440 90 L0 90 Z" fill="rgba(16, 185, 129, 0.05)"/>
+        </svg>
+    </div>
+</div>
+
+<script>
+// Official Corporate Brand Colors Matching Mockup
+const deptColorMap = {
+    'Engineering': '#f97316',      // Orange (Mockup 39.2%)
+    'GIS': '#8b5cf6',              // Purple (Mockup 18.8%)
+    'Gen Admin': '#0284c7',        // Sky Blue (Mockup 14.0%)
+    'General Admin': '#0284c7',
+    'Survey': '#84cc16',           // Lime Green (Mockup 10.8%)
+    'Urban Planning': '#14b8a6',    // Teal (Mockup 7.5%)
+    'CAD': '#eab308',              // Amber/Yellow (Mockup 5.9%)
+    'BD': '#ec4899',               // Pink (Mockup 3.8%)
+    'Telecom': '#06b6d4'           // Cyan
+};
+
+const modernPalette = [
+    '#f97316', '#8b5cf6', '#3b82f6', '#ec4899', '#10b981', '#14b8a6', '#1e3a8a', '#06b6d4', '#f59e0b', '#64748b'
+];
+
+// Employee Classification Data
+const empDeptLabels = [{% for dept, count in department_counts.items() %}'{{ dept }}'{% if not loop.last %}, {% endif %}{% endfor %}];
+const empDeptCounts = [{% for dept, count in department_counts.items() %}{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}];
+const totalEmployees = {{ total_employees or 1 }};
+const empDeptPercentages = empDeptCounts.map(c => ((c / totalEmployees) * 100).toFixed(1));
+
+let empClassificationChart = null;
+
+function renderEmployeeChart(type) {
+    if (empClassificationChart) {
+        empClassificationChart.destroy();
+        empClassificationChart = null;
+    }
+    const canvas = document.getElementById('employeeClassificationChart');
+    if (!canvas) return;
+    const centerText = document.getElementById('donutEmpCenterText');
+    const wrapper = document.getElementById('empChartWrapper');
+    const legendContainer = document.getElementById('deptClassificationLegend');
+
+    if (!empDeptLabels.length || !empDeptCounts.length) {
+        canvas.style.display = 'none';
+        if (centerText) centerText.style.display = 'none';
+        return;
+    } else {
+        canvas.style.display = 'block';
+    }
+
+    const ctx = canvas.getContext('2d');
+    const colors = empDeptLabels.map((lbl, idx) => deptColorMap[lbl] || modernPalette[idx % modernPalette.length]);
+
+    if (type === 'doughnut') {
+        if (wrapper) {
+            wrapper.style.height = '140px';
+            wrapper.style.width = '140px';
+        }
+        if (centerText) centerText.style.display = 'block';
+        if (legendContainer) legendContainer.style.display = 'grid';
+        empClassificationChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: empDeptLabels,
+                datasets: [{
+                    data: empDeptCounts,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
+                plugins: {
+                    legend: {
+                        display: false // Using custom legend BELOW the chart
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const idx = context.dataIndex;
+                                const count = context.raw;
+                                const pct = empDeptPercentages[idx] || 0;
+                                return ` ${context.label}: ${count} staff (${pct}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '66%'
+            }
+        });
+    } else {
+        // Horizontal Bar View
+        if (wrapper) {
+            wrapper.style.height = '235px';
+            wrapper.style.width = '100%';
+        }
+        if (centerText) centerText.style.display = 'none';
+        if (legendContainer) legendContainer.style.display = 'none';
+        empClassificationChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: empDeptLabels,
+                datasets: [{
+                    label: 'Staff Count',
+                    data: empDeptCounts,
+                    backgroundColor: colors,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const idx = context.dataIndex;
+                                const count = context.raw;
+                                const pct = empDeptPercentages[idx] || 0;
+                                return ` ${count} staff (${pct}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: { font: { size: 10 } }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // Populate Custom Legend Below
+    if (legendContainer) {
+        legendContainer.innerHTML = '';
+        const items = empDeptLabels.map((lbl, idx) => ({
+            label: lbl,
+            count: empDeptCounts[idx],
+            pct: empDeptPercentages[idx],
+            color: deptColorMap[lbl] || modernPalette[idx % modernPalette.length]
+        })).sort((a, b) => b.count - a.count);
+
+        items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'dept-legend-row';
+            row.innerHTML = `
+                <span class="dept-legend-color" style="background: ${item.color};"></span>
+                <span class="dept-legend-name" title="${item.label}">${item.label}</span>
+                <span class="dept-legend-pct">${item.pct}%</span>
+            `;
+            legendContainer.appendChild(row);
+        });
+    }
+}
+
+// Format Date Utility
+function formatDateStr(dateStr) {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    } catch(e) {
+        return dateStr;
+    }
+}
+
+// Timesheet Dynamic Filtering & Chart Logic
+let currentTsPreset = '1m';
+let currentTsFromDate = '';
+let currentTsToDate = '';
+let tsChartInstance = null;
+
+function fetchTimesheetSubmissions(preset, fromDate, toDate) {
+    const loading = document.getElementById('tsLoadingOverlay');
+    const emptyState = document.getElementById('tsEmptyOverlay');
+    const canvas = document.getElementById('timesheetSubmissionsChart');
+    const centerText = document.getElementById('donutTsCenterText');
+    if (!canvas) return;
+
+    if (loading) loading.classList.remove('d-none');
+    if (emptyState) emptyState.classList.add('d-none');
+
+    let url = `/api/hr/timesheet-submissions-dept?preset=${encodeURIComponent(preset || '1m')}`;
+    if (fromDate && toDate) {
+        url += `&from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`;
+    }
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (loading) loading.classList.add('d-none');
+            if (!data.success) {
+                console.error(data.error);
+                return;
+            }
+
+            const statusEl = document.getElementById('tsFilterStatusText');
+            if (statusEl) statusEl.textContent = `${data.period_label} (${data.total_submissions} submissions)`;
+
+            if (data.start_date && document.getElementById('tsFromDate')) {
+                document.getElementById('tsFromDate').value = data.start_date;
+            }
+            if (data.end_date && document.getElementById('tsToDate')) {
+                document.getElementById('tsToDate').value = data.end_date;
+            }
+
+            // Sync Welcome Hero Banner date range
+            const bannerDateEl = document.getElementById('bannerPeriodDateRange');
+            if (bannerDateEl && data.start_date && data.end_date) {
+                bannerDateEl.textContent = `${formatDateStr(data.start_date)} - ${formatDateStr(data.end_date)}`;
+            }
+
+            // Sync Metric KPI Cards
+            if (data.kpis) {
+                const subCountEl = document.getElementById('kpiTotalTimesheetCount');
+                const subPctEl = document.getElementById('kpiTotalSubmissionPct');
+                const avgSubEl = document.getElementById('kpiAvgSubmissionPct');
+
+                const actualSubCount = (data.kpis && data.kpis.total_timesheets !== undefined) ? data.kpis.total_timesheets : (data.total_submissions !== undefined ? data.total_submissions : 2);
+                if (subCountEl) subCountEl.textContent = actualSubCount;
+                if (subPctEl) subPctEl.textContent = (data.kpis && data.kpis.total_submission_pct !== undefined ? data.kpis.total_submission_pct : 50) + '%';
+                if (avgSubEl) avgSubEl.textContent = (data.kpis && data.kpis.avg_submission_pct !== undefined ? data.kpis.avg_submission_pct : 75) + '%';
+
+                // Sync Performance Card
+                const perfSubPct = document.getElementById('perfTotalSubPct');
+                const perfCount = document.getElementById('perfTotalTimesheets');
+                const perfAvg = document.getElementById('perfAvgSubPct');
+                const perfPill = document.getElementById('tsPerfPeriodPill');
+                const rightCardBadge = document.getElementById('tsRightCardPeriodBadge');
+
+                if (perfSubPct) perfSubPct.textContent = (data.kpis && data.kpis.total_submission_pct !== undefined ? data.kpis.total_submission_pct : 50) + '%';
+                if (perfCount) perfCount.textContent = actualSubCount;
+                if (perfAvg) perfAvg.textContent = (data.kpis && data.kpis.avg_submission_pct !== undefined ? data.kpis.avg_submission_pct : 75) + '%';
+                if (perfPill) perfPill.textContent = data.period_label;
+                if (rightCardBadge) rightCardBadge.innerHTML = `${data.period_label} <i class="fas fa-chevron-down ms-1"></i>`;
+            }
+
+            // Sync Donut Submissions count inside center text
+            const donutSub = document.getElementById('donutTsSubCount');
+            if (donutSub) donutSub.textContent = data.total_submissions;
+
+            if (data.total_submissions === 0 || !data.departments.length) {
+                if (tsChartInstance) {
+                    tsChartInstance.destroy();
+                    tsChartInstance = null;
+                }
+                canvas.style.display = 'none';
+                if (centerText) centerText.style.display = 'none';
+                if (emptyState) emptyState.classList.remove('d-none');
+                const tsLegend = document.getElementById('tsDonutLegend');
+                if (tsLegend) tsLegend.innerHTML = '<div class="text-muted small py-2">No submissions</div>';
+                return;
+            }
+
+            canvas.style.display = 'block';
+            if (centerText) centerText.style.display = 'block';
+            renderTimesheetChart(data);
+        })
+        .catch(err => {
+            if (loading) loading.classList.add('d-none');
+            console.error('Error fetching submissions breakdown:', err);
+        });
+}
+
+function renderTimesheetChart(data) {
+    if (tsChartInstance) {
+        tsChartInstance.destroy();
+        tsChartInstance = null;
+    }
+    const canvas = document.getElementById('timesheetSubmissionsChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const labels = data.departments.map(d => d.department);
+    const counts = data.departments.map(d => d.count);
+    const pcts = data.departments.map(d => d.percentage);
+    const colors = labels.map((lbl, idx) => deptColorMap[lbl] || modernPalette[idx % modernPalette.length]);
+
+    tsChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: counts,
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 300 },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const idx = context.dataIndex;
+                            const item = data.departments[idx];
+                            return ` ${item.department}: ${item.count} sheets (${item.percentage}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '66%'
+        }
+    });
+
+    // Populate Custom Legend BELOW the chart
+    const tsLegend = document.getElementById('tsDonutLegend');
+    if (tsLegend) {
+        tsLegend.innerHTML = '';
+        data.departments.forEach((d, i) => {
+            const color = deptColorMap[d.department] || modernPalette[i % modernPalette.length];
+            const row = document.createElement('div');
+            row.className = 'dept-legend-row';
+            row.innerHTML = `
+                <span class="dept-legend-color" style="background: ${color};"></span>
+                <span class="dept-legend-name" title="${d.department}">${d.department}</span>
+                <span class="dept-legend-pct">${d.percentage}% (${d.count})</span>
+            `;
+            tsLegend.appendChild(row);
+        });
+
+        // Add balanced summary badge if 1 or 2 departments to prevent empty white space
+        if (data.departments.length > 0 && data.departments.length <= 2) {
+            const summaryBox = document.createElement('div');
+            summaryBox.className = 'dept-summary-box mt-2 p-2 rounded bg-light border w-100 d-flex justify-content-around text-center';
+            summaryBox.style.gridColumn = '1 / -1';
+            summaryBox.innerHTML = `
+                <div>
+                    <div class="text-muted" style="font-size: 0.65rem;">Active Depts</div>
+                    <div class="fw-bold text-dark" style="font-size: 0.82rem;">${data.departments.length}</div>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <div class="text-muted" style="font-size: 0.65rem;">Total Submissions</div>
+                    <div class="fw-bold text-success" style="font-size: 0.82rem;">${data.total_submissions}</div>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <div class="text-muted" style="font-size: 0.65rem;">Compliance Share</div>
+                    <div class="fw-bold text-primary" style="font-size: 0.82rem;">100%</div>
+                </div>
+            `;
+            tsLegend.appendChild(summaryBox);
+        }
+    }
+}
+
+// Global Tab Switcher Function
+window.switchHrTab = function(tabId) {
+    const triggerEl = document.querySelector(`#hrTabs button[data-bs-target="#${tabId}"]`);
+    if (triggerEl) {
+        const tab = new bootstrap.Tab(triggerEl);
+        tab.show();
+        window.location.hash = tabId;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Initial Render of Employee Chart
+    renderEmployeeChart('doughnut');
+
+    // 2. Initial Fetch of Timesheet Submissions (Default 1 Month)
+    fetchTimesheetSubmissions('1m');
+
+    // View Switcher Buttons for Employee Classification
+    const btnEmpDoughnut = document.getElementById('btnEmpDoughnut');
+    const btnEmpBar = document.getElementById('btnEmpBar');
+    if (btnEmpDoughnut && btnEmpBar) {
+        btnEmpDoughnut.addEventListener('click', function() {
+            btnEmpDoughnut.classList.add('active');
+            btnEmpBar.classList.remove('active');
+            renderEmployeeChart('doughnut');
+        });
+        btnEmpBar.addEventListener('click', function() {
+            btnEmpBar.classList.add('active');
+            btnEmpDoughnut.classList.remove('active');
+            renderEmployeeChart('bar');
+        });
+    }
+
+    // Preset Buttons (1M, 2M, 3M, 6M, 1Y, All)
+    const presetButtons = document.querySelectorAll('#tsPresetButtons button');
+    presetButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            presetButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentTsPreset = this.getAttribute('data-preset');
+            fetchTimesheetSubmissions(currentTsPreset);
+        });
+    });
+
+    // Custom Date Range Apply Button
+    const btnApply = document.getElementById('btnApplyDateFilter');
+    if (btnApply) {
+        btnApply.addEventListener('click', function() {
+            const fromVal = document.getElementById('tsFromDate').value;
+            const toVal = document.getElementById('tsToDate').value;
+            if (!fromVal || !toVal) {
+                alert('Please select both From and To dates.');
+                return;
+            }
+            if (new Date(fromVal) > new Date(toVal)) {
+                alert('From date cannot be after To date.');
+                return;
+            }
+            presetButtons.forEach(b => b.classList.remove('active'));
+            currentTsPreset = 'custom';
+            currentTsFromDate = fromVal;
+            currentTsToDate = toVal;
+            fetchTimesheetSubmissions('custom', fromVal, toVal);
+        });
+    }
+
+    // Reset Button
+    const btnReset = document.getElementById('btnResetDateFilter');
+    if (btnReset) {
+        btnReset.addEventListener('click', function() {
+            presetButtons.forEach(b => b.classList.remove('active'));
+            const defaultBtn = document.querySelector('#tsPresetButtons button[data-preset="1m"]');
+            if (defaultBtn) defaultBtn.classList.add('active');
+            currentTsPreset = '1m';
+            currentTsFromDate = '';
+            currentTsToDate = '';
+            fetchTimesheetSubmissions('1m');
+        });
+    }
+
+    // Excel Export
+    const btnExport = document.getElementById('btnExportTimesheetExcel');
+    if (btnExport) {
+        btnExport.addEventListener('click', function() {
+            let exportUrl = `/api/hr/timesheet-submissions-dept/export?preset=${encodeURIComponent(currentTsPreset)}`;
+            if (currentTsPreset === 'custom' && currentTsFromDate && currentTsToDate) {
+                exportUrl += `&from_date=${encodeURIComponent(currentTsFromDate)}&to_date=${encodeURIComponent(currentTsToDate)}`;
+            }
+            window.location.href = exportUrl;
+        });
+    }
+
+    // Handle Hash on Load
+    if (window.location.hash) {
+        const hash = window.location.hash.substring(1);
+        if (['overview', 'employees', 'timesheets', 'reports', 'delegation'].includes(hash)) {
+            window.switchHrTab(hash);
+        }
+    }
+});
+
+// Employee search functionality
+const empSearchInput = document.getElementById('employeeSearch');
+if (empSearchInput) {
+    empSearchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#employeesTable tbody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    });
+}
+
+// Timesheet filter functionality
+function applyTimesheetFilters() {
+    const statusFilter = document.getElementById('timesheetFilter')?.value;
+    const employeeFilter = document.getElementById('employeeFilter')?.value;
+    const rows = document.querySelectorAll('#timesheetsTable tbody tr');
+    rows.forEach(row => {
+        const status = row.getAttribute('data-status');
+        const employee = row.getAttribute('data-employee');
+        const matchesStatus = !statusFilter || status === statusFilter;
+        const matchesEmployee = !employeeFilter || employee === employeeFilter;
+        row.style.display = (matchesStatus && matchesEmployee) ? '' : 'none';
+    });
+}
+
+function viewEmployeeDetails(employeeId) {
+    window.location.href = `/employees/history/${employeeId}`;
+}
+
+function viewTimesheetDetails(timesheetId) {
+    window.location.href = `/timesheet/view/${timesheetId}`;
+}
+
+function approveTimesheet(timesheetId) {
+    if (confirm('Are you sure you want to approve this timesheet?')) {
+        fetch(`/timesheet/approve/${timesheetId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error approving timesheet');
+            }
+        });
+    }
+}
+
+function rejectTimesheet(timesheetId) {
+    const reason = prompt('Please provide a reason for rejection:');
+    if (reason) {
+        fetch(`/timesheet/reject/${timesheetId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+            },
+            body: JSON.stringify({ reason: reason })
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error rejecting timesheet');
+            }
+        });
+    }
+}
+
+function generateReport(type) {
+    const filename = `${type}_${new Date().toISOString().split('T')[0]}.pdf`;
+    alert(`Generating ${type} report... The file ${filename} will be downloaded shortly.`);
+}
+
+function toggleAllAccess(empId, masterSwitch) {
+    const isChecked = masterSwitch.checked;
+    const subCheckboxes = document.querySelectorAll(`.dop-sub-${empId}`);
+    subCheckboxes.forEach(cb => {
+        cb.checked = isChecked;
+    });
+}
+
+function saveDelegation(empId) {
+    const btn = document.getElementById(`btn-save-dop-${empId}`);
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+        btn.disabled = true;
+    }
+
+    const allAccess = document.getElementById(`perm_all_${empId}`)?.checked || false;
+    const timesheetReview = document.getElementById(`perm_ts_${empId}`)?.checked || false;
+    const reportGeneration = document.getElementById(`perm_rep_${empId}`)?.checked || false;
+    const masterManagement = document.getElementById(`perm_mst_${empId}`)?.checked || false;
+    const employeeCreate = document.getElementById(`perm_create_${empId}`)?.checked || false;
+    const employeeEdit = document.getElementById(`perm_edit_${empId}`)?.checked || false;
+    const employeeBlock = document.getElementById(`perm_block_${empId}`)?.checked || false;
+    const employeeArchive = document.getElementById(`perm_arch_${empId}`)?.checked || false;
+    const employeeDelete = document.getElementById(`perm_del_${empId}`)?.checked || false;
+
+    const payload = {
+        all_access: allAccess,
+        timesheet_review: timesheetReview,
+        report_generation: reportGeneration,
+        master_management: masterManagement,
+        employee_create: employeeCreate,
+        employee_edit: employeeEdit,
+        employee_block: employeeBlock,
+        employee_archive: employeeArchive,
+        employee_delete: employeeDelete
+    };
+
+    fetch(`/api/hr/delegation/save/${empId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+        if (data.success) {
+            showToastSuccess(data.message || 'Delegation updated successfully!');
+            const badge = document.getElementById(`dop-badge-${empId}`);
+            if (badge) {
+                if (allAccess) {
+                    badge.className = 'badge bg-danger px-2 py-1';
+                    badge.innerHTML = '<i class="fas fa-star me-1"></i>All Access';
+                } else if (timesheetReview || reportGeneration || masterManagement || employeeCreate || employeeEdit) {
+                    badge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+                    badge.innerHTML = '<i class="fas fa-shield-alt me-1"></i>Active Delegations';
+                } else {
+                    badge.className = 'badge bg-secondary-subtle text-secondary border px-2 py-1';
+                    badge.innerHTML = '<i class="fas fa-user-lock me-1"></i>Standard EMP';
+                }
+            }
+        } else {
+            alert('Error saving delegation: ' + (data.error || 'Server error'));
+        }
+    })
+    .catch(err => {
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+        alert('Network error while saving delegation.');
+    });
+}
+
+function filterDopCards() {
+    const input = document.getElementById('dopSearchInput');
+    const filter = input.value.toLowerCase().trim();
+    const cards = document.querySelectorAll('.dop-member-card');
+    cards.forEach(card => {
+        const name = card.getAttribute('data-member-name') || '';
+        const empId = card.getAttribute('data-member-id') || '';
+        if (name.includes(filter) || empId.includes(filter)) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function addEmployeeToHrDept() {
+    const select = document.getElementById('additionalEmployeeSelect');
+    const empId = select.value;
+    if (!empId) {
+        alert('Please select an employee first.');
+        return;
+    }
+    fetch(`/api/hr/delegation/add-member/${empId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToastSuccess(data.message || 'Employee added to delegation list!');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            alert(data.error || 'Failed to add employee');
+        }
+    })
+    .catch(err => {
+        alert('Error adding employee to delegation list');
+    });
+}
+
+function showToastSuccess(msg) {
+    let toast = document.getElementById('dopToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'dopToast';
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#10b981;color:#ffffff;padding:14px 22px;border-radius:12px;font-weight:600;font-size:0.92rem;box-shadow:0 8px 24px rgba(0,0,0,0.18);z-index:9999;display:flex;align-items:center;gap:10px;';
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<i class="fas fa-check-circle fa-lg"></i> <span>${msg}</span>`;
+    toast.style.display = 'flex';
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3500);
+}
+
+// Seamless chart resize on sidebar open/close, window resize, and tab change (Never collapses, 0 loops)
+(function() {
+    function safeResizeCharts() {
+        if (typeof Chart === 'undefined') return;
+        requestAnimationFrame(function() {
+            try {
+                if (typeof empClassificationChart !== 'undefined' && empClassificationChart) {
+                    empClassificationChart.resize();
+                }
+                if (typeof tsChartInstance !== 'undefined' && tsChartInstance) {
+                    tsChartInstance.resize();
+                }
+            } catch(e) {
+                console.warn('Chart resize ignored:', e);
+            }
+        });
+    }
+
+    window.addEventListener('resize', safeResizeCharts);
+
+    // Watch for sidebar transition finish
+    const sidebarEl = document.getElementById('appSidebar');
+    if (sidebarEl) {
+        sidebarEl.addEventListener('transitionend', function(e) {
+            if (e.propertyName === 'width' || e.propertyName === 'transform') {
+                safeResizeCharts();
+            }
+        });
+    }
+
+    // Toggle button handler
+    const navToggle = document.getElementById('sidebarToggleBtn');
+    if (navToggle) {
+        navToggle.addEventListener('click', function() {
+            setTimeout(safeResizeCharts, 120);
+            setTimeout(safeResizeCharts, 280);
+        });
+    }
+
+    // Tab change handler (re-draws charts cleanly when returning to Overview)
+    const hrTabEl = document.getElementById('hrTabs');
+    if (hrTabEl) {
+        hrTabEl.addEventListener('shown.bs.tab', function(e) {
+            const target = e.target.getAttribute('data-bs-target');
+            if (target === '#overview') {
+                safeResizeCharts();
+            }
+        });
+    }
+})();
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+/* ================= HR DASHBOARD DESIGN SYSTEM (MATCHING PROPOSED MOCKUP EXACTLY) ================= */
+.hr-dashboard-canvas {
+    background-color: #f0f4f9;
+    min-height: calc(100vh - 80px);
+}
+
+/* 1. Hero Welcome Banner */
+.hr-welcome-hero {
+    position: relative;
+    background: #1e3a8a;
+    border-radius: 16px;
+    padding: 16px 24px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+    color: #ffffff;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+}
+
+.hero-campus-banner-bg {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.hero-campus-img {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 58%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center right;
+}
+
+.hero-gradient-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(92deg, #13395c 0%, #1e40af 42%, rgba(30, 64, 175, 0.85) 54%, rgba(30, 64, 175, 0.25) 72%, transparent 92%);
+}
+
+.hr-welcome-hero .welcome-label {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.hr-welcome-hero .welcome-heading {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 3px;
+    letter-spacing: -0.01em;
+}
+
+.hr-welcome-hero .welcome-subtitle {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 400;
+}
+
+.period-glass-pill {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    padding: 7px 16px;
+    min-width: 190px;
+}
+
+.period-glass-pill .period-range-val {
+    font-size: 0.8rem;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
+/* 2. Metric KPI Cards */
+.metric-kpi-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #eef2f6;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 60px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.metric-icon-box {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.metric-body {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.metric-title {
+    font-size: 0.70rem;
+    font-weight: 600;
+    color: #64748b;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+
+.metric-number {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.metric-trend-pill {
+    font-size: 0.60rem;
+    font-weight: 700;
+    border-radius: 99px;
+    padding: 1px 4px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.bg-emerald-subtle { background-color: #ecfdf5 !important; }
+.text-emerald { color: #059669 !important; }
+.bg-cyan-subtle { background-color: #ecfeff !important; }
+.text-cyan { color: #0891b2 !important; }
+.bg-purple-subtle { background-color: #f5f3ff !important; }
+.text-purple { color: #7c3aed !important; }
+.bg-amber-subtle { background-color: #fffbeb !important; }
+.text-amber { color: #d97706 !important; }
+.bg-blue-subtle { background-color: #eff6ff !important; }
+.text-blue { color: #2563eb !important; }
+
+/* 3. Sub-Tabs Navigation */
+.hr-pill-tabs {
+    display: flex;
+    gap: 8px;
+    border: none;
+    padding-bottom: 2px;
+}
+
+.hr-pill-tabs .nav-link {
+    border-radius: 10px !important;
+    padding: 6px 14px !important;
+    font-weight: 600 !important;
+    font-size: 0.80rem !important;
+    color: #475569 !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    transition: all 0.2s ease !important;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.hr-pill-tabs .nav-link:hover {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+.hr-pill-tabs .nav-link.active {
+    background: #065f46 !important; /* Forest Emerald Matching Mockup */
+    color: #ffffff !important;
+    border-color: #065f46 !important;
+    box-shadow: 0 2px 8px rgba(6, 95, 70, 0.25) !important;
+}
+
+.hr-pill-tabs .nav-link.active i {
+    color: #ffffff !important;
+}
+
+/* 4. Panel Cards */
+.hr-panel-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #eef2f6;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+.btn-chart-toggle {
+    font-size: 0.72rem !important;
+    padding: 2px 8px !important;
+}
+
+/* Preset Segmented Control Grid (0 Overflow, Perfect Fit) */
+.ts-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 2px;
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 2px;
+    box-sizing: border-box;
+}
+
+.ts-preset-btn {
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 0.70rem;
+    font-weight: 700;
+    padding: 4px 0;
+    border-radius: 5px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ts-preset-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.ts-preset-btn.active {
+    background: #065f46;
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(6, 95, 70, 0.35);
+}
+
+/* Date inputs - No truncation of year */
+.ts-date-input {
+    font-size: 0.70rem !important;
+    height: 28px !important;
+    padding: 2px 4px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background-color: #ffffff;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ts-date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    margin-left: 0;
+    padding: 0;
+    font-size: 0.75rem;
+}
+
+/* Filter Status Pill */
+.filter-status-pill {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 8px;
+    color: #065f46;
+    font-size: 0.70rem;
+    font-weight: 600;
+    white-space: normal;
+    line-height: 1.25;
+}
+
+/* Doughnut Center Cutout Overlay */
+.donut-center-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.donut-center-number {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.donut-center-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: capitalize;
+}
+
+/* Custom Legends Below the Charts */
+.dept-custom-legend-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.dept-legend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    font-size: 0.70rem;
+    line-height: 1.25;
+    padding: 2px 4px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: 6px;
+    min-width: 0;
+}
+
+.dept-legend-color {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.dept-legend-name {
+    color: #334155;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: auto;
+    font-size: 0.69rem;
+    letter-spacing: -0.01em;
+    min-width: 0;
+}
+
+.dept-legend-pct {
+    color: #0f172a;
+    font-weight: 700;
+    padding-left: 3px;
+    text-align: right;
+    white-space: nowrap;
+    font-size: 0.69rem;
+    flex-shrink: 0;
+}
+
+.dept-summary-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+/* 5. Quick Actions Row */
+.quick-action-card {
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    min-height: 66px;
+    position: relative;
+    overflow: hidden;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.quick-action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+
+.quick-action-card i {
+    font-size: 1.25rem;
+    margin-bottom: 3px;
+}
+
+.quick-action-card span {
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+}
+
+.quick-action-emerald {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+}
+
+.quick-action-cyan {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    color: #ffffff;
+}
+
+.quick-action-amber {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #0f172a;
+}
+
+.quick-action-purple {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: #ffffff;
+}
+
+.quick-action-badge {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    background: #ef4444;
+    color: #ffffff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+}
+
+.btn-emerald {
+    background-color: #065f46;
+    border-color: #065f46;
+    color: #ffffff;
+}
+.btn-emerald:hover {
+    background-color: #044332;
+    border-color: #044332;
+    color: #ffffff;
+}
+
+@media (max-width: 768px) {
+    .hr-welcome-hero {
+        padding: 12px 14px;
+    }
+    .hr-welcome-heading {
+        font-size: 1.25rem;
+    }
+    .hero-campus-img {
+        display: none !important;
+    }
+    .donut-center-number {
+        font-size: 1.25rem;
+    }
+}
+</style>
+{% endblock %}

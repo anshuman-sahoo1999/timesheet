@@ -1,0 +1,295 @@
+{% extends "layout.html" %}
+
+{% block title %}Sub Department Master - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <!-- Breadcrumb & Header -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-3">
+        <h4 class="fw-bold mb-0 master-page-title">
+            <i class="fas fa-network-wired me-2"></i>Sub Department Master
+        </h4>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-secondary border px-3 py-2">
+                <i class="fas fa-sitemap text-success me-1"></i>Total: {{ subdepartments|length }} Sub-departments
+            </span>
+        </div>
+    </div>
+
+    <!-- Add Sub-Department Form Card (Matching Image-3) -->
+    <div class="card shadow-sm border-0 rounded-3 mb-4">
+        <div class="card-body p-4">
+            <form action="{{ url_for('subdepartment_master') }}" method="POST" id="subDepartmentForm" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="row g-3 align-items-start">
+                    <!-- Parent Department Dropdown -->
+                    <div class="col-12 col-md-4">
+                        <select class="form-select master-input" id="parentDept" name="department_id" required>
+                            <option value="">Department</option>
+                            {% for p in parent_departments %}
+                            <option value="{{ p.id }}">{{ p.name }} ({{ p.short_code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Sub Department Name -->
+                    <div class="col-12 col-md-4">
+                        <input type="text" class="form-control master-input {{ 'is-invalid' if error_msg }}" 
+                               id="subDeptName" name="name" placeholder="Sub Department Name" required>
+                        {% if error_msg %}
+                        <div class="text-danger small mt-1 fw-semibold">
+                            <i class="fas fa-exclamation-circle me-1"></i>{{ error_msg }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Role / Note Dropdown or Input -->
+                    <div class="col-12 col-md-4">
+                        <select class="form-select master-input" id="subDeptRole" name="role">
+                            <option value="">Role</option>
+                            <option value="Operational Unit">Operational Unit</option>
+                            <option value="Administrative Support">Administrative Support</option>
+                            <option value="Technical Division">Technical Division</option>
+                            <option value="Project Management">Project Management</option>
+                            <option value="Executive Management">Executive Management</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Submit Button (Amber Pill matching Image-3) -->
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-warning btn-master-submit px-4 py-2 fw-bold text-dark shadow-sm w-100 w-sm-auto">
+                        Submit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sub-Departments Data Table Card (Matching Image-3) -->
+    <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table master-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;" class="text-center">SL</th>
+                        <th style="min-width: 250px;">DEPARTMENT</th>
+                        <th style="min-width: 250px;">SUB DEPARTMENT</th>
+                        <th style="width: 130px;" class="text-center">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in subdepartments %}
+                    <tr>
+                        <td class="text-center fw-semibold text-muted">{{ loop.index }}</td>
+                        <td class="fw-bold text-dark">
+                            <i class="fas fa-folder me-2 text-primary opacity-75"></i>
+                            {{ sub.parent.name if sub.parent else 'General' }} 
+                            <span class="text-muted fw-normal">({{ sub.parent.short_code if sub.parent else 'GEN' }})</span>
+                        </td>
+                        <td class="fw-semibold text-secondary">
+                            {{ sub.name }} <span class="badge bg-light text-secondary border ms-1">{{ sub.short_code }}</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="d-inline-flex gap-1">
+                                <!-- Edit Button (Navy Pill) -->
+                                <button type="button" class="btn btn-sm btn-master-edit" 
+                                        data-bs-toggle="modal" data-bs-target="#editSubdeptModal{{ sub.id }}" title="Edit Sub-department">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <!-- Delete Button (Red Pill) -->
+                                <button type="button" class="btn btn-sm btn-master-delete" 
+                                        data-bs-toggle="modal" data-bs-target="#deleteSubdeptModal{{ sub.id }}" title="Delete Sub-department">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+
+                            <!-- Edit Modal -->
+                            <div class="modal fade" id="editSubdeptModal{{ sub.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content text-start border-0 shadow">
+                                        <div class="modal-header bg-light">
+                                            <h6 class="modal-title fw-bold text-dark">
+                                                <i class="fas fa-edit text-primary me-2"></i>Edit Sub-department
+                                            </h6>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <form action="{{ url_for('edit_subdepartment', subdept_id=sub.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <div class="modal-body p-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Parent Department</label>
+                                                    <select name="department_id" class="form-select" required>
+                                                        {% for p in parent_departments %}
+                                                        <option value="{{ p.id }}" {{ 'selected' if sub.parent_department_id == p.id }}>
+                                                            {{ p.name }} ({{ p.short_code }})
+                                                        </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Sub-department Name</label>
+                                                    <input type="text" name="name" class="form-control" value="{{ sub.name }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Role / Classification</label>
+                                                    <input type="text" name="role" class="form-control" value="{{ sub.note or '' }}" placeholder="e.g. Technical Division">
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-sm btn-primary px-3">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Delete Modal -->
+                            <div class="modal fade" id="deleteSubdeptModal{{ sub.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content text-start border-0 shadow">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h6 class="modal-title fw-bold">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                                            </h6>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <form action="{{ url_for('delete_subdepartment', subdept_id=sub.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <div class="modal-body p-4">
+                                                <p class="mb-0">Are you sure you want to delete sub-department <strong>{{ sub.name }}</strong>?</p>
+                                                <small class="text-muted d-block mt-2">Sub-departments with assigned staff cannot be deleted.</small>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-sm btn-danger px-3">Delete</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            <i class="fas fa-network-wired fa-2x mb-2 d-block text-secondary opacity-50"></i>
+                            No sub-departments found. Add one above.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.master-page-title {
+    color: #559132;
+    font-weight: 700;
+}
+
+.master-input {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    color: #1f2937;
+    background-color: #ffffff;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.master-input:focus {
+    border-color: #559132;
+    box-shadow: 0 0 0 3px rgba(85, 145, 50, 0.15);
+}
+
+.btn-master-submit {
+    background-color: #f59e0b;
+    border-color: #f59e0b;
+    color: #111827;
+    border-radius: 20px;
+    padding: 7px 28px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+
+.btn-master-submit:hover {
+    background-color: #d97706;
+    border-color: #d97706;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.master-table thead th {
+    background-color: #72ab38;
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 14px 16px;
+    border: none;
+}
+
+.master-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.master-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.btn-master-edit {
+    background-color: #0b3b60;
+    border-color: #0b3b60;
+    color: #ffffff;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.btn-master-edit:hover {
+    background-color: #082842;
+    color: #ffffff;
+}
+
+.btn-master-delete {
+    background-color: #cc1f1a;
+    border-color: #cc1f1a;
+    color: #ffffff;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.btn-master-delete:hover {
+    background-color: #a31713;
+    color: #ffffff;
+}
+
+@media (max-width: 576px) {
+    .btn-master-submit {
+        width: 100% !important;
+        padding: 10px 24px !important;
+    }
+    .btn-master-edit, .btn-master-delete {
+        width: 36px;
+        height: 36px;
+    }
+}
+</style>
+{% endblock %}

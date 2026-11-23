@@ -1,0 +1,455 @@
+{% extends "layout.html" %}
+
+{% block title %}Employee History & Archive Dossier - {{ emp.name }} - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Breadcrumb & Top Controls -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" class="text-decoration-none">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('manage_employees', tab='archived' if emp.status == 'Resigned' else 'active') }}" class="text-decoration-none">Employees & HR</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ emp.name }} ({{ emp.emp_id }})</li>
+            </ol>
+        </nav>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('export_employee_history', emp_id=emp.id) }}" class="btn btn-success btn-sm d-inline-flex align-items-center gap-2">
+                <i class="fas fa-file-excel"></i>
+                <span>Export Dossier (.xlsx)</span>
+            </a>
+            <a href="{{ url_for('manage_employees', tab='archived' if emp.status == 'Resigned' else 'active') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-2">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to Directory</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Employee Profile Banner Card -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 14px; overflow: hidden; background: linear-gradient(135deg, #0b1526 0%, #162a4d 100%); color: #ffffff;">
+        <div class="card-body p-4">
+            <div class="row align-items-center g-3">
+                <div class="col-auto">
+                    <div style="width: 72px; height: 72px; border-radius: 16px; background: linear-gradient(135deg, #0e8749, #10b981); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; color: #ffffff; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
+                        {{ emp.name[:2]|upper }}
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <h4 class="mb-0 fw-bold text-white">{{ emp.name }}</h4>
+                        <span class="badge bg-white text-dark px-2 py-1" style="font-size: 0.75rem; font-weight: 700;">{{ emp.emp_id }}</span>
+                        {% if emp.status == 'Resigned' %}
+                        <span class="badge bg-secondary text-white px-2 py-1" style="font-size: 0.75rem;">
+                            <i class="fas fa-user-slash me-1"></i>Resigned & Archived
+                        </span>
+                        {% elif emp.status == 'Blocked' %}
+                        <span class="badge bg-danger text-white px-2 py-1" style="font-size: 0.75rem;">
+                            <i class="fas fa-ban me-1"></i>Access Blocked
+                        </span>
+                        {% else %}
+                        <span class="badge bg-success text-white px-2 py-1" style="font-size: 0.75rem;">
+                            <i class="fas fa-check-circle me-1"></i>Active Staff
+                        </span>
+                        {% endif %}
+                        <span class="badge bg-dark border border-secondary text-light px-2 py-1" style="font-size: 0.75rem;">{{ emp.role }}</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3 text-white-50" style="font-size: 0.85rem;">
+                        <span><i class="fas fa-briefcase me-1 text-emerald"></i>{{ emp.designation or 'No Designation' }}</span>
+                        <span><i class="fas fa-building me-1 text-emerald"></i>{{ emp.department.name if emp.department else 'N/A' }}{% if emp.sub_department %} <span class="badge bg-light text-dark">{{ emp.sub_department.name }}</span>{% endif %}</span>
+                        <span><i class="fas fa-envelope me-1 text-emerald"></i>{{ emp.email }}</span>
+                        {% if emp.mobile %}
+                        <span><i class="fas fa-phone me-1 text-emerald"></i>{{ emp.mobile }}</span>
+                        {% endif %}
+                        {% if emp.monthly_salary %}
+                        <span><i class="fas fa-rupee-sign me-1 text-emerald"></i>₹{{ "{:,.2f}".format(emp.monthly_salary) }}/mo</span>
+                        {% endif %}
+                        {% if emp.place %}
+                        <span><i class="fas fa-map-marker-alt me-1 text-emerald"></i>{{ emp.place }}</span>
+                        {% endif %}
+                        {% if emp.manager %}
+                        <span><i class="fas fa-user-tie me-1 text-emerald"></i>RM: {{ emp.manager.name }}</span>
+                        {% endif %}
+                        {% if emp.date_of_joining %}
+                        <span><i class="fas fa-calendar-alt me-1 text-emerald"></i>DOJ: {{ emp.date_of_joining.strftime('%d-%b-%Y') }}</span>
+                        {% endif %}
+                        {% if emp.salary_grade %}
+                        <span class="badge bg-light text-dark px-2 py-1"><i class="fas fa-layer-group me-1 text-primary"></i>Grade: {{ emp.salary_grade }}</span>
+                        {% endif %}
+                        {% if emp.employment_type %}
+                        <span class="badge bg-secondary text-white px-2 py-1">{{ emp.employment_type }}</span>
+                        {% endif %}
+                    </div>
+                    {% if emp.status == 'Resigned' and emp.resigned_reason %}
+                    <div class="mt-2 text-warning" style="font-size: 0.82rem;">
+                        <i class="fas fa-info-circle me-1"></i><strong>Resignation Record:</strong> {{ emp.resigned_reason }} {% if emp.resigned_at %}(Recorded on {{ emp.resigned_at.strftime('%d-%b-%Y') }}){% endif %}
+                    </div>
+                    {% elif emp.status == 'Blocked' and emp.blocked_reason %}
+                    <div class="mt-2 text-danger" style="font-size: 0.82rem;">
+                        <i class="fas fa-ban me-1"></i><strong>Block Reason:</strong> {{ emp.blocked_reason }} {% if emp.blocked_at %}(Recorded on {{ emp.blocked_at.strftime('%d-%b-%Y') }}){% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Metric Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px; border-left: 4px solid #0e8749 !important;">
+                <div class="card-body p-3">
+                    <div class="text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Total Hours Logged</div>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <h3 class="mb-0 fw-bold text-dark">{{ total_hours }}</h3>
+                        <span class="text-muted" style="font-size: 0.82rem;">hrs</span>
+                    </div>
+                    <div class="small text-muted mt-1"><i class="fas fa-clock text-success me-1"></i>Lifetime verified hours</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px; border-left: 4px solid #2563eb !important;">
+                <div class="card-body p-3">
+                    <div class="text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Timesheet Submissions</div>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <h3 class="mb-0 fw-bold text-dark">{{ total_timesheets }}</h3>
+                        <span class="text-muted" style="font-size: 0.82rem;">weeks</span>
+                    </div>
+                    <div class="small text-muted mt-1"><i class="fas fa-calendar-check text-primary me-1"></i>Total weekly submissions</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px; border-left: 4px solid #d97706 !important;">
+                <div class="card-body p-3">
+                    <div class="text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Projects Involved</div>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <h3 class="mb-0 fw-bold text-dark">{{ total_projects }}</h3>
+                        <span class="text-muted" style="font-size: 0.82rem;">projects</span>
+                    </div>
+                    <div class="small text-muted mt-1"><i class="fas fa-project-diagram text-warning me-1"></i>Managed / Assigned</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px; border-left: 4px solid #64748b !important;">
+                <div class="card-body p-3">
+                    <div class="text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Tenancy Status</div>
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                        <h4 class="mb-0 fw-bold text-dark">{{ emp.status or 'Active' }}</h4>
+                    </div>
+                    <div class="small text-muted mt-1">
+                        {% if emp.status == 'Resigned' %}
+                        <span class="text-secondary"><i class="fas fa-archive me-1"></i>Archived Dossier</span>
+                        {% elif emp.status == 'Blocked' %}
+                        <span class="text-danger"><i class="fas fa-lock me-1"></i>Access Suspended</span>
+                        {% else %}
+                        <span class="text-success"><i class="fas fa-circle me-1" style="font-size: 8px;"></i>Active Employee</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs for Dossier Sections -->
+    <div class="card border-0 shadow-sm" style="border-radius: 14px;">
+        <div class="card-header bg-white border-bottom p-0">
+            <ul class="nav nav-tabs card-header-tabs mx-3 mt-2 border-bottom-0" id="archiveDossierTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold" id="timesheets-tab" data-bs-toggle="tab" data-bs-target="#timesheets-pane" type="button" role="tab" aria-controls="timesheets-pane" aria-selected="true">
+                        <i class="fas fa-clock me-2 text-success"></i>Timesheet History ({{ timesheets|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold" id="projects-tab" data-bs-toggle="tab" data-bs-target="#projects-pane" type="button" role="tab" aria-controls="projects-pane" aria-selected="false">
+                        <i class="fas fa-project-diagram me-2 text-primary"></i>Project History ({{ project_list|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-pane" type="button" role="tab" aria-controls="profile-pane" aria-selected="false">
+                        <i class="fas fa-id-card me-2 text-warning"></i>Profile & Archival Details
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="tab-content" id="archiveDossierTabsContent">
+                
+                <!-- TAB 1: Complete Timesheet History -->
+                <div class="tab-pane fade show active" id="timesheets-pane" role="tabpanel" aria-labelledby="timesheets-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h6 class="mb-0 fw-bold text-dark">
+                            <i class="fas fa-list-ul me-2 text-success"></i>All Submitted Timesheets
+                        </h6>
+                        <span class="badge bg-light text-dark border">
+                            Total Hours: <strong>{{ total_hours }} hrs</strong>
+                        </span>
+                    </div>
+
+                    {% if timesheets %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 80px;">ID</th>
+                                    <th>Week Period</th>
+                                    <th>Project / Job Indent</th>
+                                    <th>Task Description</th>
+                                    <th class="text-center" style="width: 100px;">Hours</th>
+                                    <th class="text-center" style="width: 130px;">Status</th>
+                                    <th>Approved By</th>
+                                    <th>Submitted On</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ts in timesheets %}
+                                <tr>
+                                    <td class="fw-semibold text-muted">#{{ ts.id }}</td>
+                                    <td>
+                                        <div class="fw-semibold text-dark">{{ ts.week_start_date.strftime('%d %b %Y') }}</div>
+                                        <div class="text-muted small">to {{ ts.week_end_date.strftime('%d %b %Y') }}</div>
+                                    </td>
+                                    <td>
+                                        {% if ts.task and ts.task.job_card and ts.task.job_card.indent %}
+                                        <div class="fw-semibold text-dark">{{ ts.task.job_card.indent.file_number or 'Job Indent' }}</div>
+                                        <div class="text-muted small">{{ ts.task.job_card.indent.department.name if ts.task.job_card.indent.department else 'Department' }}</div>
+                                        {% else %}
+                                        <span class="text-muted">General Work</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium text-dark">{{ ts.task.description if ts.task else 'N/A' }}</div>
+                                        {% if ts.progress_description %}
+                                        <div class="text-muted small text-truncate" style="max-width: 280px;" title="{{ ts.progress_description }}">
+                                            <em>{{ ts.progress_description }}</em>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold">
+                                            {{ ts.total_hours }} hrs
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if 'Approved' in ts.status %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                            <i class="fas fa-check-circle me-1"></i>{{ ts.status }}
+                                        </span>
+                                        {% elif 'Rejected' in ts.status %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                            <i class="fas fa-times-circle me-1"></i>{{ ts.status }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                            <i class="fas fa-clock me-1"></i>{{ ts.status }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if ts.approved_by %}
+                                        <span class="small fw-semibold text-dark">{{ ts.approved_by.name }}</span>
+                                        <div class="text-muted small">({{ ts.approval_level or 'Verifier' }})</div>
+                                        {% else %}
+                                        <span class="text-muted small">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small">{{ ts.created_at.strftime('%d-%b-%Y') if ts.created_at else 'N/A' }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times text-muted fa-3x mb-3"></i>
+                        <h6 class="text-muted fw-semibold">No Timesheet Submissions Found</h6>
+                        <p class="text-muted small mb-0">This employee has no logged weekly timesheet submissions on record.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- TAB 2: Project History -->
+                <div class="tab-pane fade" id="projects-pane" role="tabpanel" aria-labelledby="projects-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h6 class="mb-0 fw-bold text-dark">
+                            <i class="fas fa-folder-open me-2 text-primary"></i>Projects & Tasks History
+                        </h6>
+                        <span class="badge bg-light text-dark border">
+                            Total Projects: <strong>{{ project_list|length }}</strong>
+                        </span>
+                    </div>
+
+                    {% if project_list %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Project / File Ref</th>
+                                    <th>Department</th>
+                                    <th>Role in Project</th>
+                                    <th>Tasks Associated</th>
+                                    <th class="text-center">Hours Logged</th>
+                                    <th class="text-center">Project Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in project_list %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ p.indent.file_number or 'Job Indent #' + p.indent.id|string }}</div>
+                                        {% if p.indent.client %}
+                                        <div class="text-muted small"><i class="fas fa-user-tie me-1"></i>{{ p.indent.client.client_name }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium text-dark">{{ p.indent.department.name if p.indent.department else 'N/A' }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                                            {{ p.role_in_project }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if p.tasks %}
+                                        <div class="small fw-semibold text-dark">{{ p.tasks|length }} task(s) assigned</div>
+                                        <ul class="list-unstyled mb-0 small text-muted">
+                                            {% for t in p.tasks[:2] %}
+                                            <li class="text-truncate" style="max-width: 250px;">&bull; {{ t.description }}</li>
+                                            {% endfor %}
+                                            {% if p.tasks|length > 2 %}
+                                            <li class="text-primary">+{{ p.tasks|length - 2 }} more task(s)</li>
+                                            {% endif %}
+                                        </ul>
+                                        {% else %}
+                                        <span class="text-muted small">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fw-bold">
+                                            {{ p.logged_hours }} hrs
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border px-2 py-1">
+                                            {{ p.indent.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-project-diagram text-muted fa-3x mb-3"></i>
+                        <h6 class="text-muted fw-semibold">No Project Assignments Found</h6>
+                        <p class="text-muted small mb-0">This employee was not assigned as Project Manager or task assignee on any projects.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- TAB 3: Profile & Archival Details -->
+                <div class="tab-pane fade" id="profile-pane" role="tabpanel" aria-labelledby="profile-tab">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light">
+                                <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-user-circle me-2 text-primary"></i>Basic Identification</h6>
+                                <table class="table table-sm table-borderless mb-0" style="font-size: 0.85rem;">
+                                    <tr>
+                                        <td class="text-muted" style="width: 140px;">Employee ID:</td>
+                                        <td class="fw-semibold text-dark">{{ emp.emp_id }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Full Name:</td>
+                                        <td class="fw-semibold text-dark">{{ emp.name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Work Email:</td>
+                                        <td class="fw-semibold text-dark">{{ emp.email }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Contact Mobile:</td>
+                                        <td class="fw-semibold text-dark">{{ emp.mobile or 'N/A' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Work Location / Place:</td>
+                                        <td class="fw-semibold text-dark">{{ emp.place or 'N/A' }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light">
+                                <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-sitemap me-2 text-warning"></i>Corporate Role & Hierarchy</h6>
+                                <table class="table table-sm table-borderless mb-0" style="font-size: 0.85rem;">
+                                    <tr>
+                                        <td class="text-muted" style="width: 140px;">Department:</td>
+                                        <td class="fw-semibold text-dark">{{ emp.department.name if emp.department else 'N/A' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Designation:</td>
+                                        <td class="fw-semibold text-dark">{{ emp.designation or 'N/A' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Portal Role:</td>
+                                        <td class="fw-semibold text-dark"><span class="badge bg-secondary">{{ emp.role }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Reporting Manager:</td>
+                                        <td class="fw-semibold text-dark">{{ emp.manager.name if emp.manager else 'None' }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="border rounded p-3" style="background: #fafafa;">
+                                <h6 class="fw-bold mb-2 text-dark"><i class="fas fa-history me-2 text-secondary"></i>Lifecycle & Separation Audit</h6>
+                                <div class="row g-3" style="font-size: 0.85rem;">
+                                    <div class="col-sm-4">
+                                        <div class="text-muted">Lifecycle Status:</div>
+                                        <div class="fw-bold text-dark mt-1">{{ emp.status or 'Active' }}</div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="text-muted">Resignation Recorded:</div>
+                                        <div class="fw-semibold text-dark mt-1">
+                                            {{ emp.resigned_at.strftime('%d-%b-%Y %H:%M') if emp.resigned_at else 'Not Applicable' }}
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="text-muted">Block Status Recorded:</div>
+                                        <div class="fw-semibold text-dark mt-1">
+                                            {{ emp.blocked_at.strftime('%d-%b-%Y %H:%M') if emp.blocked_at else 'Not Applicable' }}
+                                        </div>
+                                    </div>
+                                    {% if emp.resigned_reason %}
+                                    <div class="col-12">
+                                        <div class="text-muted">Resignation Note / Separation Reason:</div>
+                                        <div class="p-2 mt-1 bg-white border rounded text-dark">{{ emp.resigned_reason }}</div>
+                                    </div>
+                                    {% endif %}
+                                    {% if emp.blocked_reason %}
+                                    <div class="col-12">
+                                        <div class="text-muted">Blocking Administrative Reason:</div>
+                                        <div class="p-2 mt-1 bg-white border rounded text-danger">{{ emp.blocked_reason }}</div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

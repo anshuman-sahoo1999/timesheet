@@ -1,0 +1,890 @@
+{% extends "layout.html" %}
+
+{% block title %}Create Job Indent - PMS Ecometrix{% endblock %}
+
+{% block content %}
+<style>
+    /* ================= CREATE JOB INDENT ENTERPRISE FORM ================= */
+    :root {
+        --indent-primary: #0e8749;
+        --indent-primary-hover: #0b733d;
+        --indent-primary-light: #eaf7ef;
+        --indent-glow: rgba(14, 135, 73, 0.16);
+        --indent-border: #cbd5e1;
+        --indent-border-focus: #0e8749;
+        --indent-bg-card: #ffffff;
+        --indent-text-slate: #0f172a;
+        --indent-text-muted: #64748b;
+    }
+
+    .indent-form-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding-bottom: 40px;
+    }
+
+    /* Form Header Card */
+    .indent-page-header {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 22px 28px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .indent-page-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #0e8749, #10b981, #0284c7);
+    }
+
+    .indent-title-wrap h1 {
+        font-size: 1.55rem;
+        font-weight: 800;
+        color: var(--indent-primary);
+        letter-spacing: -0.02em;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .indent-subtitle {
+        font-size: 0.88rem;
+        color: var(--indent-text-muted);
+        margin: 0;
+    }
+
+    /* Reference Code Live Preview Strip */
+    .reference-preview-pill {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 8px 16px;
+    }
+
+    .preview-label {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--indent-text-muted);
+    }
+
+    .preview-code-tag {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: #0284c7;
+        background: #e0f2fe;
+        padding: 3px 10px;
+        border-radius: 6px;
+        border: 1px solid #bae6fd;
+    }
+
+    /* Main Form Card */
+    .indent-card {
+        background: var(--indent-bg-card);
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 30px;
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    /* 3-Column Landscape Grid */
+    .indent-three-col-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+    }
+
+    .indent-grid-column {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Form Field Component */
+    .form-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        position: relative;
+    }
+
+    .form-field-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #334155;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 2px;
+    }
+
+    .form-field-label .required-star {
+        color: #e11d48;
+        font-weight: 800;
+    }
+
+    .field-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .field-icon {
+        position: absolute;
+        left: 14px;
+        color: #94a3b8;
+        font-size: 0.9rem;
+        pointer-events: none;
+        transition: color 0.2s ease;
+    }
+
+    .indent-input,
+    .indent-select,
+    .indent-textarea {
+        width: 100%;
+        height: 48px;
+        background: #ffffff;
+        border: 1px solid var(--indent-border);
+        border-radius: 10px;
+        padding: 0 16px 0 42px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--indent-text-slate);
+        outline: none;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .indent-textarea {
+        height: 48px;
+        padding-top: 12px;
+        resize: none;
+    }
+
+    .indent-input:focus,
+    .indent-select:focus,
+    .indent-textarea:focus {
+        border-color: var(--indent-border-focus);
+        box-shadow: 0 0 0 3px var(--indent-glow);
+    }
+
+    .indent-input:focus + .field-icon,
+    .indent-select:focus + .field-icon {
+        color: var(--indent-primary);
+    }
+
+    .indent-select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 16px;
+        padding-right: 38px;
+    }
+
+    /* Paperclip File Upload Box */
+    .paperclip-upload-card {
+        border: 1px dashed var(--indent-border);
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        position: relative;
+        min-height: 48px;
+    }
+
+    .paperclip-upload-card:hover {
+        background: #f1f5f9;
+        border-color: var(--indent-primary);
+        border-style: solid;
+    }
+
+    .paperclip-upload-card.file-selected {
+        background: #ecfdf5;
+        border-color: #10b981;
+        border-style: solid;
+    }
+
+    .paperclip-icon-box {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #475569;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+
+    .paperclip-upload-card:hover .paperclip-icon-box {
+        color: var(--indent-primary);
+        border-color: var(--indent-primary);
+    }
+
+    .paperclip-upload-card.file-selected .paperclip-icon-box {
+        background: #10b981;
+        color: #ffffff;
+        border-color: #10b981;
+    }
+
+    .upload-details-text {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .upload-main-title {
+        font-size: 0.84rem;
+        font-weight: 600;
+        color: #334155;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .upload-sub-title {
+        font-size: 0.72rem;
+        color: var(--indent-text-muted);
+    }
+
+    .file-input-native {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    /* Project Manager Assignment (MD Role) */
+    .pm-assignment-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-top: 24px;
+    }
+
+    /* Bottom Action Bar */
+    .form-actions-bar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 28px;
+        padding-top: 24px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .btn-submit-indent {
+        background: var(--indent-primary);
+        color: #ffffff;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-size: 0.94rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        box-shadow: 0 4px 14px var(--indent-glow);
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn-submit-indent:hover {
+        background: var(--indent-primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(14, 135, 73, 0.28);
+    }
+
+    .btn-cancel-indent {
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-size: 0.94rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-cancel-indent:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+        border-color: #94a3b8;
+    }
+
+    /* Responsive Grid */
+    @media (max-width: 1080px) {
+        .indent-three-col-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .indent-three-col-grid {
+            grid-template-columns: 1fr;
+        }
+        .indent-card {
+            padding: 20px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .indent-page-header {
+            padding: 16px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .indent-title-wrap h1 {
+            font-size: 1.3rem;
+        }
+        .reference-preview-pill {
+            width: 100%;
+            justify-content: space-between;
+        }
+        .indent-card {
+            padding: 16px 12px;
+            border-radius: 14px;
+        }
+        .form-actions-bar {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+        .btn-submit-indent,
+        .btn-cancel-indent {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="indent-form-container">
+    <!-- Header Card -->
+    <header class="indent-page-header">
+        <div class="indent-title-wrap">
+            <h1>
+                <i class="fas fa-file-circle-plus"></i>
+                <span>Create Job Indent</span>
+            </h1>
+            <p class="indent-subtitle">
+                Initiate client project order, auto-generate internal reference code, and register contractual scope.
+            </p>
+        </div>
+        <div class="reference-preview-pill">
+            <span class="preview-label"><i class="fas fa-barcode me-1"></i> Generated Code:</span>
+            <span class="preview-code-tag" id="headerCodePreview">Awaiting Parameters</span>
+        </div>
+    </header>
+
+    <!-- Main Indent Creation Form -->
+    <div class="indent-card">
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('create_job_indent') }}" id="createJobIndentForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- 3-Column Landscape Grid Matching Exact Form Specification -->
+            <div class="indent-three-col-grid">
+                
+                <!-- ================= COLUMN 1 ================= -->
+                <div class="indent-grid-column">
+                    <!-- 1. Financial Year -->
+                    <div class="form-field-group">
+                        <label for="financial_year" class="form-field-label">
+                            <i class="far fa-calendar-alt text-primary"></i>
+                            <span>Financial Year</span>
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="far fa-calendar field-icon"></i>
+                            <select class="indent-select" id="financial_year" name="financial_year" required>
+                                <option value="">Select Financial Year</option>
+                                {% for fy in financial_years %}
+                                <option value="{{ fy }}" {% if loop.first %}selected{% endif %}>{{ fy }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 4. Project Name* -->
+                    <div class="form-field-group">
+                        <label for="project_name" class="form-field-label">
+                            <i class="fas fa-folder-open text-primary"></i>
+                            <span>Project Name</span>
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-layer-group field-icon"></i>
+                            <input type="text" class="indent-input" id="project_name" name="project_name" placeholder="Enter complete project title" required>
+                        </div>
+                    </div>
+
+                    <!-- 7. Description -->
+                    <div class="form-field-group">
+                        <label for="description" class="form-field-label">
+                            <i class="fas fa-align-left text-primary"></i>
+                            <span>Description</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-pen-to-square field-icon"></i>
+                            <input type="text" class="indent-input" id="description" name="description" placeholder="Brief project summary or scope notes">
+                        </div>
+                    </div>
+
+                    <!-- 10. Contract End Date* -->
+                    <div class="form-field-group">
+                        <label for="contract_end_date" class="form-field-label">
+                            <i class="far fa-calendar-xmark text-danger"></i>
+                            <span>Contract End Date</span>
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="far fa-calendar-check field-icon"></i>
+                            <input type="date" class="indent-input" id="contract_end_date" name="contract_end_date" required>
+                        </div>
+                    </div>
+
+                    <!-- 13. Upload RFP Document -->
+                    <div class="form-field-group">
+                        <label class="form-field-label">
+                            <i class="fas fa-file-contract text-muted"></i>
+                            <span>Upload RFP Document</span>
+                        </label>
+                        <div class="paperclip-upload-card" id="card_rfp">
+                            <input type="file" name="rfp_document_file" id="rfp_document_file" class="file-input-native" accept=".pdf,.doc,.docx,.xls,.xlsx" onchange="updateUploadLabel(this, 'card_rfp', 'rfp_name_display')">
+                            <div class="paperclip-icon-box">
+                                <i class="fas fa-paperclip"></i>
+                            </div>
+                            <div class="upload-details-text">
+                                <span class="upload-main-title" id="rfp_name_display">Upload RFP Document</span>
+                                <span class="upload-sub-title">PDF, DOC, XLS (Optional)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= COLUMN 2 ================= -->
+                <div class="indent-grid-column">
+                    <!-- 2. Internal Project Reference Code -->
+                    <div class="form-field-group">
+                        <label for="internal_reference_code" class="form-field-label">
+                            <i class="fas fa-barcode text-primary"></i>
+                            <span>Internal Project Reference Code</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-hashtag field-icon"></i>
+                            <input type="text" class="indent-input" id="internal_reference_code" name="internal_reference_code" placeholder="Auto-generated or custom reference code">
+                        </div>
+                    </div>
+
+                    <!-- 5. Project Type -->
+                    <div class="form-field-group">
+                        <label for="project_type" class="form-field-label">
+                            <i class="fas fa-tag text-primary"></i>
+                            <span>Project Type</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-diagram-project field-icon"></i>
+                            <select class="indent-select" id="project_type" name="project_type">
+                                <option value="">Select Project Type</option>
+                                <option value="Detailed Project Report (DPR)">Detailed Project Report (DPR)</option>
+                                <option value="Survey & Field Investigation">Survey & Field Investigation</option>
+                                <option value="Project Management Consultancy (PMC)">Project Management Consultancy (PMC)</option>
+                                <option value="Environmental Monitoring & Audit">Environmental Monitoring & Audit</option>
+                                <option value="Feasibility Study & Advisory">Feasibility Study & Advisory</option>
+                                <option value="Architectural & Structural Design">Architectural & Structural Design</option>
+                                <option value="Turnkey / EPC Works">Turnkey / EPC Works</option>
+                                <option value="General Engineering Consultancy">General Engineering Consultancy</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 8. Contract Value* -->
+                    <div class="form-field-group">
+                        <label for="contract_value" class="form-field-label">
+                            <i class="fas fa-indian-rupee-sign text-success"></i>
+                            <span>Contract Value (₹)</span>
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-wallet field-icon"></i>
+                            <input type="number" step="0.01" class="indent-input" id="contract_value" name="contract_value" placeholder="e.g. 1500000" required>
+                        </div>
+                    </div>
+
+                    <!-- 11. Upload Work Order* -->
+                    <div class="form-field-group">
+                        <label class="form-field-label">
+                            <i class="fas fa-file-invoice text-primary"></i>
+                            <span>Upload Work Order</span>
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="paperclip-upload-card" id="card_work_order">
+                            <input type="file" name="work_order_pdf" id="work_order_pdf" class="file-input-native" accept=".pdf,.doc,.docx" required onchange="updateUploadLabel(this, 'card_work_order', 'wo_name_display')">
+                            <div class="paperclip-icon-box">
+                                <i class="fas fa-paperclip"></i>
+                            </div>
+                            <div class="upload-details-text">
+                                <span class="upload-main-title" id="wo_name_display">Upload Work Order <span class="text-danger">*</span></span>
+                                <span class="upload-sub-title">PDF, DOCX up to 10MB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 14. Upload Technical Bid Document -->
+                    <div class="form-field-group">
+                        <label class="form-field-label">
+                            <i class="fas fa-file-signature text-muted"></i>
+                            <span>Upload Technical Bid Document</span>
+                        </label>
+                        <div class="paperclip-upload-card" id="card_tech_bid">
+                            <input type="file" name="technical_bid_file" id="technical_bid_file" class="file-input-native" accept=".pdf,.doc,.docx,.xls,.xlsx" onchange="updateUploadLabel(this, 'card_tech_bid', 'tech_bid_name_display')">
+                            <div class="paperclip-icon-box">
+                                <i class="fas fa-paperclip"></i>
+                            </div>
+                            <div class="upload-details-text">
+                                <span class="upload-main-title" id="tech_bid_name_display">Upload Technical Bid Document</span>
+                                <span class="upload-sub-title">PDF, DOC, XLS (Optional)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= COLUMN 3 ================= -->
+                <div class="indent-grid-column">
+                    <!-- 3. Department Name* -->
+                    <div class="form-field-group">
+                        <label for="department_id" class="form-field-label">
+                            <i class="fas fa-building text-primary"></i>
+                            <span>Department Name</span>
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-sitemap field-icon"></i>
+                            <select class="indent-select" id="department_id" name="department_id" required>
+                                <option value="">Select Department</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.id }}" data-is-ga="{{ dept.is_general_admin|lower }}">
+                                    {{ dept.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Sub-Department (Appears dynamically if General Administration) -->
+                    <div class="form-field-group" id="sub_department_div" style="display: none;">
+                        <label for="sub_department_id" class="form-field-label">
+                            <i class="fas fa-network-wired text-primary"></i>
+                            <span>Sub-Department</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-code-branch field-icon"></i>
+                            <select class="indent-select" id="sub_department_id" name="sub_department_id">
+                                <option value="">Select Sub-Department</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 6. Client Name* -->
+                    <div class="form-field-group">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label for="client_name" class="form-field-label mb-0">
+                                <i class="fas fa-building-user text-primary"></i>
+                                <span>Client Name</span>
+                                <span class="required-star">*</span>
+                            </label>
+                            {% if current_user.role in ['BD', 'MD', 'Admin'] %}
+                            <a href="{{ url_for('create_client') }}" target="_blank" class="text-success text-decoration-none fw-bold" style="font-size: 0.74rem;" title="Register new client in Client Master">
+                                <i class="fas fa-plus-circle me-1"></i>New Client
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-building-user field-icon"></i>
+                            <input type="text" 
+                                   class="indent-input" 
+                                   id="client_name" 
+                                   name="client_name" 
+                                   list="clientsDatalist" 
+                                   placeholder="Search and choose client..." 
+                                   autocomplete="off" 
+                                   required>
+                            <datalist id="clientsDatalist">
+                                {% for c in clients %}
+                                <option value="{{ c.client_name }}">{{ c.client_name }} ({{ c.department_name }})</option>
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <small class="text-muted" style="font-size: 0.72rem;">Type to search or choose below:</small>
+                            <select class="form-select form-select-sm py-0 px-2" style="font-size: 0.74rem; width: auto; height: 26px; border-radius: 6px; border-color: #cbd5e1;" onchange="if(this.value){ document.getElementById('client_name').value = this.value; }">
+                                <option value="">Choose Client Dropdown &or;</option>
+                                {% for c in clients %}
+                                <option value="{{ c.client_name }}">{{ c.client_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 9. Contract Start Date* -->
+                    <div class="form-field-group">
+                        <label for="contract_start_date" class="form-field-label">
+                            <i class="far fa-calendar-check text-success"></i>
+                            <span>Contract Start Date</span>
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="far fa-calendar field-icon"></i>
+                            <input type="date" class="indent-input" id="contract_start_date" name="contract_start_date" required>
+                        </div>
+                    </div>
+
+                    <!-- 12. Upload Scope of Work -->
+                    <div class="form-field-group">
+                        <label class="form-field-label">
+                            <i class="fas fa-file-shield text-muted"></i>
+                            <span>Upload Scope of Work</span>
+                        </label>
+                        <div class="paperclip-upload-card" id="card_scope">
+                            <input type="file" name="scope_of_work_file" id="scope_of_work_file" class="file-input-native" accept=".pdf,.doc,.docx" onchange="updateUploadLabel(this, 'card_scope', 'scope_name_display')">
+                            <div class="paperclip-icon-box">
+                                <i class="fas fa-paperclip"></i>
+                            </div>
+                            <div class="upload-details-text">
+                                <span class="upload-main-title" id="scope_name_display">Upload Scope of Work</span>
+                                <span class="upload-sub-title">PDF, DOCX (Optional)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Optional Project Manager Assignment for MD Role -->
+            {% if current_user.role == 'MD' %}
+            <div class="pm-assignment-card">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <label for="project_manager_id" class="form-field-label">
+                            <i class="fas fa-user-shield text-primary"></i>
+                            <span>Assign Project Manager (Executive Override)</span>
+                        </label>
+                        <div class="field-input-wrap">
+                            <i class="fas fa-user-check field-icon"></i>
+                            <select class="indent-select" id="project_manager_id" name="project_manager_id">
+                                <option value="">Select Project Manager (Optional)</option>
+                                {% for emp in employees %}
+                                    {% if emp.role in ['PM', 'EMP'] and emp.is_active %}
+                                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.department.name if emp.department else 'General' }})</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.74rem;">Leave empty to assign later during workflow delegation</small>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="pm_occupancy_warning" class="alert alert-warning mb-0 py-2" style="display: none; border-radius: 10px;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="pm_occupancy_message" style="font-size: 0.85rem;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Bottom Actions Bar -->
+            <div class="form-actions-bar">
+                <button type="submit" class="btn-submit-indent" id="btnSubmitIndent">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Submit</span>
+                </button>
+                <a href="{{ url_for('dashboard') }}" class="btn-cancel-indent">
+                    <i class="fas fa-times"></i>
+                    <span>Cancel</span>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= FORM BEHAVIOR & REAL-TIME FILE NUMBER ================= -->
+<script>
+    // Handle File Upload Display Label and Visual State
+    function updateUploadLabel(input, cardId, labelId) {
+        const card = document.getElementById(cardId);
+        const label = document.getElementById(labelId);
+        if (input.files && input.files.length > 0) {
+            const file = input.files[0];
+            const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+            label.innerHTML = `<span class="text-success"><i class="fas fa-check me-1"></i> ${file.name}</span> (${sizeInMb} MB)`;
+            if (card) card.classList.add('file-selected');
+        } else {
+            if (card) card.classList.remove('file-selected');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const departmentSelect = document.getElementById('department_id');
+        const subDepartmentDiv = document.getElementById('sub_department_div');
+        const subDepartmentSelect = document.getElementById('sub_department_id');
+        const financialYearSelect = document.getElementById('financial_year');
+        const internalRefInput = document.getElementById('internal_reference_code');
+        const headerCodePreview = document.getElementById('headerCodePreview');
+
+        // Department Selection and Sub-Departments Loading
+        departmentSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const isGA = selectedOption.getAttribute('data-is-ga') === 'true';
+
+            if (isGA) {
+                subDepartmentDiv.style.display = 'flex';
+                subDepartmentSelect.required = false;
+                loadSubDepartments(this.value);
+            } else {
+                subDepartmentDiv.style.display = 'none';
+                subDepartmentSelect.required = false;
+                subDepartmentSelect.innerHTML = '<option value="">Select Sub-Department</option>';
+            }
+            fetchNextFileNumber();
+        });
+
+        financialYearSelect.addEventListener('change', fetchNextFileNumber);
+        subDepartmentSelect.addEventListener('change', fetchNextFileNumber);
+
+        function loadSubDepartments(parentId) {
+            fetch(`/api/sub-departments/${parentId}`)
+                .then(r => r.json())
+                .then(data => {
+                    subDepartmentSelect.innerHTML = '<option value="">Select Sub-Department</option>';
+                    data.forEach(dept => {
+                        const opt = document.createElement('option');
+                        opt.value = dept.id;
+                        opt.textContent = dept.name;
+                        subDepartmentSelect.appendChild(opt);
+                    });
+                })
+                .catch(err => console.error('Error loading sub-departments:', err));
+        }
+
+        // Live calculation of next file number
+        function fetchNextFileNumber() {
+            const fy = financialYearSelect.value;
+            const deptId = departmentSelect.value;
+            const subDeptId = subDepartmentSelect.value;
+
+            if (fy && deptId) {
+                let url = `/api/next-file-number?financial_year=${encodeURIComponent(fy)}&department_id=${encodeURIComponent(deptId)}`;
+                if (subDeptId) {
+                    url += `&sub_department_id=${encodeURIComponent(subDeptId)}`;
+                }
+                headerCodePreview.textContent = 'Generating...';
+
+                fetch(url)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.file_number) {
+                            headerCodePreview.textContent = data.file_number;
+                            // Pre-fill the Internal Reference Code if user hasn't manually entered one
+                            if (!internalRefInput.value || internalRefInput.dataset.autofilled === "true") {
+                                internalRefInput.value = data.file_number;
+                                internalRefInput.dataset.autofilled = "true";
+                            }
+                        } else {
+                            headerCodePreview.textContent = 'Awaiting Details';
+                        }
+                    })
+                    .catch(() => {
+                        headerCodePreview.textContent = 'Awaiting Details';
+                    });
+            } else {
+                headerCodePreview.textContent = 'Select FY & Dept';
+            }
+        }
+
+        // Mark internalRefInput as user-modified if typed into
+        internalRefInput.addEventListener('input', function() {
+            this.dataset.autofilled = "false";
+            headerCodePreview.textContent = this.value || 'Custom Reference';
+        });
+
+        // Trigger initial calculation
+        fetchNextFileNumber();
+
+        // PM Occupancy Checking (for CEO/MD only)
+        {% if current_user.role == 'MD' %}
+        const pmSelect = document.getElementById('project_manager_id');
+        const startDateInput = document.getElementById('contract_start_date');
+        const endDateInput = document.getElementById('contract_end_date');
+        const occupancyWarning = document.getElementById('pm_occupancy_warning');
+        const occupancyMessage = document.getElementById('pm_occupancy_message');
+
+        function triggerPMOccupancyCheck() {
+            const pmId = pmSelect.value;
+            const sDate = startDateInput.value;
+            const eDate = endDateInput.value;
+
+            if (pmId && sDate && eDate) {
+                fetch('/api/check-pm-occupancy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({ pm_id: pmId, start_date: sDate, end_date: eDate })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.occupancy && data.occupancy.is_occupied) {
+                        occupancyMessage.textContent = data.occupancy.message;
+                        occupancyWarning.style.display = 'block';
+                    } else {
+                        occupancyWarning.style.display = 'none';
+                    }
+                })
+                .catch(err => console.error('PM occupancy check error:', err));
+            } else {
+                occupancyWarning.style.display = 'none';
+            }
+        }
+
+        pmSelect.addEventListener('change', triggerPMOccupancyCheck);
+        startDateInput.addEventListener('change', triggerPMOccupancyCheck);
+        endDateInput.addEventListener('change', triggerPMOccupancyCheck);
+        {% endif %}
+    });
+</script>
+{% endblock %}

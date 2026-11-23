@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block title %}Employee Timesheet - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 px-md-3 py-2">
+    <!-- Top Greeting / Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold mb-1 text-dark">Employee Timesheet</h3>
+            <p class="text-secondary mb-0">
+                <span class="fw-semibold text-success fs-6">{{ greeting }}, {{ current_user.name }}</span>
+                <span class="text-muted ms-2 small">&bull; Employee ID: {{ current_user.emp_id }}</span>
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary px-3 py-2 rounded-3 shadow-sm">
+                <i class="fas fa-arrow-left me-1"></i> Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Timesheet Calendar & Multi-row Submissions Portal -->
+    {% include 'timesheets/employee_timesheet_view.html' %}
+</div>
+{% endblock %}

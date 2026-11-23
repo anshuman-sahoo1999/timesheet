@@ -1,0 +1,533 @@
+{% extends "layout.html" %}
+
+{% block title %}Employee Reporting Hierarchy - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <!-- Header & Controls -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h4 class="fw-bold mb-0 master-page-title">
+                <i class="fas fa-sitemap me-2"></i>Employee Reporting Hierarchy
+            </h4>
+            <small class="text-muted">Interactive organizational tree & drag-and-drop manager reassignment</small>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 w-100-mobile">
+            <!-- View Mode Switcher -->
+            <div class="btn-group btn-group-sm flex-grow-1 flex-sm-grow-0" role="group">
+                <button type="button" class="btn btn-outline-success active" id="btnViewTree">
+                    <i class="fas fa-network-wired me-1"></i>Interactive Tree
+                </button>
+                <button type="button" class="btn btn-outline-success" id="btnViewCards">
+                    <i class="fas fa-th-large me-1"></i>Card Grid
+                </button>
+            </div>
+
+            <!-- Department Filter -->
+            <select class="form-select form-select-sm flex-grow-1 flex-sm-grow-0" id="filterDeptHierarchy" style="min-width: 130px;">
+                <option value="">All Departments</option>
+                {% for d in departments %}
+                <option value="{{ d.name }}">{{ d.name }}</option>
+                {% endfor %}
+            </select>
+
+            <!-- Employee Search -->
+            <div class="input-group input-group-sm flex-grow-1" style="min-width: 150px;">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" class="form-control border-start-0" id="searchHierarchyEmp" placeholder="Search employee...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag & Drop Help Banner -->
+    <div class="alert alert-info border-0 shadow-sm py-2 px-3 mb-3 d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2">
+        <div class="small">
+            <i class="fas fa-info-circle me-2 text-primary"></i>
+            <strong>Reporting Hierarchy:</strong> Drag employee cards onto managers, or tap the <i class="fas fa-user-edit text-dark opacity-75"></i> edit icon on any node to reassign.
+        </div>
+        <span class="badge bg-white text-dark border small fw-bold">
+            Total Staff: {{ employees|length }}
+        </span>
+    </div>
+
+    <!-- VIEW 1: INTERACTIVE ORG TREE (Matching Image-5 Top Tree Structure) -->
+    <div id="treeViewContainer" class="card shadow-sm border-0 rounded-3 mb-4">
+        <div class="card-header bg-white border-bottom py-3 d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+            <div class="fw-bold text-dark small text-uppercase tracking-wide">
+                <i class="fas fa-project-diagram text-success me-2"></i>Organizational Tree View
+            </div>
+            <div class="d-flex gap-2 w-100 w-sm-auto justify-content-between justify-content-sm-end">
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1 flex-sm-grow-0" id="btnExpandAll">
+                    <i class="fas fa-expand-alt me-1"></i>Expand All
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1 flex-sm-grow-0" id="btnCollapseAll">
+                    <i class="fas fa-compress-alt me-1"></i>Collapse All
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-4 overflow-x-auto">
+            <div id="orgTreeRoot" class="org-tree-wrapper">
+                <div class="text-center py-5 text-muted">
+                    <div class="spinner-border text-success" role="status"></div>
+                    <div class="mt-2 small">Loading organizational tree...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: COLORFUL EMPLOYEE CARD GRID (Matching Image-5 Bottom Cards) -->
+    <div id="cardViewContainer" class="mb-4 d-none">
+        <div class="row g-3" id="employeeCardsGrid">
+            {% for emp in employees %}
+            {% set dept_idx = (emp.department_id or 1) % 5 %}
+            {% if dept_idx == 0 %}
+                {% set card_color = '#fed7aa' %}{# warm peach/orange #}
+                {% set text_color = '#7c2d12' %}
+            {% elif dept_idx == 1 %}
+                {% set card_color = '#bbf7d0' %}{# soft green #}
+                {% set text_color = '#14532d' %}
+            {% elif dept_idx == 2 %}
+                {% set card_color = '#a7f3d0' %}{# mint #}
+                {% set text_color = '#064e3b' %}
+            {% elif dept_idx == 3 %}
+                {% set card_color = '#bae6fd' %}{# sky blue #}
+                {% set text_color = '#0c4a6e' %}
+            {% else %}
+                {% set card_color = '#d9f99d' %}{# lime / light green #}
+                {% set text_color = '#365314' %}
+            {% endif %}
+
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3 emp-card-col" 
+                 data-emp-id="{{ emp.id }}" 
+                 data-emp-name="{{ emp.name|lower }}" 
+                 data-dept="{{ emp.department.name|lower if emp.department else '' }}"
+                 data-mgr-id="{{ emp.manager_id or '' }}">
+                
+                <div class="hierarchy-card p-3 rounded-3 shadow-sm h-100 d-flex flex-column justify-content-between position-relative"
+                     style="background-color: {{ card_color }}; color: {{ text_color }}; cursor: grab;"
+                     draggable="true" 
+                     ondragstart="handleCardDragStart(event, {{ emp.id }}, '{{ emp.name|replace("'", "\\'") }}')">
+                    
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-white text-dark shadow-sm px-2 py-1 small fw-bold">
+                                {{ emp.emp_id }}
+                            </span>
+                            <button type="button" class="btn btn-sm p-0 text-dark opacity-50 btn-reassign" 
+                                    onclick="openQuickReassignModal({{ emp.id }}, '{{ emp.name|replace("'", "\\'") }}', {{ emp.manager_id or 0 }})"
+                                    title="Change Manager">
+                                <i class="fas fa-user-edit"></i>
+                            </button>
+                        </div>
+                        <h6 class="fw-bold mb-1 text-center" style="font-size: 0.98rem;">{{ emp.name }}</h6>
+                        <div class="text-center small mb-2 opacity-75">
+                            {{ emp.designation or emp.role }}
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-top border-dark border-opacity-10 text-center">
+                        <div class="small fw-semibold" style="font-size: 0.84rem;">
+                            Reports to:
+                        </div>
+                        <div class="fw-bold text-truncate" style="font-size: 0.88rem;" title="{{ emp.manager.name if emp.manager else 'Executive Head' }}">
+                            {{ emp.manager.name if emp.manager else 'Executive Head' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Quick Reassign Manager Modal -->
+<div class="modal fade" id="reassignModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h6 class="modal-title fw-bold text-dark">
+                    <i class="fas fa-sitemap text-success me-2"></i>Reassign Reporting Manager
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="modalEmpId">
+                <div class="mb-3">
+                    <label class="form-label small text-muted fw-semibold">Employee</label>
+                    <input type="text" id="modalEmpName" class="form-control fw-bold" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted fw-semibold">New Reporting Manager *</label>
+                    <select id="modalNewManager" class="form-select">
+                        <option value="">No Manager (Top Executive)</option>
+                        {% for m in managers %}
+                        <option value="{{ m.id }}">{{ m.name }} ({{ m.designation or m.role }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="reassignAlert" class="alert alert-danger d-none small"></div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-success px-3" onclick="submitReassignManager()">
+                    <i class="fas fa-check me-1"></i>Save Reporting Line
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentTreeData = [];
+let reassignModalInstance = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    reassignModalInstance = new bootstrap.Modal(document.getElementById('reassignModal'));
+    loadHierarchyTree();
+
+    // View Toggle
+    const btnTree = document.getElementById('btnViewTree');
+    const btnCards = document.getElementById('btnViewCards');
+    const treeContainer = document.getElementById('treeViewContainer');
+    const cardContainer = document.getElementById('cardViewContainer');
+
+    if (btnTree && btnCards) {
+        btnTree.addEventListener('click', function() {
+            btnTree.classList.add('active');
+            btnCards.classList.remove('active');
+            treeContainer.classList.remove('d-none');
+            cardContainer.classList.add('d-none');
+        });
+
+        btnCards.addEventListener('click', function() {
+            btnCards.classList.add('active');
+            btnTree.classList.remove('active');
+            treeContainer.classList.add('d-none');
+            cardContainer.classList.remove('d-none');
+        });
+    }
+
+    // Expand / Collapse All
+    const btnExpand = document.getElementById('btnExpandAll');
+    const btnCollapse = document.getElementById('btnCollapseAll');
+    if (btnExpand) {
+        btnExpand.addEventListener('click', function() {
+            document.querySelectorAll('.org-node-children').forEach(el => el.classList.remove('d-none'));
+            document.querySelectorAll('.btn-node-toggle i').forEach(icon => {
+                icon.className = 'fas fa-chevron-down';
+            });
+        });
+    }
+    if (btnCollapse) {
+        btnCollapse.addEventListener('click', function() {
+            document.querySelectorAll('.org-node-children').forEach(el => el.classList.add('d-none'));
+            document.querySelectorAll('.btn-node-toggle i').forEach(icon => {
+                icon.className = 'fas fa-chevron-right';
+            });
+        });
+    }
+
+    // Filter by Department
+    const filterDept = document.getElementById('filterDeptHierarchy');
+    if (filterDept) {
+        filterDept.addEventListener('change', function() {
+            filterCards();
+        });
+    }
+
+    // Search Employee
+    const searchEmp = document.getElementById('searchHierarchyEmp');
+    if (searchEmp) {
+        searchEmp.addEventListener('input', function() {
+            filterCards();
+            highlightInTree(this.value.trim().toLowerCase());
+        });
+    }
+});
+
+function loadHierarchyTree() {
+    fetch('/api/hierarchy/tree')
+        .then(res => res.json())
+        .then(data => {
+            const root = document.getElementById('orgTreeRoot');
+            if (!data.success || !data.tree.length) {
+                root.innerHTML = '<div class="text-center py-4 text-muted">No hierarchy data available.</div>';
+                return;
+            }
+            currentTreeData = data.tree;
+            root.innerHTML = '';
+            data.tree.forEach(node => {
+                root.appendChild(createTreeNodeElement(node, 0));
+            });
+        })
+        .catch(err => {
+            console.error('Error fetching tree:', err);
+            document.getElementById('orgTreeRoot').innerHTML = '<div class="text-danger p-3">Failed to load tree.</div>';
+        });
+}
+
+function createTreeNodeElement(node, level) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'org-tree-node-wrapper mb-2';
+    wrapper.id = `treeNode_${node.id}`;
+
+    const pill = document.createElement('div');
+    pill.className = 'org-tree-pill d-flex align-items-center justify-content-between p-2 px-3 rounded-3 shadow-sm';
+    
+    // Background colors matching Image-5 top tree
+    if (level === 0) {
+        pill.style.backgroundColor = '#f87171'; // soft pink/salmon (CEO)
+        pill.style.color = '#ffffff';
+    } else if (level === 1) {
+        pill.style.backgroundColor = '#4ade80'; // soft green (Sr Manager)
+        pill.style.color = '#064e3b';
+    } else {
+        pill.style.backgroundColor = '#f1f5f9';
+        pill.style.color = '#1e293b';
+        pill.style.border = '1px solid #cbd5e1';
+    }
+
+    // Allow node to be dropped onto
+    pill.ondragover = function(e) {
+        e.preventDefault();
+        pill.classList.add('drag-over-active');
+    };
+    pill.ondragleave = function() {
+        pill.classList.remove('drag-over-active');
+    };
+    pill.ondrop = function(e) {
+        e.preventDefault();
+        pill.classList.remove('drag-over-active');
+        const empId = e.dataTransfer.getData('text/plain');
+        if (empId && parseInt(empId) !== node.id) {
+            updateReportingManager(parseInt(empId), node.id);
+        }
+    };
+
+    // Node Left Info
+    const leftWrap = document.createElement('div');
+    leftWrap.className = 'd-flex align-items-center gap-2';
+
+    if (node.subordinates && node.subordinates.length > 0) {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'btn btn-sm p-0 me-1 btn-node-toggle';
+        toggleBtn.style.color = level === 0 ? '#ffffff' : '#1e293b';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+        toggleBtn.onclick = function() {
+            const childContainer = wrapper.querySelector('.org-node-children');
+            if (childContainer) {
+                childContainer.classList.toggle('d-none');
+                const icon = toggleBtn.querySelector('i');
+                if (childContainer.classList.contains('d-none')) {
+                    icon.className = 'fas fa-chevron-right';
+                } else {
+                    icon.className = 'fas fa-chevron-down';
+                }
+            }
+        };
+        leftWrap.appendChild(toggleBtn);
+    } else {
+        const leafIcon = document.createElement('i');
+        leafIcon.className = 'fas fa-user-circle opacity-50 me-1';
+        leftWrap.appendChild(leafIcon);
+    }
+
+    const nameText = document.createElement('span');
+    nameText.className = 'fw-bold';
+    nameText.innerHTML = `${node.name} <span class="small fw-normal opacity-90">(${node.designation})</span>`;
+    leftWrap.appendChild(nameText);
+
+    // Node Right Meta & Reassign button
+    const rightWrap = document.createElement('div');
+    rightWrap.className = 'd-flex align-items-center gap-2';
+
+    if (node.subordinates && node.subordinates.length > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-white bg-opacity-75 text-dark small px-2 py-1';
+        badge.textContent = `${node.subordinates.length} reports`;
+        rightWrap.appendChild(badge);
+    }
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn btn-sm btn-light py-0 px-2 small';
+    editBtn.innerHTML = '<i class="fas fa-user-edit small"></i>';
+    editBtn.title = 'Change Manager';
+    editBtn.onclick = function(e) {
+        e.stopPropagation();
+        openQuickReassignModal(node.id, node.name, null);
+    };
+    rightWrap.appendChild(editBtn);
+
+    pill.appendChild(leftWrap);
+    pill.appendChild(rightWrap);
+    wrapper.appendChild(pill);
+
+    // Children Nodes
+    if (node.subordinates && node.subordinates.length > 0) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'org-node-children ps-2 ps-sm-4 mt-2 border-start border-2 border-success border-opacity-25';
+        node.subordinates.forEach(sub => {
+            childrenContainer.appendChild(createTreeNodeElement(sub, level + 1));
+        });
+        wrapper.appendChild(childrenContainer);
+    }
+
+    return wrapper;
+}
+
+// Drag & Drop Handlers
+function handleCardDragStart(e, empId, empName) {
+    e.dataTransfer.setData('text/plain', empId.toString());
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function updateReportingManager(empId, newManagerId) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+    fetch('/api/hierarchy/update-manager', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            employee_id: empId,
+            new_manager_id: newManagerId
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // Show alert or toast
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(err => {
+        console.error('Update failed:', err);
+        alert('Failed to update reporting line.');
+    });
+}
+
+// Modal Handlers
+function openQuickReassignModal(empId, empName, currentMgrId) {
+    document.getElementById('modalEmpId').value = empId;
+    document.getElementById('modalEmpName').value = empName;
+    const select = document.getElementById('modalNewManager');
+    if (currentMgrId) {
+        select.value = currentMgrId;
+    } else {
+        select.value = '';
+    }
+    document.getElementById('reassignAlert').classList.add('d-none');
+    reassignModalInstance.show();
+}
+
+function submitReassignManager() {
+    const empId = document.getElementById('modalEmpId').value;
+    const newMgrId = document.getElementById('modalNewManager').value;
+    const alertBox = document.getElementById('reassignAlert');
+
+    const csrfToken = '{{ csrf_token() }}';
+
+    fetch('/api/hierarchy/update-manager', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            employee_id: parseInt(empId),
+            new_manager_id: newMgrId ? parseInt(newMgrId) : null
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            reassignModalInstance.hide();
+            location.reload();
+        } else {
+            alertBox.textContent = data.error;
+            alertBox.classList.remove('d-none');
+        }
+    })
+    .catch(err => {
+        alertBox.textContent = 'Server error occurred.';
+        alertBox.classList.remove('d-none');
+    });
+}
+
+// Filtering Cards
+function filterCards() {
+    const dept = (document.getElementById('filterDeptHierarchy').value || '').toLowerCase();
+    const search = (document.getElementById('searchHierarchyEmp').value || '').toLowerCase();
+
+    const cols = document.querySelectorAll('.emp-card-col');
+    cols.forEach(col => {
+        const colDept = col.getAttribute('data-dept') || '';
+        const colName = col.getAttribute('data-emp-name') || '';
+
+        const matchesDept = !dept || colDept.includes(dept);
+        const matchesSearch = !search || colName.includes(search);
+
+        if (matchesDept && matchesSearch) {
+            col.style.display = '';
+        } else {
+            col.style.display = 'none';
+        }
+    });
+}
+
+function highlightInTree(query) {
+    document.querySelectorAll('.org-tree-pill').forEach(pill => {
+        pill.classList.remove('tree-search-highlight');
+        if (query && pill.textContent.toLowerCase().includes(query)) {
+            pill.classList.add('tree-search-highlight');
+        }
+    });
+}
+</script>
+
+<style>
+.master-page-title {
+    color: #559132;
+    font-weight: 700;
+}
+
+.hierarchy-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.hierarchy-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+.drag-over-active {
+    outline: 2px dashed #0f766e !important;
+    background-color: #d1fae5 !important;
+    color: #064e3b !important;
+}
+
+.tree-search-highlight {
+    outline: 3px solid #f59e0b !important;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.org-tree-wrapper {
+    min-width: 600px;
+}
+</style>
+{% endblock %}

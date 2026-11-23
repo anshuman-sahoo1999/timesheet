@@ -1,0 +1,388 @@
+{% extends "layout.html" %}
+
+{% block title %}HR - Employee Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-users"></i> Employee Management</h4>
+                    <p class="text-muted">Manage employee information and view department-wise distribution</p>
+                </div>
+                <div class="card-body">
+                    <!-- Department Filter -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="department_filter" class="form-label">
+                                    <i class="fas fa-filter"></i> Filter by Department
+                                </label>
+                                <select class="form-control" id="department_filter">
+                                    <option value="">All Departments</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.name }}">{{ dept.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="role_filter" class="form-label">
+                                    <i class="fas fa-user-tag"></i> Filter by Role
+                                </label>
+                                <select class="form-control" id="role_filter">
+                                    <option value="">All Roles</option>
+                                    <option value="EMP">Employee</option>
+                                    <option value="PM">Project Manager</option>
+                                    <option value="BD">Business Development</option>
+                                    <option value="MD">CEO/MD</option>
+                                    <option value="HR">HR</option>
+                                    <option value="FINANCE">Finance</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" onclick="exportEmployeeData()">
+                                    <i class="fas fa-download"></i> Export Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Employee Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-users"></i> Total Employees</h5>
+                                    <h3>{{ total_employees }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-user-check"></i> Active</h5>
+                                    <h3>{{ active_employees }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-building"></i> Departments</h5>
+                                    <h3>{{ total_departments }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-user-tie"></i> Project Managers</h5>
+                                    <h3>{{ pm_count }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Employee Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="employeeTable">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-id-card"></i> Employee ID</th>
+                                    <th><i class="fas fa-user"></i> Name</th>
+                                    <th><i class="fas fa-user-tag"></i> Designation</th>
+                                    <th><i class="fas fa-building"></i> Department</th>
+                                    <th><i class="fas fa-envelope"></i> Email</th>
+                                    <th><i class="fas fa-rupee-sign"></i> Monthly Salary</th>
+                                    <th><i class="fas fa-user-shield"></i> Role</th>
+                                    <th><i class="fas fa-clock"></i> Total Hours</th>
+                                    <th><i class="fas fa-project-diagram"></i> Projects</th>
+                                    <th><i class="fas fa-cogs"></i> Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in employee_stats %}
+                                {% set emp = stat.employee %}
+                                <tr 
+                                  data-emp-id="{{ emp.emp_id }}"
+                                  data-emp-name="{{ emp.name }}"
+                                  data-emp-role="{{ emp.role }}"
+                                  data-department="{{ emp.department.name if emp.department else 'N/A' }}"
+                                  data-total-hours="{{ stat.total_hours }}"
+                                  data-project-count="{{ stat.project_count }}"
+                                >
+                                    <td>{{ emp.emp_id }}</td>
+                                    <td>{{ emp.name }}</td>
+                                    <td>{{ emp.designation or 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary text-dark">
+                                            {{ emp.department.name if emp.department else 'N/A' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ emp.email }}</td>
+                                    <td>{{ emp.monthly_salary|inr if emp.monthly_salary else 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ 'primary' if emp.role == 'PM' else 'secondary' if emp.role == 'EMP' else 'success' if emp.role == 'MD' else 'warning' if emp.role == 'BD' else 'info' if emp.role == 'HR' else 'dark' }}">
+                                            {{ emp.role }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success text-white">{{ "%.1f"|format(stat.total_hours) }} hrs</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info text-dark">{{ stat.project_count }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="viewEmployeeDetails({{ emp.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="viewTimesheets({{ emp.id }})">
+                                                <i class="fas fa-clock"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-check"></i> Bulk Verification</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Approve or reject multiple timesheets at once</p>
+                <a href="{{ url_for('hr_bulk_verification') }}" class="btn btn-primary">
+                    <i class="bi bi-check-all"></i> Bulk Verification
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Advanced Verification</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Detailed verification with comprehensive checks</p>
+                <a href="{{ url_for('hr_weekly_timesheets') }}" class="btn btn-info">
+                    <i class="bi bi-eye"></i> Review Timesheets
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Details Modal -->
+<div class="modal fade" id="employeeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Employee Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="employeeModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentFilter = document.getElementById('department_filter');
+    const roleFilter = document.getElementById('role_filter');
+    const table = document.getElementById('employeeTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+    function filterTable() {
+        const selectedDept = departmentFilter.value;
+        const selectedRole = roleFilter.value;
+
+        for (let row of rows) {
+            const dept = row.getAttribute('data-department');
+            const role = row.getAttribute('data-emp-role');
+            const deptMatch = !selectedDept || dept === selectedDept;
+            const roleMatch = !selectedRole || role === selectedRole;
+            row.style.display = deptMatch && roleMatch ? '' : 'none';
+        }
+    }
+
+    departmentFilter.addEventListener('change', filterTable);
+    roleFilter.addEventListener('change', filterTable);
+});
+
+function viewEmployeeDetails(employeeId) {
+    const modal = new bootstrap.Modal(document.getElementById('employeeModal'));
+    document.getElementById('employeeModalBody').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading employee details...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Fetch employee details via AJAX
+    fetch(`/api/employee/${employeeId}/details`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const employee = data.employee;
+                document.getElementById('employeeModalBody').innerHTML = `
+                    <div class="employee-details">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Personal Information</h6>
+                                <p><strong>Name:</strong> ${employee.name}</p>
+                                <p><strong>Employee ID:</strong> ${employee.emp_id}</p>
+                                <p><strong>Email:</strong> ${employee.email}</p>
+                                <p><strong>Designation:</strong> ${employee.designation}</p>
+                                <p><strong>Place:</strong> ${employee.place}</p>
+                                <p><strong>Role:</strong> <span class="badge bg-${employee.role_color}">${employee.role}</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Department Information</h6>
+                                <p><strong>Department:</strong> ${employee.department}</p>
+                                <p><strong>Monthly Salary:</strong> ₹${employee.monthly_salary}</p>
+                                <p><strong>Status:</strong> <span class="badge bg-${employee.status_color}">${employee.status}</span></p>
+                                <p><strong>Joined:</strong> ${employee.created_at}</p>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary">Performance Statistics</h6>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h4 class="text-primary">${employee.total_projects}</h4>
+                                            <small>Total Projects</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h4 class="text-success">${employee.completed_tasks}</h4>
+                                            <small>Completed Tasks</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h4 class="text-warning">${employee.pending_tasks}</h4>
+                                            <small>Pending Tasks</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h4 class="text-info">${employee.total_hours}</h4>
+                                            <small>Total Hours</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        ${employee.recent_timesheets.length > 0 ? 
+                        `<hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary">Recent Timesheets</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Week</th>
+                                                <th>Project</th>
+                                                <th>Hours</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${employee.recent_timesheets.map(ts => 
+                                                `<tr>
+                                                    <td>${ts.week}</td>
+                                                    <td>${ts.project}</td>
+                                                    <td>${ts.hours}</td>
+                                                    <td><span class="badge bg-${ts.status_color}">${ts.status}</span></td>
+                                                </tr>`
+                                            ).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                `;
+            } else {
+                document.getElementById('employeeModalBody').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Failed to load employee details.
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('employeeModalBody').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Error loading employee details: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function viewTimesheets(employeeId) {
+    window.location.href = `/hr/timesheets?employee_id=${employeeId}`;
+}
+
+function exportEmployeeData() {
+    const departmentFilter = document.getElementById('department_filter')?.value || '';
+    const roleFilter = document.getElementById('role_filter')?.value || '';
+    
+    fetch('/export/employees/excel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `department_filter=${departmentFilter}&role_filter=${roleFilter}&csrf_token={{ csrf_token() }}`
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Export failed');
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `employees_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showNotification('Employee data exported successfully', 'success');
+    })
+    .catch(error => {
+        showNotification('Export failed: ' + error.message, 'error');
+    });
+}
+</script>
+{% endblock %} 

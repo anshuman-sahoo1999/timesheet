@@ -1,0 +1,173 @@
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
+            <img src="{{ url_for('static', filename='emc-logo.png') }}" alt="Logo" style="height: 32px; margin-right: 12px;">
+            PMS Ecometrix
+        </a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
+                </li>
+                
+                {% if current_user.role == 'Admin' %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'job_indent' in request.endpoint }}" href="{{ url_for('manage_job_indents') }}">
+                        Job Indents
+                        {% if pending_indent_count > 0 %}
+                            <span class="badge bg-warning text-dark ms-1">{{ pending_indent_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'employee' in request.endpoint }}" href="{{ url_for('manage_employees') }}">Employees</a>
+                </li>
+                {% endif %}
+
+                {% if current_user.role == 'BD' %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'client' in request.endpoint }}" href="{{ url_for('manage_clients') }}">
+                        <i class="fas fa-building me-1"></i> Clients
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'job_indent' in request.endpoint }}" href="{{ url_for('manage_job_indents') }}">
+                        <i class="fas fa-folder-open me-1"></i> Job Indents
+                        {% if pending_indent_count > 0 %}
+                            <span class="badge bg-warning text-dark ms-1">{{ pending_indent_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if current_user.role == 'MD' %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'create_job_indent' else '' }}" href="{{ url_for('create_job_indent') }}">
+                        Create Job Indent
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'manage_job_indents' else '' }}" href="{{ url_for('manage_job_indents') }}">
+                        Job Indents
+                        {% if pending_indent_count > 0 %}
+                            <span class="badge bg-warning text-dark ms-1">{{ pending_indent_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'job_card' in request.endpoint }}" href="{{ url_for('ceo_job_cards') }}">
+                        Job Cards
+                        {% if submitted_card_count > 0 %}
+                            <span class="badge bg-info text-dark ms-1">{{ submitted_card_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'report' in request.endpoint }}" href="{{ url_for('reports_page') }}">Reports</a>
+                </li>
+                {% endif %}
+                
+                {% if current_user.role == 'PM' %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'manage_job_cards' in request.endpoint or 'project_details' in request.endpoint or 'pm_project' in request.endpoint }}" href="{{ url_for('pm_manage_job_cards') }}">
+                        <i class="fas fa-tasks me-1"></i> Manage Job Cards
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'timesheet' in request.endpoint }}" href="{{ url_for('log_timesheet') }}">Timesheets</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'verify_timesheets' in request.endpoint }}" href="{{ url_for('verify_timesheets') }}">
+                        Verify Timesheets
+                        {% if timesheets_to_verify_count > 0 %}
+                            <span class="badge bg-warning text-dark ms-1">{{ timesheets_to_verify_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if current_user.role in ['IT', 'Admin'] %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'expenditure_categories' in request.endpoint }}" href="{{ url_for('expenditure_categories') }}">
+                        <i class="fas fa-tags me-1"></i> Category Master
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if current_user.role in ['EMP', 'Employee'] %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'manage_job_cards' in request.endpoint }}" href="{{ url_for('pm_manage_job_cards') }}">
+                        <i class="fas fa-tasks me-1"></i> Manage Job Cards
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'timesheet' in request.endpoint }}" href="{{ url_for('log_timesheet') }}">
+                        Log Timesheet
+                        {% if pending_timesheets_count > 0 %}
+                            <span class="badge bg-warning text-dark ms-1">{{ pending_timesheets_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'my_timesheets' in request.endpoint }}" href="{{ url_for('my_timesheets') }}">My Timesheets</a>
+                </li>
+                {% endif %}
+                
+                {% if current_user.role == 'HR' %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'employee' in request.endpoint }}" href="{{ url_for('manage_employees') }}">Employees</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'attendance' in request.endpoint }}" href="{{ url_for('hr_attendance') }}">Attendance</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'timesheet' in request.endpoint }}" href="{{ url_for('verify_timesheets') }}">
+                        Timesheets
+                        {% if pending_timesheets_count > 0 %}
+                            <span class="badge bg-warning text-dark ms-1">{{ pending_timesheets_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if current_user.role in ['Finance', 'FINANCE'] %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'report' in request.endpoint }}" href="{{ url_for('reports_page') }}">Reports</a>
+                </li>
+                {% endif %}
+            </ul>
+            
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link position-relative" href="{{ url_for('notifications') }}">
+                        <i class="fas fa-bell"></i>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                {{ unread_notifications_count }}
+                            </span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        {{ current_user.name }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                        <li><span class="dropdown-item-text text-muted">{{ current_user.designation or ('CEO' if current_user.role == 'MD' else current_user.role) }}</span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        {% if current_user.role in ['MD', 'HR'] %}
+                        <li><a class="dropdown-item" href="{{ url_for('audit_log') }}">Audit Log</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        {% endif %}
+                        <li><a class="dropdown-item" href="{{ url_for('logout') }}" onclick="try { sessionStorage.setItem('is_logged_out', 'true'); } catch(e){} window.location.replace(this.href); return false;">Logout</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav> 

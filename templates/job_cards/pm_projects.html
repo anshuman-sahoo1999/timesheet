@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block title %}My Projects - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mt-4">My Assigned Projects</h1>
+    <div class="card">
+        <div class="card-header">
+            Projects
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Project Code</th>
+                            <th>Project Name</th>
+                            <th>Client</th>
+                            <th>Job Card Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects %}
+                        <tr>
+                            <td>{{ project.file_number }}</td>
+                            <td>{{ project.project_name }}</td>
+                            <td>{{ project.client_name }}</td>
+                            <td>
+                                {% if project.job_card %}
+                                    <span class="badge bg-success">{{ project.job_card.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Not Created</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not project.job_card %}
+                                    <a href="{{ url_for('create_job_card', indent_id=project.id) }}" class="btn btn-primary btn-sm">Create Job Card</a>
+                                {% else %}
+                                    <a href="{{ url_for('edit_job_card', card_id=project.job_card.id) }}" class="btn btn-secondary btn-sm">Edit Job Card</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">You have not been assigned to any projects yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,294 @@
+{% extends "layout.html" %}
+
+{% block title %}Reports & Audits - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-2">
+    <!-- Top Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2" data-aos="fade-down">
+        <div>
+            <h3 class="mb-1 fw-bold text-dark">
+                <i class="fas fa-file-invoice text-success me-2"></i>Reports & Audits Center
+            </h3>
+            <p class="text-muted small mb-0">Generate project summaries, employee load audits, and timesheet compliance reports.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
+                <i class="fas fa-shield-alt me-1"></i>Official Enterprise Audits
+            </span>
+        </div>
+    </div>
+
+    <!-- Quick Stats Bar -->
+    <div class="row g-3 mb-4" data-aos="fade-up">
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 rounded-4 p-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="metric-icon-box bg-emerald-subtle text-emerald">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Approved Projects</div>
+                        <h4 class="mb-0 fw-bold text-dark mt-1">{{ all_projects|length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 rounded-4 p-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="metric-icon-box bg-blue-subtle text-blue">
+                        <i class="fas fa-file-excel"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Export Formats</div>
+                        <h4 class="mb-0 fw-bold text-dark mt-1">Excel & PDF</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 rounded-4 p-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="metric-icon-box bg-purple-subtle text-purple">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Workforce Audits</div>
+                        <h4 class="mb-0 fw-bold text-dark mt-1">Real-Time</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 rounded-4 p-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="metric-icon-box bg-amber-subtle text-amber">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Financial Audits</div>
+                        <h4 class="mb-0 fw-bold text-dark mt-1">Cost vs Budget</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Grid -->
+    <div class="row g-4" data-aos="fade-up">
+        <!-- 1. Project Progress Report -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-icon bg-emerald-subtle text-emerald rounded-3 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">Project Progress Report</h6>
+                            <small class="text-muted">Task milestones, hours logged, and completion trajectory</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-secondary border">Project Level</span>
+                </div>
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <p class="text-muted small mb-3">
+                        Detailed breakdown of all assigned activities, team resource utilization, and timeline variance for the chosen project.
+                    </p>
+                    <form action="{{ url_for('generate_report') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="report_type" value="project_progress">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Select Project</label>
+                            <select name="project_id" class="form-select form-select-sm" required>
+                                {% for project in all_projects %}
+                                <option value="{{ project.id }}">{{ project.project_name }} ({{ project.file_number or 'No File #' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="format" value="excel" class="btn btn-emerald btn-sm px-3 fw-semibold">
+                                <i class="fas fa-file-excel me-1"></i>Download Excel
+                            </button>
+                            <button type="submit" name="format" value="pdf" class="btn btn-outline-danger btn-sm px-3 fw-semibold">
+                                <i class="fas fa-file-pdf me-1"></i>Download PDF
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Actual vs Proposed Budget Report -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-icon bg-amber-subtle text-amber rounded-3 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fas fa-balance-scale"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">Actual vs. Proposed Budget</h6>
+                            <small class="text-muted">Contract value, estimated budget, and actual salary burn</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-secondary border">Financial</span>
+                </div>
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <p class="text-muted small mb-3">
+                        Compare allocated financial estimates against real-time man-hour costs computed from Grade Master salary bands.
+                    </p>
+                    <form action="{{ url_for('generate_report') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="report_type" value="budget">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Select Project</label>
+                            <select name="project_id" id="project_id_budget" class="form-select form-select-sm" required>
+                                {% for project in all_projects %}
+                                <option value="{{ project.id }}">{{ project.project_name }} ({{ project.file_number or 'No File #' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="format" value="excel" class="btn btn-emerald btn-sm px-3 fw-semibold">
+                                <i class="fas fa-file-excel me-1"></i>Download Excel
+                            </button>
+                            <button type="submit" name="format" value="pdf" class="btn btn-outline-danger btn-sm px-3 fw-semibold">
+                                <i class="fas fa-file-pdf me-1"></i>Download PDF
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Employee Load Report -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-icon bg-cyan-subtle text-cyan rounded-3 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">Workforce Resource Load Report</h6>
+                            <small class="text-muted">Assigned man-hours, active project count & bandwidth</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-secondary border">Workforce</span>
+                </div>
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <p class="text-muted small mb-3">
+                        Audits every employee's current project allocations, task commitments, and remaining available work hours across departments.
+                    </p>
+                    <form action="{{ url_for('generate_report') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="report_type" value="employee_load">
+                        <div class="mb-3">
+                            <div class="p-2 bg-light rounded-3 text-secondary small">
+                                <i class="fas fa-info-circle me-1 text-primary"></i>Generates full enterprise load matrix across all active personnel.
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="format" value="excel" class="btn btn-emerald btn-sm px-3 fw-semibold">
+                                <i class="fas fa-file-excel me-1"></i>Download Load Spreadsheet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Daily Progress Audit Report -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-icon bg-purple-subtle text-purple rounded-3 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">Daily Progress Report</h6>
+                            <small class="text-muted">Consolidated summary of all work entries logged on a date</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-secondary border">Daily Audit</span>
+                </div>
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <p class="text-muted small mb-3">
+                        Extract every timesheet submission, job card progress note, and verified work record for any specified working day.
+                    </p>
+                    <form action="{{ url_for('generate_report') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="report_type" value="daily_progress">
+                        <div class="mb-3">
+                            <label for="report_date" class="form-label small fw-semibold text-secondary">Select Audit Date</label>
+                            <input type="date" name="report_date" id="report_date" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="format" value="excel" class="btn btn-emerald btn-sm px-3 fw-semibold">
+                                <i class="fas fa-file-excel me-1"></i>Download Daily Log Excel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Deviation Report -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-icon bg-blue-subtle text-blue rounded-3 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">Project Deviation Report</h6>
+                            <small class="text-muted">Compare planned man-hours vs actual recorded timesheets</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-secondary border">Variance</span>
+                </div>
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <p class="text-muted small mb-3">
+                        Identify schedule slippages and effort overruns by comparing planned stage-wise estimates to real recorded submissions.
+                    </p>
+                    <form action="{{ url_for('generate_report') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="report_type" value="deviation">
+                        <div class="mb-3">
+                            <label for="project_id_deviation" class="form-label small fw-semibold text-secondary">Select Project</label>
+                            <select name="project_id" id="project_id_deviation" class="form-select form-select-sm" required>
+                                {% for project in all_projects %}
+                                <option value="{{ project.id }}">{{ project.project_name }} ({{ project.file_number or 'No File #' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="format" value="excel" class="btn btn-emerald btn-sm px-3 fw-semibold">
+                                <i class="fas fa-file-excel me-1"></i>Download Deviation Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set default date to today for daily report
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('report_date');
+        if (dateInput && !dateInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
+    });
+</script>
+{% endblock %}

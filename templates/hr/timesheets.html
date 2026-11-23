@@ -1,0 +1,388 @@
+{% extends "layout.html" %}
+
+{% block title %}HR - Timesheet Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-clock"></i> Weekly Timesheet Management</h4>
+                    <p class="text-muted">View and manage employee weekly timesheet submissions</p>
+                </div>
+                <div class="card-body">
+                    <!-- Filter Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="status_filter" class="form-label">
+                                    <i class="fas fa-filter"></i> Status Filter
+                                </label>
+                                <select class="form-control" id="status_filter">
+                                    <option value="">All Status</option>
+                                    <option value="Submitted">Submitted</option>
+                                    <option value="Verified">Verified</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="week_filter" class="form-label">
+                                    <i class="fas fa-calendar"></i> Week Filter
+                                </label>
+                                <input type="week" class="form-control" id="week_filter">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="employee_filter" class="form-label">
+                                    <i class="fas fa-user"></i> Employee Filter
+                                </label>
+                                <select class="form-control" id="employee_filter">
+                                    <option value="">All Employees</option>
+                                    {% for emp in employees %}
+                                    <option value="{{ emp.name }}">{{ emp.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" onclick="exportTimesheetData()">
+                                    <i class="fas fa-download"></i> Export Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-clock"></i> Total Timesheets</h5>
+                                    <h3>{{ timesheets|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-hourglass-half"></i> Pending</h5>
+                                    <h3>{{ timesheets|selectattr('status', 'equalto', 'Submitted')|list|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-check-circle"></i> Verified</h5>
+                                    <h3>{{ timesheets|selectattr('status', 'equalto', 'Verified')|list|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h5><i class="fas fa-users"></i> Employees</h5>
+                                    <h3>{{ timesheets|map(attribute='employee_id')|unique|list|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timesheet Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="timesheetTable">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-user"></i> Employee</th>
+                                    <th><i class="fas fa-project-diagram"></i> Project</th>
+                                    <th><i class="fas fa-tasks"></i> Task</th>
+                                    <th><i class="fas fa-calendar"></i> Week Period</th>
+                                    <th><i class="fas fa-clock"></i> Hours</th>
+                                    <th><i class="fas fa-file-alt"></i> Progress</th>
+                                    <th><i class="fas fa-status"></i> Status</th>
+                                    <th><i class="fas fa-calendar-plus"></i> Submitted</th>
+                                    <th><i class="fas fa-cogs"></i> Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ts in timesheets %}
+                                <tr data-status="{{ ts.status }}" data-employee="{{ ts.employee.name }}" data-week="{{ ts.week_start_date.strftime('%Y-W%U') }}">
+                                    <td>
+                                        <strong>{{ ts.employee.name }}</strong><br>
+                                        <small class="text-muted">{{ ts.employee.department.name if ts.employee.department else 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        {% if ts.task and ts.task.job_card and ts.task.job_card.indent %}
+                                            <strong>{{ ts.task.job_card.indent.project_name }}</strong><br>
+                                            <small class="text-muted">{{ ts.task.job_card.indent.file_number }}</small>
+                                        {% else %}
+                                            <strong>General / Non-Project</strong>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if ts.task and ts.task.description %}
+                                            {{ ts.task.description[:50] }}{% if ts.task.description|length > 50 %}...{% endif %}
+                                        {% elif ts.progress_description %}
+                                            {{ ts.progress_description[:50] }}{% if ts.progress_description|length > 50 %}...{% endif %}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ ts.week_start_date.strftime('%d %b') }} - {{ ts.week_end_date.strftime('%d %b %Y') }}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-primary">{{ ts.total_hours }} hrs</span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                                onclick="viewProgress('{{ ts.progress_description|replace("'", "\\'")|replace('"', '\\"') }}')">
+                                            <i class="fas fa-eye"></i> View
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ 'bg-warning text-dark' if ts.status == 'Submitted' else 'bg-info text-dark' if ts.status == 'PM Approved' else 'bg-success' if ts.status == 'HR Approved' else 'bg-danger' if ts.status == 'Rejected' else 'bg-secondary' }}">
+                                            {{ ts.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ ts.created_at.strftime('%d %b %Y') }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            {% if ts.status == 'Submitted' %}
+                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="verifyTimesheet({{ ts.id }})">
+                                                <i class="fas fa-check"></i> Verify
+                                            </button>
+                                            <form method="POST" action="{{ url_for('reject_timesheet_action', entry_id=ts.id) }}" style="display: inline; margin-left: 4px;">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to reject this timesheet?');">
+                                                    <i class="fas fa-times"></i> Reject
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="viewTimesheetDetails({{ ts.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div class="modal fade" id="progressModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Progress Description</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="progressModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timesheet Details Modal -->
+<div class="modal fade" id="timesheetModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Timesheet Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="timesheetModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusFilter = document.getElementById('status_filter');
+    const weekFilter = document.getElementById('week_filter');
+    const employeeFilter = document.getElementById('employee_filter');
+    const table = document.getElementById('timesheetTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+    function filterTable() {
+        const selectedStatus = statusFilter.value;
+        const selectedWeek = weekFilter.value;
+        const selectedEmployee = employeeFilter.value;
+
+        for (let row of rows) {
+            const status = row.getAttribute('data-status');
+            const employee = row.getAttribute('data-employee');
+            const week = row.getAttribute('data-week');
+            
+            const statusMatch = !selectedStatus || status === selectedStatus;
+            const employeeMatch = !selectedEmployee || employee === selectedEmployee;
+            const weekMatch = !selectedWeek || week === selectedWeek;
+            
+            row.style.display = statusMatch && employeeMatch && weekMatch ? '' : 'none';
+        }
+    }
+
+    statusFilter.addEventListener('change', filterTable);
+    weekFilter.addEventListener('change', filterTable);
+    employeeFilter.addEventListener('change', filterTable);
+});
+
+function viewProgress(progress) {
+    const modal = new bootstrap.Modal(document.getElementById('progressModal'));
+    document.getElementById('progressModalBody').innerHTML = `
+        <div class="alert alert-info">
+            <strong>Progress Description:</strong><br><br>
+            ${progress}
+        </div>
+    `;
+    modal.show();
+}
+
+function viewTimesheetDetails(timesheetId) {
+    const modal = new bootstrap.Modal(document.getElementById('timesheetModal'));
+    document.getElementById('timesheetModalBody').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading timesheet details...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Fetch timesheet details via AJAX
+    fetch(`/api/timesheet/${timesheetId}/details`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const timesheet = data.timesheet;
+                document.getElementById('timesheetModalBody').innerHTML = `
+                    <div class="timesheet-details">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Employee Information</h6>
+                                <p><strong>Name:</strong> ${timesheet.employee_name}</p>
+                                <p><strong>Department:</strong> ${timesheet.department}</p>
+                                <p><strong>Designation:</strong> ${timesheet.designation}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Timesheet Information</h6>
+                                <p><strong>Week:</strong> ${timesheet.week_start} to ${timesheet.week_end}</p>
+                                <p><strong>Total Hours:</strong> ${timesheet.total_hours}</p>
+                                <p><strong>Status:</strong> <span class="badge bg-${timesheet.status_color}">${timesheet.status}</span></p>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary">Project & Task Details</h6>
+                                <p><strong>Project:</strong> ${timesheet.project_name}</p>
+                                <p><strong>Task:</strong> ${timesheet.task_description}</p>
+                                <p><strong>Progress Description:</strong></p>
+                                <div class="border rounded p-3 bg-light">
+                                    ${timesheet.progress_description}
+                                </div>
+                            </div>
+                        </div>
+                        ${timesheet.approved_by ? `
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary">Approval Information</h6>
+                                <p><strong>Approved By:</strong> ${timesheet.approved_by}</p>
+                                <p><strong>Approval Level:</strong> ${timesheet.approval_level}</p>
+                                <p><strong>Approved At:</strong> ${timesheet.approved_at}</p>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                document.getElementById('timesheetModalBody').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Failed to load timesheet details.
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('timesheetModalBody').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Error loading timesheet details: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function verifyTimesheet(timesheetId) {
+    if (confirm('Are you sure you want to verify this timesheet?')) {
+        fetch(`/timesheet/verify/${timesheetId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `csrf_token={{ csrf_token() }}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Timesheet verified successfully', 'success');
+                location.reload();
+            } else {
+                showNotification('Failed to verify timesheet: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error verifying timesheet: ' + error.message, 'error');
+        });
+    }
+}
+
+function exportTimesheetData() {
+    const statusFilter = document.getElementById('status_filter')?.value || '';
+    const employeeFilter = document.getElementById('employee_filter')?.value || '';
+    
+    fetch('/export/timesheets/excel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `status_filter=${statusFilter}&employee_filter=${employeeFilter}&csrf_token={{ csrf_token() }}`
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Export failed');
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `timesheets_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showNotification('Timesheet data exported successfully', 'success');
+    })
+    .catch(error => {
+        showNotification('Export failed: ' + error.message, 'error');
+    });
+}
+</script>
+{% endblock %} 

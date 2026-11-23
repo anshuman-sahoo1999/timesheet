@@ -1,0 +1,447 @@
+{% extends "layout.html" %}
+
+{% block title %}Reports & Analytics - PMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Reports Header -->
+    <div class="row mb-4" data-aos="fade-down">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Reports & Analytics Center
+                    </h4>
+                    <p class="text-light mb-0">Comprehensive insights and performance metrics for informed decision-making</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Categories -->
+    <div class="row mb-4" data-aos="fade-up">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-lg h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-project-diagram me-2"></i>Project Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Generate detailed project performance reports including timelines, budgets, and team productivity.</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-success" onclick="generateReport('project_summary')">
+                            <i class="fas fa-file-alt me-2"></i>Project Summary Report
+                        </button>
+                        <button class="btn btn-outline-success" onclick="generateReport('project_detailed')">
+                            <i class="fas fa-chart-line me-2"></i>Detailed Project Analysis
+                        </button>
+                        <button class="btn btn-outline-success" onclick="generateReport('project_timeline')">
+                            <i class="fas fa-calendar-alt me-2"></i>Project Timeline Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-lg h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>Employee Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Track employee performance, timesheet analysis, and productivity metrics.</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-info" onclick="generateReport('employee_performance')">
+                            <i class="fas fa-user-chart me-2"></i>Employee Performance
+                        </button>
+                        <button class="btn btn-outline-info" onclick="generateReport('timesheet_analysis')">
+                            <i class="fas fa-clock me-2"></i>Timesheet Analysis
+                        </button>
+                        <button class="btn btn-outline-info" onclick="generateReport('productivity_metrics')">
+                            <i class="fas fa-tachometer-alt me-2"></i>Productivity Metrics
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-lg h-100">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calculator me-2"></i>Financial Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Financial analysis including budget tracking, cost analysis, and profit margins.</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-warning" onclick="generateReport('budget_analysis')">
+                            <i class="fas fa-coins me-2"></i>Budget Analysis
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="generateReport('cost_tracking')">
+                            <i class="fas fa-chart-pie me-2"></i>Cost Tracking
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="generateReport('profit_margin')">
+                            <i class="fas fa-chart-line me-2"></i>Profit Margin Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Analytics -->
+    <div class="row mb-4" data-aos="fade-up">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-area me-2"></i>Advanced Analytics Dashboard
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="projectStatusChart" width="400" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="departmentPerformanceChart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Generation Form -->
+    <div class="row mb-4" data-aos="fade-up">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>Custom Report Generator
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('generate_report') }}" id="reportForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="report_type" class="form-label">Report Type</label>
+                                    <select class="form-control" id="report_type" name="report_type" required>
+                                        <option value="">Select Report Type</option>
+                                        <option value="project_summary">Project Summary Report</option>
+                                        <option value="employee_performance">Employee Performance Report</option>
+                                        <option value="timesheet_analysis">Timesheet Analysis Report</option>
+                                        <option value="budget_analysis">Budget Analysis Report</option>
+                                        <option value="department_performance">Department Performance Report</option>
+                                        <option value="project_timeline">Project Timeline Report</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="date_from" class="form-label">Date From</label>
+                                    <input type="date" class="form-control" id="date_from" name="date_from" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="date_to" class="form-label">Date To</label>
+                                    <input type="date" class="form-control" id="date_to" name="date_to" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="department_filter" class="form-label">Filter by Department</label>
+                                    <select class="form-control" id="department_filter" name="department_filter">
+                                        <option value="">All Departments</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="format" class="form-label">Output Format</label>
+                                    <select class="form-control" id="format" name="format" required>
+                                        <option value="pdf">PDF Report</option>
+                                        <option value="excel">Excel Spreadsheet</option>
+                                        <option value="csv">CSV File</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-download me-2"></i>Generate Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reports -->
+    <div class="row mb-4" data-aos="fade-up">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-pdf fa-3x text-primary mb-3"></i>
+                                    <h6>Weekly Summary</h6>
+                                    <p class="text-muted small">This week's project and employee performance</p>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="generateQuickReport('weekly_summary')">
+                                        Generate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                                    <h6>Monthly Analytics</h6>
+                                    <p class="text-muted small">Comprehensive monthly performance analysis</p>
+                                    <button class="btn btn-outline-success btn-sm" onclick="generateQuickReport('monthly_analytics')">
+                                        Generate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                                    <h6>Risk Assessment</h6>
+                                    <p class="text-muted small">Projects at risk and overdue tasks</p>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="generateQuickReport('risk_assessment')">
+                                        Generate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-users fa-3x text-info mb-3"></i>
+                                    <h6>Team Performance</h6>
+                                    <p class="text-muted small">Team productivity and collaboration metrics</p>
+                                    <button class="btn btn-outline-info btn-sm" onclick="generateQuickReport('team_performance')">
+                                        Generate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report History -->
+    <div class="row mb-4" data-aos="fade-up">
+        <div class="col-12">
+            <div class="card shadow-lg">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Report Name</th>
+                                    <th>Generated On</th>
+                                    <th>Format</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in recent_reports %}
+                                <tr>
+                                    <td>{{ report.name }}</td>
+                                    <td>{{ report.generated_at.strftime('%d-%b-%Y %H:%M') }}</td>
+                                    <td><span class="badge bg-{{ 'danger' if report.format == 'pdf' else 'success' if report.format == 'excel' else 'info' }}">{{ report.format.upper() }}</span></td>
+                                    <td>{{ report.size }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="downloadReport('{{ report.id }}')">
+                                            <i class="fas fa-download me-1"></i>Download
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteReport('{{ report.id }}')">
+                                            <i class="fas fa-trash me-1"></i>Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    // Project Status Chart
+    const projectStatusCtx = document.getElementById('projectStatusChart').getContext('2d');
+    const projectStatusChart = new Chart(projectStatusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'In Progress', 'Pending', 'On Hold'],
+            datasets: [{
+                data: [30, 25, 20, 15],
+                backgroundColor: [
+                    '#28a745',
+                    '#007bff',
+                    '#ffc107',
+                    '#6c757d'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                title: {
+                    display: true,
+                    text: 'Project Status Distribution'
+                }
+            }
+        }
+    });
+
+    // Department Performance Chart
+    const departmentCtx = document.getElementById('departmentPerformanceChart').getContext('2d');
+    const departmentChart = new Chart(departmentCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Engineering', 'Design', 'Marketing', 'Sales'],
+            datasets: [{
+                label: 'Completion Rate (%)',
+                data: [85, 72, 68, 91],
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Department Performance'
+                }
+            }
+        }
+    });
+});
+
+// Report generation functions
+function generateReport(type) {
+    const form = document.getElementById('reportForm');
+    document.getElementById('report_type').value = type;
+    
+    // Set default date range (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('date_from').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('date_to').value = today.toISOString().split('T')[0];
+    
+    form.submit();
+}
+
+function generateQuickReport(type) {
+    // Show loading animation
+    showNotification('Generating report...', 'info');
+    
+    // Simulate report generation
+    setTimeout(() => {
+        const filename = `${type}_${new Date().toISOString().split('T')[0]}.pdf`;
+        showDownloadSuccess(filename);
+    }, 2000);
+}
+
+function downloadReport(reportId) {
+    // Implement download functionality
+    showNotification('Downloading report...', 'info');
+}
+
+function deleteReport(reportId) {
+    if (confirm('Are you sure you want to delete this report?')) {
+        // Implement delete functionality
+        showNotification('Report deleted successfully', 'success');
+    }
+}
+
+// Form validation
+document.getElementById('reportForm').addEventListener('submit', function(e) {
+    const dateFrom = document.getElementById('date_from').value;
+    const dateTo = document.getElementById('date_to').value;
+    
+    if (new Date(dateFrom) > new Date(dateTo)) {
+        e.preventDefault();
+        showNotification('End date must be after start date', 'error');
+    }
+});
+
+// Auto-set date range
+document.getElementById('report_type').addEventListener('change', function() {
+    const type = this.value;
+    const today = new Date();
+    
+    switch(type) {
+        case 'weekly_summary':
+            const weekAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000));
+            document.getElementById('date_from').value = weekAgo.toISOString().split('T')[0];
+            document.getElementById('date_to').value = today.toISOString().split('T')[0];
+            break;
+        case 'monthly_analytics':
+            const monthAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+            document.getElementById('date_from').value = monthAgo.toISOString().split('T')[0];
+            document.getElementById('date_to').value = today.toISOString().split('T')[0];
+            break;
+    }
+});
+</script>
+{% endblock %} 

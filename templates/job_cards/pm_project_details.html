@@ -1,0 +1,1999 @@
+{% extends "layout.html" %}
+
+{% block title %}Project Details - {{ indent.project_name }} - PMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Executive Palette & Layout */
+    .pm-details-header {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 16px 24px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .project-summary-sidebar {
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        padding: 24px 20px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+        position: sticky;
+        top: 20px;
+    }
+    .project-name-highlight {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #d97706; /* PMS Dev Gold/Amber accent from Image 3 & 4 */
+        letter-spacing: -0.3px;
+        margin-bottom: 16px;
+    }
+    .summary-meta-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px dashed #f1f5f9;
+        font-size: 0.88rem;
+    }
+    .summary-meta-item:last-child {
+        border-bottom: none;
+    }
+    .summary-meta-label {
+        color: #64748b;
+        font-weight: 500;
+    }
+    .summary-meta-val {
+        color: #1e293b;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    /* Tabs Bar matching Image 3, 4, 5 */
+    .pm-nav-tabs {
+        border-bottom: 3px solid #6db33f;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+        padding-bottom: 2px;
+    }
+    .pm-nav-tabs .nav-link {
+        background-color: #6db33f;
+        color: #ffffff !important;
+        font-weight: 600;
+        font-size: 0.88rem;
+        padding: 10px 18px;
+        border-radius: 8px 8px 0 0;
+        border: none;
+        transition: all 0.2s ease;
+    }
+    .pm-nav-tabs .nav-link:hover {
+        background-color: #5a9e32;
+        color: #ffffff;
+    }
+    .pm-nav-tabs .nav-link.active {
+        background-color: #f59e0b !important; /* Active Gold/Amber accent matching Image 3, 4, 5 */
+        color: #ffffff !important;
+        box-shadow: 0 -2px 10px rgba(245, 158, 11, 0.3);
+    }
+
+    /* Main Tab Cards */
+    .tab-content-card {
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.04);
+        padding: 24px;
+    }
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sub-section-title {
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #334155;
+        margin-top: 20px;
+        margin-bottom: 12px;
+    }
+
+    /* Rich Text Editor Toolbar */
+    .editor-toolbar {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        padding: 6px 10px;
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .editor-toolbar button {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 0.82rem;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .editor-toolbar button:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+    .editor-toolbar .btn-active {
+        background: #6db33f;
+        color: #ffffff;
+        border-color: #5a9e32;
+    }
+    .rich-editor-area {
+        border: 1px solid #cbd5e1;
+        border-radius: 0 0 8px 8px;
+        padding: 14px;
+        min-height: 140px;
+        background: #ffffff;
+        outline: none;
+        font-size: 0.92rem;
+        line-height: 1.6;
+        color: #1e293b;
+    }
+    .rich-editor-area:focus {
+        border-color: #6db33f;
+        box-shadow: 0 0 0 3px rgba(109, 179, 63, 0.15);
+    }
+    .rich-editor-placeholder:empty:before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+    }
+
+    /* Milestone & Resource Tables */
+    .custom-table {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .custom-table thead th {
+        background-color: #f1f5f9;
+        color: #475569;
+        font-weight: 700;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 12px 10px;
+        text-align: center;
+    }
+    .custom-table tbody td {
+        padding: 10px 8px;
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+
+    /* Multi-Task Tag Input */
+    .task-tag-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 4px 6px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #ffffff;
+        min-height: 38px;
+        align-items: center;
+    }
+    .task-pill {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .task-pill .btn-pill-remove {
+        cursor: pointer;
+        color: #ef4444;
+        font-size: 0.75rem;
+    }
+    .task-tag-input {
+        border: none;
+        outline: none;
+        font-size: 0.82rem;
+        flex: 1;
+        min-width: 110px;
+        padding: 3px 4px;
+    }
+
+    /* Action Circle Buttons */
+    .btn-circle-action {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-circle-minus {
+        background-color: #ef4444; /* Red circle minus matching Image 4 & 5 */
+        color: #ffffff;
+    }
+    .btn-circle-minus:hover {
+        background-color: #dc2626;
+        transform: scale(1.08);
+    }
+    .btn-square-plus {
+        background-color: #0284c7; /* Blue square plus matching Image 5 */
+        color: #ffffff;
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-square-plus:hover {
+        background-color: #0369a1;
+        transform: scale(1.08);
+    }
+
+    /* Summary Abstract Table */
+    .summary-expenditure-table {
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .summary-expenditure-table th {
+        background: #475569;
+        color: #ffffff;
+        font-size: 0.90rem;
+        padding: 12px 18px;
+    }
+    .summary-expenditure-table td {
+        padding: 12px 18px;
+        font-size: 0.92rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .summary-grand-total {
+        background: #ecfdf5;
+        font-weight: 800;
+        color: #047857;
+        font-size: 1.12rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+    <!-- Breadcrumb & Top Action Bar -->
+    <div class="pm-details-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a href="{{ url_for('pm_manage_job_cards') }}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-arrow-left me-1"></i> Manage Job Cards
+            </a>
+            <span class="text-muted">/</span>
+            <span class="fw-bold text-dark fs-5">{{ indent.project_name }}</span>
+            <span class="badge bg-light text-dark border ms-1 font-monospace">{{ indent.file_number }}</span>
+        </div>
+        <div class="mt-2 mt-md-0 d-flex align-items-center gap-2">
+            {% if current_user.role == 'MD' %}
+            <a href="{{ url_for('download_ceo_project_report', indent_id=indent.id) }}" class="btn btn-sm btn-danger fw-bold shadow-sm">
+                <i class="fas fa-file-pdf me-1"></i> Download Project Report (PDF)
+            </a>
+            {% endif %}
+            <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-print me-1"></i> Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Main 2-Column Layout matching Image 3, 4, 5 -->
+    <div class="row g-4 align-items-start">
+        <!-- Left Sidebar: Project Summary Card (Image 3, 4, 5) -->
+        <div class="col-12 col-xl-3 col-lg-4" style="max-width: 320px; min-width: 250px;">
+            <div class="project-summary-sidebar">
+                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    Project Summary
+                </h5>
+                
+                <!-- Project Name in Gold/Amber -->
+                <div class="project-name-highlight">
+                    {{ indent.project_name }}
+                </div>
+
+                <div class="summary-meta-item">
+                    <span class="summary-meta-label">Start Date:</span>
+                    <span class="summary-meta-val">
+                        {{ indent.contract_start_date.strftime('%d %b %Y') if indent.contract_start_date else 'N/A' }}
+                    </span>
+                </div>
+                <div class="summary-meta-item">
+                    <span class="summary-meta-label">End Date:</span>
+                    <span class="summary-meta-val">
+                        {{ indent.contract_end_date.strftime('%d %b %Y') if indent.contract_end_date else 'N/A' }}
+                    </span>
+                </div>
+                <div class="summary-meta-item">
+                    <span class="summary-meta-label">Status:</span>
+                    <span class="summary-meta-val">
+                        <span class="badge bg-success px-2 py-1">Approved</span>
+                    </span>
+                </div>
+                <div class="summary-meta-item">
+                    <span class="summary-meta-label">Department:</span>
+                    <span class="summary-meta-val">
+                        {{ indent.department.name if indent.department else 'General Administration' }}
+                    </span>
+                </div>
+                <div class="summary-meta-item">
+                    <span class="summary-meta-label">Sub Department:</span>
+                    <span class="summary-meta-val">
+                        {{ indent.sub_department.name if indent.sub_department else (indent.department.short_code if indent.department else 'IT') }}
+                    </span>
+                </div>
+                <div class="summary-meta-item">
+                    <span class="summary-meta-label">Budget Approved:</span>
+                    <span class="summary-meta-val">
+                        {% if jc and jc.budget_status == 'Approved' %}
+                            <span class="badge bg-success px-2 py-1">Approved</span>
+                        {% elif jc and jc.status == 'Submitted' %}
+                            <span class="badge bg-info text-dark px-2 py-1">Submitted</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark px-2 py-1">Pending</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="summary-meta-item">
+                    <span class="summary-meta-label">Client Name:</span>
+                    <span class="summary-meta-val text-truncate" style="max-width: 140px;" title="{{ indent.client_name }}">
+                        {{ indent.client_name }}
+                    </span>
+                </div>
+                {% if current_user.role == 'MD' %}
+                <div class="summary-meta-item">
+                    <span class="summary-meta-label">Contract Value:</span>
+                    <span class="summary-meta-val text-success fw-bold">
+                        ₹ {{ '{:,.2f}'.format(indent.contract_value or 0) }}
+                    </span>
+                </div>
+                {% endif %}
+
+                <div class="mt-4 pt-3 border-top">
+                    <div class="text-muted small mb-1">Assigned Project Manager:</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.85rem;">
+                            {{ indent.project_manager.name[:2]|upper if indent.project_manager else 'PM' }}
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark small">{{ indent.project_manager.name if indent.project_manager else current_user.name }}</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">{{ indent.project_manager.designation if indent.project_manager else 'Project Manager' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Main Panel: Tabs matching Image 3, 4, 5 -->
+        <div class="col-12 col-xl-9 col-lg-8 flex-grow-1" style="min-width: 0;">
+            <!-- Navigation Tabs -->
+            <ul class="nav pm-nav-tabs" id="projectDetailsTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-content" type="button" role="tab">
+                        <i class="fas fa-info-circle me-1"></i> Overview
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents-content" type="button" role="tab">
+                        <i class="fas fa-file-pdf me-1"></i> Documents
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="estimate-tab" data-bs-toggle="tab" data-bs-target="#estimate-content" type="button" role="tab">
+                        <i class="fas fa-calculator me-1"></i> Estimate
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="team-tab" data-bs-toggle="tab" data-bs-target="#team-content" type="button" role="tab">
+                        <i class="fas fa-users me-1"></i> Team
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="timesheets-tab" data-bs-toggle="tab" data-bs-target="#timesheets-content" type="button" role="tab">
+                        <i class="fas fa-clock me-1"></i> TimeSheets
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="milestones-tab" data-bs-toggle="tab" data-bs-target="#milestones-content" type="button" role="tab">
+                        <i class="fas fa-flag-checkered me-1"></i> Milestone Status
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="change-request-tab" data-bs-toggle="tab" data-bs-target="#change-request-content" type="button" role="tab">
+                        <i class="fas fa-code-branch me-1"></i> Project Change Request
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tabs Content -->
+            <div class="tab-content" id="projectDetailsTabContent">
+                
+                <!-- ================= 1. OVERVIEW TAB (Image 3) ================= -->
+                <div class="tab-pane fade" id="overview-content" role="tabpanel">
+                    <div class="tab-content-card">
+                        <div class="border-bottom pb-3 mb-4">
+                            <h4 class="fw-bold text-dark mb-1">Project Overview</h4>
+                            <div class="fs-6 text-primary fw-semibold mt-2">
+                                <i class="fas fa-user-check me-2"></i>Project Assigned To 
+                                <span class="fw-bold text-dark">{{ indent.project_manager.name if indent.project_manager else current_user.name }}</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-light rounded-3 mb-4 border">
+                            <h6 class="fw-bold text-dark mb-2">Scope & Objectives:</h6>
+                            <div id="overviewDisplayContent" class="text-secondary">
+                                {% if jc and jc.overview %}
+                                    {{ jc.overview|safe }}
+                                {% else %}
+                                    <p>{{ indent.description or 'No detailed description entered yet. Switch to the Estimate tab to draft project deliverables, milestones, and budget.' }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card h-100 border-light bg-light p-3">
+                                    <h6 class="fw-bold text-dark mb-2"><i class="fas fa-handshake text-success me-2"></i>Contract Parameters</h6>
+                                    <ul class="list-unstyled small mb-0">
+                                        <li class="mb-1"><strong>Financial Year:</strong> {{ indent.financial_year }}</li>
+                                        <li class="mb-1"><strong>Project Type:</strong> {{ indent.project_type or 'General Service' }}</li>
+                                        <li class="mb-1"><strong>Contract Start:</strong> {{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }}</li>
+                                        <li class="mb-1"><strong>Contract End:</strong> {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card h-100 border-light bg-light p-3">
+                                    <h6 class="fw-bold text-dark mb-2"><i class="fas fa-building text-primary me-2"></i>Client Information</h6>
+                                    <ul class="list-unstyled small mb-0">
+                                        <li class="mb-1"><strong>Organization:</strong> {{ indent.client_name }}</li>
+                                        <li class="mb-1"><strong>Department:</strong> {{ indent.department.name if indent.department else 'General Administration' }}</li>
+                                        <li class="mb-1"><strong>Created By:</strong> {{ indent.creator.name if indent.creator else 'System' }}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= 2. DOCUMENTS TAB ================= -->
+                <div class="tab-pane fade" id="documents-content" role="tabpanel">
+                    <div class="tab-content-card">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                            <h4 class="fw-bold text-dark mb-0"><i class="fas fa-folder-open text-warning me-2"></i>Project Documents</h4>
+                            <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                                <i class="fas fa-upload me-1"></i> Upload Document
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Document Type</th>
+                                        <th>File Name</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if indent.work_order_pdf %}
+                                    <tr>
+                                        <td><i class="fas fa-file-pdf text-danger me-2"></i><strong>Work Order PDF</strong></td>
+                                        <td>{{ indent.work_order_pdf }}</td>
+                                        <td><span class="badge bg-success">Uploaded</span></td>
+                                        <td class="text-end">
+                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.work_order_pdf) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.work_order_pdf) }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% if indent.scope_of_work_file %}
+                                    <tr>
+                                        <td><i class="fas fa-file-word text-primary me-2"></i><strong>Scope of Work</strong></td>
+                                        <td>{{ indent.scope_of_work_file }}</td>
+                                        <td><span class="badge bg-success">Uploaded</span></td>
+                                        <td class="text-end">
+                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.scope_of_work_file) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.scope_of_work_file) }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% if indent.rfp_document_file %}
+                                    <tr>
+                                        <td><i class="fas fa-file-alt text-info me-2"></i><strong>RFP Tender Document</strong></td>
+                                        <td>{{ indent.rfp_document_file }}</td>
+                                        <td><span class="badge bg-success">Uploaded</span></td>
+                                        <td class="text-end">
+                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.rfp_document_file) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.rfp_document_file) }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% if indent.technical_bid_file %}
+                                    <tr>
+                                        <td><i class="fas fa-file-invoice text-success me-2"></i><strong>Technical Bid Submission</strong></td>
+                                        <td>{{ indent.technical_bid_file }}</td>
+                                        <td><span class="badge bg-success">Uploaded</span></td>
+                                        <td class="text-end">
+                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.technical_bid_file) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.technical_bid_file) }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% if not indent.work_order_pdf and not indent.scope_of_work_file and not indent.rfp_document_file and not indent.technical_bid_file %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">No formal indent files attached yet. You can upload reference documents above.</td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= 3. ESTIMATE TAB (THE CORE FORM) ================= -->
+                <div class="tab-pane fade show active" id="estimate-content" role="tabpanel">
+                    <div class="tab-content-card">
+                        
+                        <!-- Alert notice for status -->
+                        {% if jc and jc.status == 'Approved' %}
+                        <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+                            <i class="fas fa-check-circle fa-2x me-3"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1 fw-bold">Job Card Approved by CEO</h6>
+                                <span>The Job Card and budget estimate have been approved. All assignments and project timelines are active.</span>
+                            </div>
+                        </div>
+                        {% elif jc and jc.status == 'Submitted' %}
+                        <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                            <i class="fas fa-paper-plane fa-2x me-3"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1 fw-bold">Submitted & Pending CEO Approval</h6>
+                                <span>Submitted on {{ jc.submitted_at.strftime('%d-%b-%Y at %I:%M %p') if jc.submitted_at else 'recently' }}. You can review or edit before final ratification.</span>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- ================= SECTION A: PROJECT DELIVERABLES (Image 4 & 5) ================= -->
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                            <h3 class="section-title text-primary mb-0">
+                                <i class="fas fa-bullseye me-2"></i>A. PROJECT DELIVERABLES
+                            </h3>
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="saveSectionDraft('deliverables')">
+                                <i class="fas fa-save me-1"></i> Save Deliverables Draft
+                            </button>
+                        </div>
+
+                        <!-- (i) Overview of the Project -->
+                        <div class="mb-4">
+                            <label class="sub-section-title d-block">
+                                (i) Overview of the Project
+                            </label>
+                            
+                            <!-- Rich Text Toolbar -->
+                            <div class="editor-toolbar">
+                                <button type="button" onclick="formatEditor('bold')" title="Bold"><i class="fas fa-bold"></i></button>
+                                <button type="button" onclick="formatEditor('italic')" title="Italic"><i class="fas fa-italic"></i></button>
+                                <button type="button" onclick="formatEditor('underline')" title="Underline"><i class="fas fa-underline"></i></button>
+                                <span class="border-end mx-1" style="height: 20px;"></span>
+                                <button type="button" onclick="formatEditor('formatBlock', '<h1>')" title="Heading 1">H1</button>
+                                <button type="button" onclick="formatEditor('formatBlock', '<h2>')" title="Heading 2">H2</button>
+                                <button type="button" onclick="formatEditor('formatBlock', '<h3>')" title="Heading 3">H3</button>
+                                <button type="button" onclick="formatEditor('formatBlock', '<p>')" title="Paragraph">Normal</button>
+                                <span class="border-end mx-1" style="height: 20px;"></span>
+                                <button type="button" onclick="formatEditor('insertUnorderedList')" title="Bullet Points (&bull;)"><i class="fas fa-list-ul"></i> Dots</button>
+                                <button type="button" onclick="formatEditor('insertOrderedList')" title="Numbered List (1, 2, 3)"><i class="fas fa-list-ol"></i> 1, 2, 3</button>
+                                <button type="button" onclick="insertRomanList()" title="Roman Numerals (i, ii, iii)"><i class="fas fa-list"></i> Roman (i, ii)</button>
+                            </div>
+                            
+                            <!-- ContentEditable Rich Editor Area -->
+                            <div id="projectOverviewEditor" 
+                                 class="rich-editor-area rich-editor-placeholder" 
+                                 contenteditable="true"
+                                 data-placeholder="Enter comprehensive overview of project objectives, scope, methodology, key technical deliverables...">{{ (jc.overview|safe) if jc and jc.overview else '' }}</div>
+                        </div>
+
+                        <!-- (ii) Start Date and End Date selection (Image 4 & 5) -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark mb-1">Start Date</label>
+                                <div class="input-group">
+                                    <input type="date" 
+                                           id="actualStartDate" 
+                                           class="form-control"
+                                           min="{{ indent.contract_start_date.isoformat() if indent.contract_start_date else '' }}"
+                                           max="{{ indent.contract_end_date.isoformat() if indent.contract_end_date else '' }}"
+                                           value="{{ jc.actual_start_date.isoformat() if jc and jc.actual_start_date else (indent.contract_start_date.isoformat() if indent.contract_start_date else '') }}">
+                                    <span class="input-group-text bg-white text-muted"><i class="far fa-calendar-alt"></i></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark mb-1">End Date</label>
+                                <div class="input-group">
+                                    <input type="date" 
+                                           id="actualEndDate" 
+                                           class="form-control"
+                                           min="{{ indent.contract_start_date.isoformat() if indent.contract_start_date else '' }}"
+                                           max="{{ indent.contract_end_date.isoformat() if indent.contract_end_date else '' }}"
+                                           value="{{ jc.actual_end_date.isoformat() if jc and jc.actual_end_date else (indent.contract_end_date.isoformat() if indent.contract_end_date else '') }}">
+                                    <span class="input-group-text bg-white text-muted"><i class="far fa-calendar-alt"></i></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- (iii) Milestone Creation (Image 4 & 5) -->
+                        <div class="mb-4">
+                            <label class="sub-section-title d-block">
+                                (iii) Milestone Creation
+                            </label>
+                            
+                            <div class="table-responsive">
+                                <table class="table custom-table align-middle" id="milestonesTable">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 20%;">Milestone Name</th>
+                                            <th style="width: 30%;">Description</th>
+                                            <th style="width: 15%;">Start Date</th>
+                                            <th style="width: 15%;">End Date</th>
+                                            <th style="width: 8%;">Days</th>
+                                            <th style="width: 8%;">Percentage</th>
+                                            <th style="width: 4%;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="milestonesTableBody">
+                                        <!-- Loaded dynamically via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Image 5: Plus button below Milestone Table -->
+                            <div class="mt-2 d-flex justify-content-between align-items-center">
+                                <button type="button" class="btn-square-plus" onclick="addMilestoneRow()" title="Add Milestone Row">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <div class="fw-bold text-muted small">
+                                    Total Milestone Percentage: <span id="totalMilestonePercentage" class="text-dark">0%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Button "Save Section" for Deliverables -->
+                        <div class="mt-4 pb-4 border-bottom d-flex justify-content-end">
+                            <button type="button" class="btn btn-outline-success px-4" onclick="saveSectionDraft('deliverables')">
+                                <i class="fas fa-save me-1"></i> Save Section (Deliverables Draft)
+                            </button>
+                        </div>
+
+                        <!-- ================= SECTION B: BUDGET ESTIMATION ================= -->
+                        <div class="mt-4 pt-2">
+                            <h3 class="section-title text-primary mb-3">
+                                <i class="fas fa-calculator me-2"></i>B. BUDGET ESTIMATION
+                            </h3>
+
+                            <!-- B-1. Resource Estimation -->
+                            <div class="mb-5">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <label class="sub-section-title mb-0">
+                                        B-1. Resource Estimation
+                                    </label>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="saveSectionDraft('resources')">
+                                        <i class="fas fa-save me-1"></i> Save & Draft (Resources)
+                                    </button>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table custom-table align-middle" id="resourcesTable">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 5%;">Sl. No</th>
+                                                <th style="width: 22%;">Employee Name</th>
+                                                <th style="width: 28%;">Define Task</th>
+                                                <th style="width: 12%;">Salary Grade</th>
+                                                <th style="width: 13%;">Start Date</th>
+                                                <th style="width: 13%;">End Date</th>
+                                                <th style="width: 7%;">No. of days</th>
+                                                <th style="width: 5%;">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="resourcesTableBody">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="mt-2">
+                                    <button type="button" class="btn-square-plus" onclick="addResourceRow()" title="Add Resource Row">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- B-2. Project Expenditure Estimation -->
+                            <div class="mb-5">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <label class="sub-section-title mb-0">
+                                        B-2. Project Expenditure Estimation
+                                    </label>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="saveSectionDraft('expenditures')">
+                                        <i class="fas fa-save me-1"></i> Save & Draft (Expenditures)
+                                    </button>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table custom-table align-middle" id="expendituresTable">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 6%;">Sl. No</th>
+                                                <th style="width: 22%;">Category</th>
+                                                <th style="width: 30%;">Description</th>
+                                                <th style="width: 15%;">Amount (₹)</th>
+                                                <th style="width: 14%;">Unit / Days</th>
+                                                <th style="width: 16%;">Total Amount (₹)</th>
+                                                <th style="width: 5%;">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="expendituresTableBody">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="mt-2">
+                                    <button type="button" class="btn-square-plus" onclick="addExpenditureRow()" title="Add Expenditure Row">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- ================= Summary of Estimated Expenditure ================= -->
+                            <div class="mb-4">
+                                <h5 class="fw-bold text-dark mb-3">
+                                    <i class="fas fa-chart-pie text-success me-2"></i>Summary of Estimated Expenditure
+                                </h5>
+
+                                <div class="table-responsive">
+                                    <table class="table summary-expenditure-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Cost Component</th>
+                                                <th class="text-end" style="width: 260px;">Estimated Amount (INR)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <strong>Resource Estimation (B-1):</strong>
+                                                    <div class="text-muted small">
+                                                        <i class="fas fa-lock text-secondary me-1"></i>
+                                                        Auto-aggregated server-side calculation (confidential daily-rate formula based on HR Grade/Salary and assigned days).
+                                                    </div>
+                                                </td>
+                                                <td class="text-end fw-bold font-monospace fs-6" id="summaryResourceTotal">
+                                                    ₹ 0.00
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Project Expenditure Estimation (B-2):</strong>
+                                                    <div class="text-muted small">Total operational and logistical items from expenditure estimation.</div>
+                                                </td>
+                                                <td class="text-end fw-bold font-monospace fs-6" id="summaryExpenditureTotal">
+                                                    ₹ 0.00
+                                                </td>
+                                            </tr>
+                                            <tr class="table-light">
+                                                <td class="fw-bold">
+                                                    Sub-Total (B-1 + B-2):
+                                                </td>
+                                                <td class="text-end fw-bold font-monospace fs-6 text-primary" id="summarySubTotal">
+                                                    ₹ 0.00
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Overhead Cost (30%):</strong>
+                                                    <div class="text-muted small">Organizational overheads and corporate operational margins (30% of Sub-Total).</div>
+                                                </td>
+                                                <td class="text-end fw-bold font-monospace fs-6" id="summaryOverhead">
+                                                    ₹ 0.00
+                                                </td>
+                                            </tr>
+                                            <tr class="summary-grand-total">
+                                                <td>
+                                                    <span class="fs-5">GRAND TOTAL (Sub-Total + Overheads):</span>
+                                                </td>
+                                                <td class="text-end font-monospace fs-5" id="summaryGrandTotal">
+                                                    ₹ 0.00
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Bottom Action Buttons: Save & Draft, Preview & Submit -->
+                            <div class="d-flex flex-wrap justify-content-end gap-3 mt-4 pt-3 border-top">
+                                <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="saveSectionDraft('all')">
+                                    <i class="fas fa-save me-1"></i> Save & Draft
+                                </button>
+                                <button type="button" class="btn btn-success px-4 py-2 fw-bold shadow-sm" onclick="openPreviewModal()">
+                                    <i class="fas fa-eye me-1"></i> Preview & Submit
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ================= 4. TEAM TAB ================= -->
+                <div class="tab-pane fade" id="team-content" role="tabpanel">
+                    <div class="tab-content-card">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                            <div>
+                                <h4 class="fw-bold text-dark mb-0">Project Team Directory</h4>
+                                <div class="text-muted small">Team members assigned to project tasks and deliverables.</div>
+                            </div>
+                            {% if jc and jc.status == 'Approved' %}
+                            <span class="badge bg-success px-3 py-2">
+                                <i class="fas fa-envelope-open-text me-1"></i> Circulated via Email & App
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary px-3 py-2">
+                                Pending CEO Approval
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Team Member</th>
+                                        <th>Designation</th>
+                                        <th>Project Role</th>
+                                        <th>Assigned Tasks</th>
+                                        <th>Assigned Period</th>
+                                        <th>Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teamTabBody">
+                                    <!-- Populated from resources -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= 5. TIMESHEETS TAB ================= -->
+                <div class="tab-pane fade" id="timesheets-content" role="tabpanel">
+                    <div class="tab-content-card">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                            <div>
+                                <h4 class="fw-bold text-dark mb-0"><i class="fas fa-user-clock text-info me-2"></i>Team Timesheet Submissions</h4>
+                                <div class="text-muted small">Verify and approve team members' daily/weekly timesheet progress.</div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Date / Period</th>
+                                        <th>Task</th>
+                                        <th>Hours</th>
+                                        <th>Progress Description</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if timesheets %}
+                                        {% for ts in timesheets %}
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold text-dark">{{ ts.employee.name }}</div>
+                                                <small class="text-muted">{{ ts.employee.designation }}</small>
+                                            </td>
+                                            <td>{{ ts.date.strftime('%d-%b-%Y') if ts.date else 'N/A' }}</td>
+                                            <td>{{ ts.task.description if ts.task else 'General Project Work' }}</td>
+                                            <td class="fw-bold">{{ ts.hours_worked }} hrs</td>
+                                            <td><small class="text-secondary">{{ ts.progress_description }}</small></td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if ts.status == 'Approved' else 'warning' if ts.status == 'Submitted' else 'secondary' }}">
+                                                    {{ ts.status }}
+                                                </span>
+                                            </td>
+                                            <td class="text-end">
+                                                {% if ts.status != 'Approved' %}
+                                                <button class="btn btn-sm btn-outline-success" onclick="approveTimesheet('{{ ts.id }}')">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted py-5">
+                                                <i class="far fa-clock fa-2x mb-2 text-secondary opacity-50"></i>
+                                                <p>No timesheets submitted for this project yet. Once team members log timesheets, they will appear here for verification.</p>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= 6. MILESTONE STATUS TAB ================= -->
+                <div class="tab-pane fade" id="milestones-content" role="tabpanel">
+                    <div class="tab-content-card">
+                        <div class="border-bottom pb-3 mb-4">
+                            <h4 class="fw-bold text-dark mb-1"><i class="fas fa-tasks text-success me-2"></i>Milestone Tracking & Progress</h4>
+                            <div class="text-muted small">Live milestone lifecycle progress and delivery monitoring.</div>
+                        </div>
+
+                        <div id="milestonesStatusDashboard">
+                            <!-- Dynamically generated from deliverables milestones -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= 7. PROJECT CHANGE REQUEST TAB ================= -->
+                <div class="tab-pane fade" id="change-request-content" role="tabpanel">
+                    <div class="tab-content-card">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                            <div>
+                                <h4 class="fw-bold text-dark mb-0"><i class="fas fa-code-branch text-danger me-2"></i>Project Change Requests</h4>
+                                <div class="text-muted small">Raise requests for budget revision, timeline extension, or scope modification to the CEO.</div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#newChangeRequestModal">
+                                <i class="fas fa-plus me-1"></i> Raise Change Request
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Title & Details</th>
+                                        <th>Requested Changes</th>
+                                        <th>Status</th>
+                                        <th>CEO Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if change_requests %}
+                                        {% for cr in change_requests %}
+                                        <tr>
+                                            <td>{{ cr.created_at.strftime('%d-%b-%Y') }}</td>
+                                            <td><span class="badge bg-secondary">{{ cr.change_type }}</span></td>
+                                            <td>
+                                                <div class="fw-bold text-dark">{{ cr.title }}</div>
+                                                <small class="text-muted">{{ cr.description }}</small>
+                                            </td>
+                                            <td>
+                                                {% if cr.revised_budget %}<div>Budget: ₹ {{ '{:,.2f}'.format(cr.revised_budget) }}</div>{% endif %}
+                                                {% if cr.revised_end_date %}<div>End Date: {{ cr.revised_end_date.strftime('%d-%b-%Y') }}</div>{% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if cr.status == 'Approved' else 'danger' if cr.status == 'Rejected' else 'warning text-dark' }}">
+                                                    {{ cr.status }}
+                                                </span>
+                                            </td>
+                                            <td><small class="text-muted">{{ cr.ceo_remarks or 'Pending review' }}</small></td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted py-4">No change requests raised for this project.</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= PREVIEW & SUBMIT PRINT PREVIEW MODAL ================= -->
+<div class="modal fade" id="previewSubmitModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-print me-2 text-warning"></i>Job Card Print Preview &mdash; {{ indent.project_name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" id="printPreviewContent">
+                <!-- Clean Print Preview Layout -->
+                <div class="text-center pb-3 border-bottom mb-4">
+                    <h3 class="fw-bold text-dark mb-0">ECOMETRIX PMS &mdash; OFFICIAL JOB CARD</h3>
+                    <p class="text-muted small mb-0">Project Deliverables, Milestone Breakdown & Estimated Budgetary Allocations</p>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr><td class="fw-bold text-muted" style="width: 140px;">Project Name:</td><td class="fw-bold">{{ indent.project_name }}</td></tr>
+                            <tr><td class="fw-bold text-muted">Project Code:</td><td class="font-monospace">{{ indent.file_number }}</td></tr>
+                            <tr><td class="fw-bold text-muted">Client:</td><td>{{ indent.client_name }}</td></tr>
+                            {% if current_user.role == 'MD' %}
+                            <tr><td class="fw-bold text-muted">Contract Value:</td><td class="fw-bold text-success">₹ {{ '{:,.2f}'.format(indent.contract_value or 0) }}</td></tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr><td class="fw-bold text-muted" style="width: 160px;">Project Manager:</td><td class="fw-bold">{{ indent.project_manager.name if indent.project_manager else current_user.name }}</td></tr>
+                            <tr><td class="fw-bold text-muted">Contract Period:</td><td>{{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }} to {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}</td></tr>
+                            <tr><td class="fw-bold text-muted">Execution Window:</td><td id="previewExecutionWindow" class="fw-bold text-primary">-</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-dark border-bottom pb-1 mb-2">1. Project Overview & Deliverables</h6>
+                <div id="previewOverviewText" class="p-3 bg-light rounded border mb-4 small"></div>
+
+                <h6 class="fw-bold text-dark border-bottom pb-1 mb-2">2. Milestones</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr><th>Milestone</th><th>Description</th><th>Dates</th><th>Days</th><th>Weightage</th></tr>
+                        </thead>
+                        <tbody id="previewMilestonesTableBody"></tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold text-dark border-bottom pb-1 mb-2">3. Resource Allocation (Confidential Compensation Masked)</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr><th>Sl.</th><th>Resource Name</th><th>Tasks Assigned</th><th>Grade</th><th>Duration</th><th>Days</th></tr>
+                        </thead>
+                        <tbody id="previewResourcesTableBody"></tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold text-dark border-bottom pb-1 mb-2">4. Project Expenditure Breakdown</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr><th>Sl.</th><th>Category</th><th>Description</th><th>Rate (₹)</th><th>Qty / Unit</th><th>Total (₹)</th></tr>
+                        </thead>
+                        <tbody id="previewExpendituresTableBody"></tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold text-dark border-bottom pb-1 mb-2">5. Budgetary Summary</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered bg-light">
+                        <tr><td>Resource Estimation Subtotal:</td><td class="text-end fw-bold font-monospace" id="previewResourceTotal">₹ 0.00</td></tr>
+                        <tr><td>Project Expenditure Subtotal:</td><td class="text-end fw-bold font-monospace" id="previewExpenditureTotal">₹ 0.00</td></tr>
+                        <tr class="table-secondary"><td class="fw-bold">Sub-Total:</td><td class="text-end fw-bold font-monospace" id="previewSubTotal">₹ 0.00</td></tr>
+                        <tr><td>Overhead Cost (30%):</td><td class="text-end fw-bold font-monospace" id="previewOverhead">₹ 0.00</td></tr>
+                        <tr class="table-success"><td class="fs-6 fw-bold text-success">Grand Total Budget:</td><td class="text-end fs-6 fw-bold text-success font-monospace" id="previewGrandTotal">₹ 0.00</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- User Prompt Requested Choice: Yes, Submit vs No, Edit -->
+            <div class="modal-footer bg-light d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="fas fa-edit me-1"></i> No, Edit
+                </button>
+                <button type="button" class="btn btn-success px-4 fw-bold shadow" onclick="submitFinalJobCard()">
+                    <i class="fas fa-check-circle me-1"></i> Yes, Submit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: RAISE CHANGE REQUEST ================= -->
+<div class="modal fade" id="newChangeRequestModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="{{ url_for('submit_change_request', indent_id=indent.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Raise Project Change Request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Change Type</label>
+                        <select name="change_type" class="form-select" required>
+                            <option value="Budget Revision">Budget Revision</option>
+                            <option value="Timeline Extension">Timeline Extension</option>
+                            <option value="Scope Change">Scope Change</option>
+                            <option value="Resource Reallocation">Resource Reallocation</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Title / Headline</label>
+                        <input type="text" name="title" class="form-control" placeholder="Brief headline of requested change" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Detailed Justification</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Explain rationale, technical dependency, or client instructions" required></textarea>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Revised Budget (₹)</label>
+                            <input type="number" step="0.01" name="revised_budget" class="form-control" placeholder="Optional">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Revised End Date</label>
+                            <input type="date" name="revised_end_date" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm">Submit Change Request to CEO</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Injected Server Data
+    const INDENT_ID = {{ indent.id }};
+    const CURRENT_USER_ID = {{ current_user.id }};
+    const CURRENT_USER_NAME = {{ current_user.name|tojson }};
+    const CURRENT_USER_GRADE = {{ (current_user.grade or 'M-2')|tojson }};
+    const CONTRACT_START = {{ (indent.contract_start_date.isoformat() if indent.contract_start_date else '')|tojson }};
+    const CONTRACT_END = {{ (indent.contract_end_date.isoformat() if indent.contract_end_date else '')|tojson }};
+    
+    // Existing DB JSON Data or Initial Defaults
+    let savedMilestones = {{ (jc.milestones_json|safe) if jc and jc.milestones_json else '[]' }};
+    let savedResources = {{ (jc.resources_json|safe) if jc and jc.resources_json else '[]' }};
+    let savedExpenditures = {{ (jc.expenditures_json|safe) if jc and jc.expenditures_json else '[]' }};
+
+    // Active Employees & Categories lists
+    const ALL_EMPLOYEES = [
+        {% for emp in employees %}
+        { id: {{ emp.id }}, name: {{ emp.name|tojson }}, grade: {{ (emp.grade or 'S-1')|tojson }}, designation: {{ (emp.designation or '')|tojson }} },
+        {% endfor %}
+    ];
+
+    const ALL_CATEGORIES = [
+        {% for cat in categories %}
+        {{ cat.name|tojson }},
+        {% endfor %}
+    ];
+
+    // CSRF Token for Fetch calls
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // -------------------------------------------------------------
+    // Helper: Indian Rupee (INR) Formatter
+    // -------------------------------------------------------------
+    function formatINR(val) {
+        val = parseFloat(val) || 0;
+        return '₹ ' + val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // -------------------------------------------------------------
+    // Rich Text Editor Toolbar Helpers
+    // -------------------------------------------------------------
+    function formatEditor(command, value = null) {
+        document.execCommand(command, false, value);
+        document.getElementById('projectOverviewEditor').focus();
+    }
+
+    function insertRomanList() {
+        document.execCommand('insertOrderedList');
+        const sel = window.getSelection();
+        if (sel && sel.anchorNode) {
+            const ol = sel.anchorNode.closest ? sel.anchorNode.closest('ol') : sel.anchorNode.parentElement.closest('ol');
+            if (ol) {
+                ol.style.listStyleType = 'lower-roman';
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Section A: Milestone Table Management (Image 4 & 5)
+    // -------------------------------------------------------------
+    function renderMilestones() {
+        const tbody = document.getElementById('milestonesTableBody');
+        tbody.innerHTML = '';
+        if (savedMilestones.length === 0) {
+            // Add initial default row matching Image 4
+            savedMilestones.push({
+                name: '',
+                description: '',
+                start_date: CONTRACT_START,
+                end_date: CONTRACT_END,
+                days: calculateDays(CONTRACT_START, CONTRACT_END),
+                percentage: 0
+            });
+        }
+
+        savedMilestones.forEach((m, idx) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <input type="text" class="form-control form-control-sm ms-name" placeholder="Enter miles" value="${escapeHtml(m.name || '')}">
+                </td>
+                <td>
+                    <textarea class="form-control form-control-sm ms-desc" rows="2" placeholder="Enter description">${escapeHtml(m.description || '')}</textarea>
+                </td>
+                <td>
+                    <input type="date" class="form-control form-control-sm ms-start" 
+                           min="${CONTRACT_START}" max="${CONTRACT_END}"
+                           value="${m.start_date || ''}" onchange="onMilestoneDateChange(${idx})">
+                </td>
+                <td>
+                    <input type="date" class="form-control form-control-sm ms-end" 
+                           min="${CONTRACT_START}" max="${CONTRACT_END}"
+                           value="${m.end_date || ''}" onchange="onMilestoneDateChange(${idx})">
+                </td>
+                <td>
+                    <input type="number" readonly class="form-control form-control-sm text-center ms-days" value="${m.days || 0}">
+                </td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <input type="number" min="0" max="100" class="form-control text-center ms-pct" 
+                               value="${m.percentage || 0}" oninput="updateMilestoneTotal()">
+                        <span class="input-group-text">%</span>
+                    </div>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn-circle-action btn-circle-minus" onclick="removeMilestoneRow(${idx})" title="Remove Milestone">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        updateMilestoneTotal();
+    }
+
+    function addMilestoneRow() {
+        collectMilestonesFromDOM();
+        savedMilestones.push({
+            name: '',
+            description: '',
+            start_date: document.getElementById('actualStartDate').value || CONTRACT_START,
+            end_date: document.getElementById('actualEndDate').value || CONTRACT_END,
+            days: 0,
+            percentage: 0
+        });
+        renderMilestones();
+    }
+
+    function removeMilestoneRow(idx) {
+        collectMilestonesFromDOM();
+        if (savedMilestones.length > 1) {
+            savedMilestones.splice(idx, 1);
+        } else {
+            savedMilestones[0] = { name: '', description: '', start_date: '', end_date: '', days: 0, percentage: 0 };
+        }
+        renderMilestones();
+    }
+
+    function onMilestoneDateChange(idx) {
+        const rows = document.querySelectorAll('#milestonesTableBody tr');
+        if (rows[idx]) {
+            const s = rows[idx].querySelector('.ms-start').value;
+            const e = rows[idx].querySelector('.ms-end').value;
+            const daysInput = rows[idx].querySelector('.ms-days');
+            const d = calculateDays(s, e);
+            daysInput.value = d;
+            if (savedMilestones[idx]) {
+                savedMilestones[idx].start_date = s;
+                savedMilestones[idx].end_date = e;
+                savedMilestones[idx].days = d;
+            }
+        }
+    }
+
+    function updateMilestoneTotal() {
+        let total = 0;
+        document.querySelectorAll('.ms-pct').forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        const totalSpan = document.getElementById('totalMilestonePercentage');
+        if (totalSpan) {
+            totalSpan.textContent = total + '%';
+            totalSpan.className = total === 100 ? 'text-success fw-bold' : 'text-danger fw-bold';
+        }
+    }
+
+    function collectMilestonesFromDOM() {
+        const rows = document.querySelectorAll('#milestonesTableBody tr');
+        const list = [];
+        rows.forEach(r => {
+            list.push({
+                name: r.querySelector('.ms-name').value.trim(),
+                description: r.querySelector('.ms-desc').value.trim(),
+                start_date: r.querySelector('.ms-start').value,
+                end_date: r.querySelector('.ms-end').value,
+                days: parseInt(r.querySelector('.ms-days').value) || 0,
+                percentage: parseFloat(r.querySelector('.ms-pct').value) || 0
+            });
+        });
+        savedMilestones = list;
+        return list;
+    }
+
+    // -------------------------------------------------------------
+    // Section B-1: Resource Estimation Table Management
+    // -------------------------------------------------------------
+    function renderResources() {
+        const tbody = document.getElementById('resourcesTableBody');
+        tbody.innerHTML = '';
+
+        // Rule: PM must auto-appear in top row by default!
+        if (savedResources.length === 0) {
+            savedResources.push({
+                employee_id: CURRENT_USER_ID,
+                employee_name: CURRENT_USER_NAME,
+                tasks: ['Project Planning & Management'],
+                grade: CURRENT_USER_GRADE,
+                start_date: document.getElementById('actualStartDate').value || CONTRACT_START,
+                end_date: document.getElementById('actualEndDate').value || CONTRACT_END,
+                days: calculateDays(CONTRACT_START, CONTRACT_END)
+            });
+        }
+
+        savedResources.forEach((res, idx) => {
+            const tr = document.createElement('tr');
+            
+            // Build options for employee dropdown
+            let empOptions = `<option value="">Choose Employee...</option>`;
+            ALL_EMPLOYEES.forEach(e => {
+                const sel = (res.employee_id && res.employee_id == e.id) ? 'selected' : '';
+                empOptions += `<option value="${e.id}" data-grade="${e.grade}" ${sel}>${e.name} (${e.grade})</option>`;
+            });
+
+            // Build task tags
+            let tagsHtml = '';
+            (res.tasks || []).forEach((t, tIdx) => {
+                tagsHtml += `
+                    <span class="task-pill">
+                        ${escapeHtml(t)}
+                        <span class="btn-pill-remove" onclick="removeTaskPill(${idx}, ${tIdx})">&times;</span>
+                    </span>
+                `;
+            });
+
+            tr.innerHTML = `
+                <td class="text-center fw-bold text-muted">${idx + 1}</td>
+                <td>
+                    <select class="form-select form-select-sm res-emp-select" onchange="onResourceEmpChange(${idx}, this)">
+                        ${empOptions}
+                    </select>
+                </td>
+                <td>
+                    <div class="task-tag-container" id="taskContainer_${idx}">
+                        ${tagsHtml}
+                        <input type="text" class="task-tag-input" placeholder="Type task & press Enter..." onkeydown="handleTaskInputKey(event, ${idx}, this)">
+                    </div>
+                </td>
+                <td class="text-center">
+                    <input type="text" readonly class="form-control form-control-sm text-center bg-light res-grade" value="${escapeHtml(res.grade || '')}">
+                </td>
+                <td>
+                    <input type="date" class="form-control form-control-sm res-start" 
+                           value="${res.start_date || ''}" onchange="onResourceDateChange(${idx})">
+                </td>
+                <td>
+                    <input type="date" class="form-control form-control-sm res-end" 
+                           value="${res.end_date || ''}" onchange="onResourceDateChange(${idx})">
+                </td>
+                <td class="text-center">
+                    <input type="number" readonly class="form-control form-control-sm text-center res-days" value="${res.days || 0}">
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn-circle-action btn-circle-minus" onclick="removeResourceRow(${idx})" title="Remove Resource">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Trigger confidential budget recalculation
+        recalculateBudget();
+        renderTeamTab();
+    }
+
+    function addResourceRow() {
+        collectResourcesFromDOM();
+        savedResources.push({
+            employee_id: '',
+            employee_name: '',
+            tasks: [],
+            grade: '',
+            start_date: document.getElementById('actualStartDate').value || CONTRACT_START,
+            end_date: document.getElementById('actualEndDate').value || CONTRACT_END,
+            days: 0
+        });
+        renderResources();
+    }
+
+    function removeResourceRow(idx) {
+        collectResourcesFromDOM();
+        if (savedResources.length > 1) {
+            savedResources.splice(idx, 1);
+        }
+        renderResources();
+    }
+
+    function onResourceEmpChange(idx, selectEl) {
+        const empId = selectEl.value;
+        const selectedOpt = selectEl.options[selectEl.selectedIndex];
+        const grade = selectedOpt.getAttribute('data-grade') || '';
+        const empName = selectedOpt.textContent.split('(')[0].trim();
+
+        if (savedResources[idx]) {
+            savedResources[idx].employee_id = empId;
+            savedResources[idx].employee_name = empName;
+            savedResources[idx].grade = grade;
+        }
+
+        const row = selectEl.closest('tr');
+        if (row) {
+            row.querySelector('.res-grade').value = grade;
+        }
+        recalculateBudget();
+        renderTeamTab();
+    }
+
+    function handleTaskInputKey(event, resIdx, inputEl) {
+        if (event.key === 'Enter' || event.key === ',') {
+            event.preventDefault();
+            const val = inputEl.value.trim().replace(/^,|,$/g, '');
+            if (val) {
+                if (!savedResources[resIdx].tasks) {
+                    savedResources[resIdx].tasks = [];
+                }
+                savedResources[resIdx].tasks.push(val);
+                inputEl.value = '';
+                renderResources();
+            }
+        }
+    }
+
+    function removeTaskPill(resIdx, taskIdx) {
+        if (savedResources[resIdx] && savedResources[resIdx].tasks) {
+            savedResources[resIdx].tasks.splice(taskIdx, 1);
+            renderResources();
+        }
+    }
+
+    function onResourceDateChange(idx) {
+        const rows = document.querySelectorAll('#resourcesTableBody tr');
+        if (rows[idx]) {
+            const s = rows[idx].querySelector('.res-start').value;
+            const e = rows[idx].querySelector('.res-end').value;
+            const d = calculateDays(s, e);
+            rows[idx].querySelector('.res-days').value = d;
+            if (savedResources[idx]) {
+                savedResources[idx].start_date = s;
+                savedResources[idx].end_date = e;
+                savedResources[idx].days = d;
+            }
+        }
+        recalculateBudget();
+    }
+
+    function collectResourcesFromDOM() {
+        const rows = document.querySelectorAll('#resourcesTableBody tr');
+        rows.forEach((r, idx) => {
+            if (savedResources[idx]) {
+                savedResources[idx].employee_id = r.querySelector('.res-emp-select').value;
+                savedResources[idx].start_date = r.querySelector('.res-start').value;
+                savedResources[idx].end_date = r.querySelector('.res-end').value;
+                savedResources[idx].days = parseInt(r.querySelector('.res-days').value) || 0;
+            }
+        });
+        return savedResources;
+    }
+
+    // -------------------------------------------------------------
+    // Section B-2: Project Expenditure Estimation Table Management
+    // -------------------------------------------------------------
+    function renderExpenditures() {
+        const tbody = document.getElementById('expendituresTableBody');
+        tbody.innerHTML = '';
+
+        if (savedExpenditures.length === 0) {
+            savedExpenditures.push({
+                category: ALL_CATEGORIES[0] || 'Travel & Conveyance',
+                description: 'Site reconnaissance & preliminary survey transit',
+                amount: 15000,
+                unit_days: 1,
+                unit_type: 'Unit',
+                total_amount: 15000
+            });
+        }
+
+        savedExpenditures.forEach((exp, idx) => {
+            const tr = document.createElement('tr');
+
+            let catOptions = '';
+            ALL_CATEGORIES.forEach(c => {
+                const sel = (exp.category === c) ? 'selected' : '';
+                catOptions += `<option value="${escapeHtml(c)}" ${sel}>${escapeHtml(c)}</option>`;
+            });
+
+            const unitType = exp.unit_type || 'Unit';
+
+            tr.innerHTML = `
+                <td class="text-center fw-bold text-muted">${idx + 1}</td>
+                <td>
+                    <select class="form-select form-select-sm exp-category" onchange="onExpenditureChange(${idx})">
+                        ${catOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm exp-desc" 
+                           placeholder="Describe requirement..." value="${escapeHtml(exp.description || '')}" oninput="onExpenditureChange(${idx})">
+                </td>
+                <td>
+                    <input type="number" step="0.01" class="form-control form-control-sm text-end exp-amount" 
+                           value="${exp.amount || 0}" oninput="onExpenditureChange(${idx})">
+                </td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.5" min="0" class="form-control text-center exp-qty" 
+                               value="${exp.unit_days || 1}" oninput="onExpenditureChange(${idx})">
+                        <select class="form-select exp-unit-type" style="max-width: 75px;" onchange="onExpenditureChange(${idx})">
+                            <option value="Unit" ${unitType === 'Unit' ? 'selected' : ''}>Unit</option>
+                            <option value="Days" ${unitType === 'Days' ? 'selected' : ''}>Days</option>
+                        </select>
+                    </div>
+                </td>
+                <td class="text-end fw-bold font-monospace exp-total">
+                    ${formatINR(exp.total_amount || 0)}
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn-circle-action btn-circle-minus" onclick="removeExpenditureRow(${idx})" title="Remove Item">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        recalculateBudget();
+    }
+
+    function addExpenditureRow() {
+        collectExpendituresFromDOM();
+        savedExpenditures.push({
+            category: ALL_CATEGORIES[0] || 'Miscellaneous',
+            description: '',
+            amount: 0,
+            unit_days: 1,
+            unit_type: 'Unit',
+            total_amount: 0
+        });
+        renderExpenditures();
+    }
+
+    function removeExpenditureRow(idx) {
+        collectExpendituresFromDOM();
+        if (savedExpenditures.length > 1) {
+            savedExpenditures.splice(idx, 1);
+        }
+        renderExpenditures();
+    }
+
+    function onExpenditureChange(idx) {
+        const rows = document.querySelectorAll('#expendituresTableBody tr');
+        if (rows[idx]) {
+            const amt = parseFloat(rows[idx].querySelector('.exp-amount').value) || 0;
+            const qty = parseFloat(rows[idx].querySelector('.exp-qty').value) || 0;
+            const total = Math.round(amt * qty);
+            rows[idx].querySelector('.exp-total').textContent = formatINR(total);
+            if (savedExpenditures[idx]) {
+                savedExpenditures[idx].category = rows[idx].querySelector('.exp-category').value;
+                savedExpenditures[idx].description = rows[idx].querySelector('.exp-desc').value;
+                savedExpenditures[idx].amount = amt;
+                savedExpenditures[idx].unit_days = qty;
+                savedExpenditures[idx].unit_type = rows[idx].querySelector('.exp-unit-type').value;
+                savedExpenditures[idx].total_amount = total;
+            }
+        }
+        recalculateBudget();
+    }
+
+    function collectExpendituresFromDOM() {
+        const rows = document.querySelectorAll('#expendituresTableBody tr');
+        rows.forEach((r, idx) => {
+            if (savedExpenditures[idx]) {
+                const amt = parseFloat(r.querySelector('.exp-amount').value) || 0;
+                const qty = parseFloat(r.querySelector('.exp-qty').value) || 0;
+                savedExpenditures[idx].category = r.querySelector('.exp-category').value;
+                savedExpenditures[idx].description = r.querySelector('.exp-desc').value;
+                savedExpenditures[idx].amount = amt;
+                savedExpenditures[idx].unit_days = qty;
+                savedExpenditures[idx].unit_type = r.querySelector('.exp-unit-type').value;
+                savedExpenditures[idx].total_amount = Math.round(amt * qty);
+            }
+        });
+        return savedExpenditures;
+    }
+
+    // -------------------------------------------------------------
+    // Confidential Budget Calculation Engine (AJAX to Server)
+    // -------------------------------------------------------------
+    let currentBudgetTotals = {
+        resource_total: 0,
+        expenditure_total: 0,
+        sub_total: 0,
+        overhead_cost: 0,
+        grand_total: 0
+    };
+
+    function recalculateBudget() {
+        collectResourcesFromDOM();
+        collectExpendituresFromDOM();
+
+        // Calculate expenditure subtotal client side
+        let expTotal = 0;
+        savedExpenditures.forEach(e => {
+            expTotal += (e.total_amount || 0);
+        });
+
+        // Request server for confidential resource salary calculation
+        fetch(`/api/job-card/${INDENT_ID}/calculate-budget`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({
+                resources: savedResources,
+                expenditures: savedExpenditures
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                currentBudgetTotals = data;
+                document.getElementById('summaryResourceTotal').textContent = formatINR(data.resource_total);
+                document.getElementById('summaryExpenditureTotal').textContent = formatINR(data.expenditure_total);
+                document.getElementById('summarySubTotal').textContent = formatINR(data.sub_total);
+                document.getElementById('summaryOverhead').textContent = formatINR(data.overhead_cost);
+                document.getElementById('summaryGrandTotal').textContent = formatINR(data.grand_total);
+            }
+        })
+        .catch(err => {
+            console.error("Budget calc error:", err);
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Section Saving & Draft Logic
+    // -------------------------------------------------------------
+    function saveSectionDraft(section = 'all') {
+        collectMilestonesFromDOM();
+        collectResourcesFromDOM();
+        collectExpendituresFromDOM();
+
+        const overview = document.getElementById('projectOverviewEditor').innerHTML;
+        const actualStart = document.getElementById('actualStartDate').value;
+        const actualEnd = document.getElementById('actualEndDate').value;
+
+        // Bounded date validation check
+        if (CONTRACT_START && actualStart && actualStart < CONTRACT_START) {
+            alert(`Actual Start Date cannot be earlier than Contract Start Date (${CONTRACT_START})!`);
+            return;
+        }
+        if (CONTRACT_END && actualEnd && actualEnd > CONTRACT_END) {
+            alert(`Actual End Date cannot be later than Contract End Date (${CONTRACT_END})!`);
+            return;
+        }
+
+        const payload = {
+            section: section,
+            overview: overview,
+            actual_start_date: actualStart,
+            actual_end_date: actualEnd,
+            milestones: savedMilestones,
+            resources: savedResources,
+            expenditures: savedExpenditures
+        };
+
+        fetch(`/api/job-card/${INDENT_ID}/save-draft`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                // Flash success toast or alert
+                showFloatingAlert(res.message || "Draft saved successfully! You can resume editing anytime.", 'success');
+                // Update Overview text in tab 1
+                document.getElementById('overviewDisplayContent').innerHTML = overview || '<i>Overview saved in draft.</i>';
+                renderTeamTab();
+                renderMilestoneStatusTab();
+            } else {
+                showFloatingAlert(res.error || "Failed to save draft.", 'danger');
+            }
+        })
+        .catch(err => {
+            showFloatingAlert("Network error while saving draft.", 'danger');
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Print Preview Modal (Yes, Submit / No, Edit)
+    // -------------------------------------------------------------
+    function openPreviewModal() {
+        collectMilestonesFromDOM();
+        collectResourcesFromDOM();
+        collectExpendituresFromDOM();
+
+        // Populate Preview Modal
+        const actualStart = document.getElementById('actualStartDate').value;
+        const actualEnd = document.getElementById('actualEndDate').value;
+        document.getElementById('previewExecutionWindow').textContent = `${actualStart || 'N/A'} to ${actualEnd || 'N/A'}`;
+        document.getElementById('previewOverviewText').innerHTML = document.getElementById('projectOverviewEditor').innerHTML || '<i class="text-muted">No overview text entered.</i>';
+
+        // Milestones
+        const mBody = document.getElementById('previewMilestonesTableBody');
+        mBody.innerHTML = '';
+        savedMilestones.forEach(m => {
+            if (m.name) {
+                mBody.innerHTML += `<tr>
+                    <td><strong>${escapeHtml(m.name)}</strong></td>
+                    <td>${escapeHtml(m.description || '')}</td>
+                    <td>${m.start_date || ''} to ${m.end_date || ''}</td>
+                    <td>${m.days || 0}</td>
+                    <td>${m.percentage || 0}%</td>
+                </tr>`;
+            }
+        });
+        if (!mBody.innerHTML) mBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No milestones specified.</td></tr>';
+
+        // Resources (Salaries/Rates MASKED!)
+        const rBody = document.getElementById('previewResourcesTableBody');
+        rBody.innerHTML = '';
+        savedResources.forEach((r, idx) => {
+            if (r.employee_name) {
+                rBody.innerHTML += `<tr>
+                    <td>${idx + 1}</td>
+                    <td><strong>${escapeHtml(r.employee_name)}</strong></td>
+                    <td>${(r.tasks || []).map(t => `<span class="badge bg-light text-dark border me-1">${escapeHtml(t)}</span>`).join('')}</td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">${escapeHtml(r.grade || 'S-1')}</span></td>
+                    <td>${r.start_date || ''} to ${r.end_date || ''}</td>
+                    <td>${r.days || 0}</td>
+                </tr>`;
+            }
+        });
+
+        // Expenditures
+        const eBody = document.getElementById('previewExpendituresTableBody');
+        eBody.innerHTML = '';
+        savedExpenditures.forEach((e, idx) => {
+            eBody.innerHTML += `<tr>
+                <td>${idx + 1}</td>
+                <td><strong>${escapeHtml(e.category)}</strong></td>
+                <td>${escapeHtml(e.description || '')}</td>
+                <td class="text-end font-monospace">${formatINR(e.amount || 0)}</td>
+                <td class="text-center">${e.unit_days || 1} ${escapeHtml(e.unit_type || '')}</td>
+                <td class="text-end font-monospace">${formatINR(e.total_amount || 0)}</td>
+            </tr>`;
+        });
+
+        // Totals
+        document.getElementById('previewResourceTotal').textContent = formatINR(currentBudgetTotals.resource_total);
+        document.getElementById('previewExpenditureTotal').textContent = formatINR(currentBudgetTotals.expenditure_total);
+        document.getElementById('previewSubTotal').textContent = formatINR(currentBudgetTotals.sub_total);
+        document.getElementById('previewOverhead').textContent = formatINR(currentBudgetTotals.overhead_cost);
+        document.getElementById('previewGrandTotal').textContent = formatINR(currentBudgetTotals.grand_total);
+
+        const modal = new bootstrap.Modal(document.getElementById('previewSubmitModal'));
+        modal.show();
+    }
+
+    function submitFinalJobCard() {
+        fetch(`/api/job-card/${INDENT_ID}/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({
+                overview: document.getElementById('projectOverviewEditor').innerHTML,
+                actual_start_date: document.getElementById('actualStartDate').value,
+                actual_end_date: document.getElementById('actualEndDate').value,
+                milestones: savedMilestones,
+                resources: savedResources,
+                expenditures: savedExpenditures
+            })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('previewSubmitModal'));
+                if (modal) modal.hide();
+                alert("Job Card successfully submitted to CEO for final approval!");
+                window.location.reload();
+            } else {
+                alert(res.error || "Failed to submit Job Card.");
+            }
+        })
+        .catch(err => {
+            alert("Error submitting Job Card.");
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Tab 4: Team Directory Rendering
+    // -------------------------------------------------------------
+    function renderTeamTab() {
+        const tbody = document.getElementById('teamTabBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        savedResources.forEach(res => {
+            if (!res.employee_name) return;
+            const isPM = res.employee_id == CURRENT_USER_ID;
+            const tasksHtml = (res.tasks || []).map(t => `<span class="badge bg-light text-dark border me-1">${escapeHtml(t)}</span>`).join('');
+            tbody.innerHTML += `
+                <tr>
+                    <td>
+                        <div class="fw-bold text-dark">${escapeHtml(res.employee_name)}</div>
+                        <small class="text-muted">Grade: ${escapeHtml(res.grade || 'S-1')}</small>
+                    </td>
+                    <td>${isPM ? 'Project Manager' : 'Team Member'}</td>
+                    <td>
+                        <span class="badge ${isPM ? 'bg-primary' : 'bg-secondary'}">
+                            ${isPM ? 'Lead / PM' : 'Resource'}
+                        </span>
+                    </td>
+                    <td>${tasksHtml || '<i class="text-muted">Tasks pending definition</i>'}</td>
+                    <td>${res.start_date || 'N/A'} to ${res.end_date || 'N/A'}</td>
+                    <td class="fw-bold">${res.days || 0} days</td>
+                </tr>
+            `;
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Tab 6: Milestone Status Dashboard
+    // -------------------------------------------------------------
+    function renderMilestoneStatusTab() {
+        const container = document.getElementById('milestonesStatusDashboard');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (savedMilestones.length === 0 || !savedMilestones[0].name) {
+            container.innerHTML = '<div class="text-center text-muted py-5"><p>No milestones created yet. Go to the Estimate tab to define milestones.</p></div>';
+            return;
+        }
+
+        savedMilestones.forEach((m, idx) => {
+            if (!m.name) return;
+            container.innerHTML += `
+                <div class="card mb-3 border-light bg-light">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-dark mb-0">${escapeHtml(m.name)}</h6>
+                            <span class="badge bg-primary">${m.percentage || 0}% Weightage</span>
+                        </div>
+                        <p class="text-secondary small mb-2">${escapeHtml(m.description || 'No description entered.')}</p>
+                        <div class="d-flex justify-content-between text-muted small">
+                            <span><i class="far fa-calendar-alt me-1"></i>${m.start_date || 'N/A'} to ${m.end_date || 'N/A'}</span>
+                            <span><strong>${m.days || 0}</strong> execution days</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Utility functions
+    // -------------------------------------------------------------
+    function calculateDays(startDateStr, endDateStr) {
+        if (!startDateStr || !endDateStr) return 0;
+        const s = new Date(startDateStr);
+        const e = new Date(endDateStr);
+        if (isNaN(s) || isNaN(e) || e < s) return 0;
+        const diffTime = Math.abs(e - s);
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function showFloatingAlert(msg, type = 'success') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-4 shadow-lg`;
+        alertDiv.style.zIndex = '9999';
+        alertDiv.innerHTML = `
+            <strong>${type === 'success' ? 'Saved!' : 'Alert'}</strong> ${msg}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => {
+            alertDiv.classList.remove('show');
+            setTimeout(() => alertDiv.remove(), 250);
+        }, 4000);
+    }
+
+    function approveTimesheet(tsId) {
+        fetch(`/api/job-card/${INDENT_ID}/verify-timesheet`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({ timesheet_id: tsId, status: 'Approved' })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                alert("Timesheet approved successfully.");
+                window.location.reload();
+            }
+        });
+    }
+
+    // Initialize everything on load
+    document.addEventListener('DOMContentLoaded', function() {
+        renderMilestones();
+        renderResources();
+        renderExpenditures();
+        renderTeamTab();
+        renderMilestoneStatusTab();
+    });
+</script>
+{% endblock %}

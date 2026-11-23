@@ -1,0 +1,511 @@
+{% extends "layout.html" %}
+
+{% block title %}Project Financials & Actuals - {{ indent.project_name }} - PMS Ecometrix{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-card {
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+    .fin-card-header {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .kpi-mini {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .kpi-mini:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+    .progress-thin {
+        height: 8px;
+        border-radius: 4px;
+        background-color: #f1f5f9;
+    }
+    .bill-row:hover {
+        background-color: #f8fafc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <!-- Header & Breadcrumbs -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" class="text-decoration-none">Finance Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Project Financials</li>
+                </ol>
+            </nav>
+            <h3 class="fw-bold mb-1 text-dark">
+                <i class="fas fa-coins text-warning me-2"></i>{{ indent.project_name }}
+            </h3>
+            <div class="d-flex flex-wrap gap-2 align-items-center text-muted small">
+                <span><i class="fas fa-file-contract me-1"></i>File: <strong>{{ indent.file_number }}</strong></span>
+                <span>•</span>
+                <span><i class="fas fa-building me-1"></i>Client: <strong>{{ indent.client_name }}</strong></span>
+                <span>•</span>
+                <span><i class="fas fa-user-tie me-1"></i>PM: <strong>{{ indent.project_manager.name if indent.project_manager else 'Not Assigned' }}</strong></span>
+                <span>•</span>
+                <span class="badge bg-{{ 'success' if indent.status == 'Approved' else 'warning text-dark' }}">{{ indent.status }}</span>
+            </div>
+        </div>
+        <div class="d-flex gap-2 mt-3 mt-md-0">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Projects
+            </a>
+            <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addBillModal">
+                <i class="fas fa-plus-circle me-1"></i>+ Book Actual Expense Bill
+            </button>
+        </div>
+    </div>
+
+    <!-- Financial KPI Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="kpi-mini">
+                <div class="text-muted small fw-semibold text-uppercase">Contract Value</div>
+                <div class="fs-4 fw-bold text-dark mt-1">{{ indent.contract_value | inr if indent.contract_value else '₹0' }}</div>
+                <div class="small text-muted mt-1"><i class="fas fa-handshake me-1 text-primary"></i>Client Agreed Value</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-mini border-primary-subtle">
+                <div class="text-primary small fw-semibold text-uppercase">Total Approved Budget</div>
+                <div class="fs-4 fw-bold text-primary mt-1">{{ grand_total_estimate | inr }}</div>
+                <div class="small text-muted mt-1">Resource + Category Estimates</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-mini {{ 'border-danger-subtle' if total_actual > total_estimated else 'border-success-subtle' }}">
+                <div class="{{ 'text-danger' if total_actual > total_estimated else 'text-success' }} small fw-semibold text-uppercase">Total Actual Expenses</div>
+                <div class="fs-4 fw-bold {{ 'text-danger' if total_actual > total_estimated else 'text-success' }} mt-1">
+                    {{ total_actual | inr }}
+                </div>
+                <div class="small text-muted mt-1">
+                    <span class="fw-semibold">{{ bills|length }}</span> itemized bills booked
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-mini">
+                <div class="text-muted small fw-semibold text-uppercase">Remaining Expense Balance</div>
+                <div class="fs-4 fw-bold {{ 'text-success' if overall_variance >= 0 else 'text-danger' }} mt-1">
+                    {{ overall_variance | inr }}
+                </div>
+                <div class="small text-muted mt-1">
+                    Utilization: <span class="fw-bold">{{ '{:.1f}%'.format(overall_utilization) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approved Estimation Breakdown vs Actuals -->
+    <div class="row g-4 mb-4">
+        <!-- Category-wise Reconciliation Table -->
+        <div class="col-12 col-xl-7">
+            <div class="card fin-card h-100">
+                <div class="fin-card-header">
+                    <div>
+                        <h6 class="fw-bold mb-0 text-dark">
+                            <i class="fas fa-balance-scale text-primary me-2"></i>Budget vs Actual Expenditure by Category
+                        </h6>
+                        <small class="text-muted">Approved PM estimates mapped directly against Finance bills booked</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addBillModal">
+                        <i class="fas fa-plus me-1"></i>Add Bill
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light text-secondary small text-uppercase fw-semibold">
+                                <tr>
+                                    <th class="ps-3">Expense Category</th>
+                                    <th>Approved Estimate</th>
+                                    <th>Actual Spent</th>
+                                    <th>Variance / Balance</th>
+                                    <th>Utilization</th>
+                                    <th class="text-end pe-3">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Resource Human Estimation Row (Read-Only) -->
+                                <tr class="bg-light-subtle">
+                                    <td class="ps-3 fw-semibold text-secondary">
+                                        <i class="fas fa-users-cog me-2 text-info"></i>Resource Manpower Budget
+                                    </td>
+                                    <td class="fw-semibold">{{ resource_estimate | inr }}</td>
+                                    <td class="text-muted">Logged via Timesheets</td>
+                                    <td><span class="badge bg-light text-secondary border">Resource Pool</span></td>
+                                    <td>-</td>
+                                    <td class="text-end pe-3">
+                                        <span class="badge bg-secondary-subtle text-secondary small">Timesheet Managed</span>
+                                    </td>
+                                </tr>
+
+                                {% for item in category_summary %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <span class="fw-semibold text-dark">{{ item.category }}</span>
+                                        <div class="small text-muted">{{ item.bill_count }} bill(s) recorded</div>
+                                    </td>
+                                    <td class="fw-medium text-dark">{{ item.estimated_amount | inr }}</td>
+                                    <td class="fw-bold {{ 'text-danger' if item.actual_amount > item.estimated_amount and item.estimated_amount > 0 else 'text-dark' }}">
+                                        {{ item.actual_amount | inr }}
+                                    </td>
+                                    <td>
+                                        {% if item.estimated_amount > 0 %}
+                                             <span class="fw-semibold {{ 'text-success' if item.variance >= 0 else 'text-danger' }}">
+                                                {{ item.variance | inr }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">No estimate</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="min-width: 120px;">
+                                        {% set util = item.utilization %}
+                                        <div class="d-flex justify-content-between small text-muted mb-1">
+                                            <span>{{ '{:.0f}%'.format(util) }}</span>
+                                        </div>
+                                        <div class="progress progress-thin">
+                                            <div class="progress-bar {{ 'bg-danger' if util > 100 else 'bg-warning' if util > 85 else 'bg-success' }}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ [util, 100]|min }}%;" 
+                                                 aria-valuenow="{{ util }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <button class="btn btn-sm btn-outline-success py-1 px-2" onclick="openBillModalWithCategory('{{ item.category }}')">
+                                            <i class="fas fa-receipt me-1"></i>+ Bill
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        No expenditure categories allocated in Job Card yet.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light fw-bold">
+                                <tr>
+                                    <td class="ps-3">Total Project Expenditures</td>
+                                    <td>{{ total_estimated | inr }}</td>
+                                    <td class="{{ 'text-danger' if total_actual > total_estimated else 'text-success' }}">{{ total_actual | inr }}</td>
+                                    <td class="{{ 'text-success' if overall_variance >= 0 else 'text-danger' }}">{{ overall_variance | inr }}</td>
+                                    <td>{{ '{:.1f}%'.format(overall_utilization) }}</td>
+                                    <td class="text-end pe-3">-</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Overview & Quick Stats -->
+        <div class="col-12 col-xl-5">
+            <div class="card fin-card h-100">
+                <div class="fin-card-header">
+                    <h6 class="fw-bold mb-0 text-dark">
+                        <i class="fas fa-info-circle text-primary me-2"></i>Executive Budget Reconciliation
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                            <span class="text-muted"><i class="fas fa-file-invoice text-secondary me-2"></i>Contract Value</span>
+                            <span class="fw-bold text-dark">{{ indent.contract_value | inr if indent.contract_value else '₹0' }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                            <span class="text-muted"><i class="fas fa-user-clock text-info me-2"></i>Resource Manpower Estimate</span>
+                            <span class="fw-semibold text-dark">{{ resource_estimate | inr }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                            <span class="text-muted"><i class="fas fa-tags text-warning me-2"></i>Expenditure Category Estimate</span>
+                            <span class="fw-semibold text-dark">{{ total_estimated | inr }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-top">
+                            <span class="fw-semibold text-dark"><i class="fas fa-calculator text-primary me-2"></i>Total Approved Budget</span>
+                            <span class="fw-bold text-primary fs-6">{{ grand_total_estimate | inr }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                            <span class="text-muted"><i class="fas fa-money-bill-wave text-success me-2"></i>Actual Expenses Booked</span>
+                            <span class="fw-bold text-success fs-6">{{ total_actual | inr }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                            <span class="text-muted"><i class="fas fa-piggy-bank text-info me-2"></i>Net Expense Balance</span>
+                            <span class="fw-bold {{ 'text-success' if overall_variance >= 0 else 'text-danger' }} fs-6">{{ overall_variance | inr }}</span>
+                        </li>
+                    </ul>
+
+                    <div class="alert alert-info border-info-subtle small mb-0">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        <strong>Accounting Control Notice:</strong> PM and CEO view these actual expenditure totals and variances dynamically in read-only mode on the Project Progress Report. Only the Accounts & Finance team can post and manage itemized vendor bills.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Itemized Bills Log Table -->
+    <div class="card fin-card">
+        <div class="fin-card-header">
+            <div>
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="fas fa-file-invoice-dollar text-success me-2"></i>Itemized Expense Bills Register ({{ bills|length }})
+                </h6>
+                <small class="text-muted">Recurring vendor receipts, bills, and payment vouchers booked against this project</small>
+            </div>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addBillModal">
+                <i class="fas fa-plus-circle me-1"></i>Book New Bill
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="billsTable">
+                    <thead class="table-light text-secondary small text-uppercase fw-semibold">
+                        <tr>
+                            <th class="ps-3">Bill Date</th>
+                            <th>Bill / Invoice #</th>
+                            <th>Category</th>
+                            <th>Vendor / Payee</th>
+                            <th>Description</th>
+                            <th>Amount (₹)</th>
+                            <th>Logged By</th>
+                            <th class="text-end pe-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in bills %}
+                        <tr class="bill-row">
+                            <td class="ps-3 fw-medium">
+                                {{ bill.bill_date.strftime('%d-%b-%Y') if bill.bill_date else 'N/A' }}
+                            </td>
+                            <td>
+                                <code>{{ bill.bill_number or 'N/A' }}</code>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary-subtle text-primary border border-primary px-2 py-1">
+                                    {{ bill.category }}
+                                </span>
+                            </td>
+                            <td class="fw-semibold text-dark">{{ bill.vendor_name or 'N/A' }}</td>
+                            <td class="small text-secondary">{{ bill.description or '-' }}</td>
+                            <td class="fw-bold text-success fs-6">{{ bill.amount | inr }}</td>
+                            <td class="small text-muted">
+                                {{ bill.creator.name if bill.creator else 'Finance' }}
+                                <div style="font-size: 0.72rem;">{{ bill.created_at.strftime('%d-%b-%y %H:%M') if bill.created_at else '' }}</div>
+                            </td>
+                            <td class="text-end pe-3">
+                                <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="deleteBill({{ bill.id }}, '{{ bill.bill_number }}', {{ bill.amount }})" title="Delete Bill">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="fas fa-receipt fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+                                <h6 class="fw-semibold">No Actual Expense Bills Recorded Yet</h6>
+                                <p class="small text-muted mb-3">Click below to record your first recurring vendor bill or expense receipt.</p>
+                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addBillModal">
+                                    <i class="fas fa-plus-circle me-1"></i>+ Book First Bill
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Book Actual Expense Bill -->
+<div class="modal fade" id="addBillModal" tabindex="-1" aria-labelledby="addBillModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="addBillModalLabel">
+                    <i class="fas fa-receipt me-2"></i>Book Project Expense Bill
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addBillForm" onsubmit="submitBill(event)">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="billCategory" class="form-label fw-semibold small text-secondary">
+                            Expenditure Category <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="billCategory" name="category" required>
+                            <option value="">-- Select Category --</option>
+                            {% for cat in budgeted_categories %}
+                            <option value="{{ cat.category }}">{{ cat.category }}</option>
+                            {% endfor %}
+                            <option value="Transportation">Transportation</option>
+                            <option value="Documentation / Print">Documentation / Print</option>
+                            <option value="Office Setup / Utilities">Office Setup / Utilities</option>
+                            <option value="Fooding & Lodging">Fooding & Lodging</option>
+                            <option value="Miscellaneous">Miscellaneous</option>
+                        </select>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label for="billDate" class="form-label fw-semibold small text-secondary">
+                                Bill Date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" class="form-control" id="billDate" name="bill_date" required>
+                        </div>
+                        <div class="col-6">
+                            <label for="billNumber" class="form-label fw-semibold small text-secondary">
+                                Bill / Invoice #
+                            </label>
+                            <input type="text" class="form-control" id="billNumber" name="bill_number" placeholder="e.g. INV-9821">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="vendorName" class="form-label fw-semibold small text-secondary">
+                            Vendor / Payee Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="vendorName" name="vendor_name" placeholder="e.g. Blue Dart / Hotel Grand / Stationery Mart" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="billAmount" class="form-label fw-semibold small text-secondary">
+                            Amount (INR ₹) <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">₹</span>
+                            <input type="number" step="0.01" min="0.01" class="form-control" id="billAmount" name="amount" placeholder="0.00" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="billDescription" class="form-label fw-semibold small text-secondary">
+                            Description / Purpose
+                        </label>
+                        <textarea class="form-control" id="billDescription" name="description" rows="2" placeholder="Brief note on what this bill was for..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmitBill">
+                        <i class="fas fa-check-circle me-1"></i>Save & Reconcile
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Default date to today
+document.addEventListener("DOMContentLoaded", function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('billDate');
+    if (dateInput) dateInput.value = today;
+});
+
+function openBillModalWithCategory(catName) {
+    const select = document.getElementById('billCategory');
+    if (select) {
+        let found = false;
+        for (let opt of select.options) {
+            if (opt.value === catName) {
+                select.value = catName;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            const opt = new Option(catName, catName, true, true);
+            select.add(opt);
+        }
+    }
+    const modal = new bootstrap.Modal(document.getElementById('addBillModal'));
+    modal.show();
+}
+
+function submitBill(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSubmitBill');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+
+    const payload = {
+        category: document.getElementById('billCategory').value,
+        bill_date: document.getElementById('billDate').value,
+        bill_number: document.getElementById('billNumber').value,
+        vendor_name: document.getElementById('vendorName').value,
+        amount: parseFloat(document.getElementById('billAmount').value),
+        description: document.getElementById('billDescription').value
+    };
+
+    fetch('/api/finance/project/{{ indent.id }}/add-bill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message || 'Bill logged successfully!');
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Could not record bill'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Save & Reconcile';
+        }
+    })
+    .catch(err => {
+        alert('Network error while booking bill: ' + err);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Save & Reconcile';
+    });
+}
+
+function deleteBill(billId, billNum, amount) {
+    if (!confirm(`Are you sure you want to delete bill #${billNum || billId} for ₹${amount.toLocaleString()}? This will update the project actual expenditure automatically.`)) {
+        return;
+    }
+    fetch(`/api/finance/bill/${billId}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message || 'Bill deleted successfully.');
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Could not delete bill'));
+        }
+    })
+    .catch(err => alert('Network error: ' + err));
+}
+</script>
+{% endblock %}

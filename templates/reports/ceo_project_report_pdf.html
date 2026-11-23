@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Job Card Information - {{ indent.project_name }}</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 1.2cm 1.2cm 1.4cm 1.2cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 8.5pt;
+            color: #111827;
+            line-height: 1.35;
+        }
+        .header-box {
+            text-align: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #111827;
+        }
+        .report-title {
+            font-size: 15pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #000000;
+            margin-bottom: 4px;
+        }
+        .project-headline {
+            font-size: 10pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #1f2937;
+        }
+        .section-header {
+            font-size: 9.5pt;
+            font-weight: bold;
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            padding: 5px 8px;
+            margin-top: 14px;
+            margin-bottom: 8px;
+            color: #111827;
+        }
+        table.meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        table.meta-table td {
+            padding: 4px 6px;
+            vertical-align: top;
+            font-size: 8pt;
+            border: 1px solid #e5e7eb;
+        }
+        table.meta-table td.idx-col {
+            width: 24px;
+            font-weight: bold;
+            text-align: center;
+            background-color: #f9fafb;
+        }
+        table.meta-table td.label-col {
+            width: 200px;
+            font-weight: bold;
+            color: #374151;
+            background-color: #f9fafb;
+        }
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        table.data-table th {
+            background-color: #e5e7eb;
+            color: #111827;
+            font-weight: bold;
+            font-size: 7.5pt;
+            padding: 5px 4px;
+            border: 1px solid #9ca3af;
+            text-align: left;
+        }
+        table.data-table td {
+            font-size: 7.5pt;
+            padding: 4px 4px;
+            border: 1px solid #d1d5db;
+            vertical-align: middle;
+        }
+        .text-center { text-align: center; }
+        .text-end { text-align: right; }
+        .fw-bold { font-weight: bold; }
+        
+        .overview-box {
+            border: 1px solid #d1d5db;
+            background-color: #ffffff;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            font-size: 8pt;
+            min-height: 40px;
+        }
+        
+        .summary-totals-table {
+            width: 320px;
+            margin-left: auto;
+            border-collapse: collapse;
+            margin-top: 8px;
+            margin-bottom: 14px;
+        }
+        .summary-totals-table td {
+            padding: 4px 8px;
+            font-size: 8pt;
+            border: 1px solid #d1d5db;
+        }
+        .summary-totals-table tr.grand-row td {
+            background-color: #e5e7eb;
+            font-weight: bold;
+            font-size: 9pt;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        .footer-stamp {
+            text-align: center;
+            font-size: 7.5pt;
+            color: #6b7280;
+            margin-top: 15px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header matching project_50.pdf -->
+    <div class="header-box">
+        <div class="report-title">Project Details Report</div>
+        <div class="project-headline">{{ indent.project_name }}</div>
+    </div>
+
+    <!-- Section A: General Project Information -->
+    <div class="section-header">Section: A | General Project Information</div>
+    <table class="meta-table">
+        <tr>
+            <td class="idx-col">1</td>
+            <td class="label-col">Name of the Project:</td>
+            <td>{{ indent.project_name }}</td>
+        </tr>
+        <tr>
+            <td class="idx-col">2</td>
+            <td class="label-col">File No:</td>
+            <td>{{ indent.file_number }}</td>
+        </tr>
+        <tr>
+            <td class="idx-col">3</td>
+            <td class="label-col">Internal Reference ID:</td>
+            <td>-</td>
+        </tr>
+        <tr>
+            <td class="idx-col">4</td>
+            <td class="label-col">Project Created on: (Date & Time)</td>
+            <td>{{ indent.created_at.strftime('%d/%m/%Y %I:%M %p') if indent.created_at else 'N/A' }}</td>
+        </tr>
+        <tr>
+            <td class="idx-col">5</td>
+            <td class="label-col">Contract Date & Duration:</td>
+            <td>
+                Start Date: {{ indent.contract_start_date.strftime('%d/%m/%Y') if indent.contract_start_date else 'N/A' }} &nbsp;&nbsp;
+                End Date: {{ indent.contract_end_date.strftime('%d/%m/%Y') if indent.contract_end_date else 'N/A' }} &nbsp;&nbsp;
+                Duration (in Days): {{ contract_days }}
+            </td>
+        </tr>
+        <tr>
+            <td class="idx-col">6</td>
+            <td class="label-col">Contract Value (In Rs.):</td>
+            <td class="fw-bold">{{ '{:,.2f}'.format(indent.contract_value or 0) }}</td>
+        </tr>
+        <tr>
+            <td class="idx-col">7</td>
+            <td class="label-col">Name of the Project Manager:</td>
+            <td>{{ indent.project_manager.name if indent.project_manager else 'Not Assigned' }}</td>
+        </tr>
+        <tr>
+            <td class="idx-col">8</td>
+            <td class="label-col">Actual Start Date & Duration (by PM):</td>
+            <td>
+                Start Date: {{ actual_start_str }} &nbsp;&nbsp;
+                End Date: {{ actual_end_str }} &nbsp;&nbsp;
+                Duration (in Days): {{ actual_days }}
+            </td>
+        </tr>
+        <tr>
+            <td class="idx-col">9</td>
+            <td class="label-col">Estimated Cost (In Rs.)</td>
+            <td class="fw-bold">{{ '{:,.2f}'.format(grand_total) }}</td>
+        </tr>
+        <tr>
+            <td class="idx-col">10</td>
+            <td class="label-col">Date & Time of Report Generation:</td>
+            <td>{{ now.strftime('%d/%m/%Y %I:%M %p') }}</td>
+        </tr>
+    </table>
+
+    <!-- Section B: Project Deliverables & Overview -->
+    <div class="section-header">Section: B | Project Deliverables & Overview</div>
+    
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 8.5pt;">11 Project Overview:</div>
+    <div class="overview-box">
+        {{ overview_clean|safe if overview_clean else 'No overview provided.' }}
+    </div>
+
+    <div style="font-weight: bold; margin-bottom: 6px; font-size: 8.5pt;">12 Project Milestones:</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 25px;" class="text-center">Sl. No</th>
+                <th style="width: 140px;">Milestone Name</th>
+                <th>Description</th>
+                <th style="width: 70px;" class="text-center">Start Date</th>
+                <th style="width: 50px;" class="text-center">Duration</th>
+                <th style="width: 70px;" class="text-center">End Date</th>
+                <th style="width: 60px;" class="text-center">Percentage</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if milestones %}
+                {% for m in milestones %}
+                <tr>
+                    <td class="text-center">{{ loop.index }}</td>
+                    <td class="fw-bold">{{ m.name }}</td>
+                    <td>{{ m.description or '-' }}</td>
+                    <td class="text-center">{{ m.start_date or '-' }}</td>
+                    <td class="text-center">{{ m.days or 0 }}</td>
+                    <td class="text-center">{{ m.end_date or '-' }}</td>
+                    <td class="text-center fw-bold">{{ m.percentage or 0 }}%</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="7" class="text-center" style="color: #6b7280;">No milestones recorded.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <!-- Page Break before Financials matching project_50.pdf Page 2 -->
+    <div class="page-break"></div>
+
+    <div class="section-header">Financial Estimations:</div>
+
+    <div style="font-weight: bold; margin-bottom: 6px; font-size: 8.5pt;">13 A. Resource Estimation</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 25px;" class="text-center">Sl. No</th>
+                <th style="width: 70px;">Category</th>
+                <th style="width: 130px;">Employee</th>
+                <th style="width: 110px;">Designation</th>
+                <th style="width: 65px;" class="text-center">Start Date</th>
+                <th style="width: 65px;" class="text-center">End Date</th>
+                <th style="width: 40px;" class="text-center">Days</th>
+                <th style="width: 80px;" class="text-end">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if resource_rows %}
+                {% for r in resource_rows %}
+                <tr>
+                    <td class="text-center">{{ loop.index }}</td>
+                    <td>RESOURCE</td>
+                    <td class="fw-bold">{{ r.name }}</td>
+                    <td>{{ r.designation or '-' }}</td>
+                    <td class="text-center">{{ r.start_date or '-' }}</td>
+                    <td class="text-center">{{ r.end_date or '-' }}</td>
+                    <td class="text-center">{{ r.days or 0 }}</td>
+                    <td class="text-end font-monospace">{{ '{:,.2f}'.format(r.cost) }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="8" class="text-center" style="color: #6b7280;">No resource estimations recorded.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <div style="font-weight: bold; margin-top: 12px; margin-bottom: 6px; font-size: 8.5pt;">14 B. Budget Estimation</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 25px;" class="text-center">Sr. No</th>
+                <th style="width: 180px;">Category</th>
+                <th>Estimation Head / Description</th>
+                <th style="width: 70px;" class="text-end">Amount</th>
+                <th style="width: 65px;" class="text-center">Unit / Days</th>
+                <th style="width: 80px;" class="text-end">Total Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- First row: RESOURCE summary row if applicable or line items -->
+            {% if expenditures %}
+                {% for e in expenditures %}
+                <tr>
+                    <td class="text-center">{{ loop.index }}</td>
+                    <td class="fw-bold">{{ e.category }}</td>
+                    <td>{{ e.description or '-' }}</td>
+                    <td class="text-end font-monospace">{{ '{:,.2f}'.format(e.amount or 0) }}</td>
+                    <td class="text-center">{{ e.unit_days or 1 }}</td>
+                    <td class="text-end font-monospace">{{ '{:,.2f}'.format(e.total_amount or 0) }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="6" class="text-center" style="color: #6b7280;">No expenditure items recorded.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <!-- Financial Abstract Table -->
+    <table class="summary-totals-table">
+        <tr>
+            <td class="fw-bold" style="background-color: #f9fafb;">Resource Subtotal (In Rs.)</td>
+            <td class="text-end font-monospace">{{ '{:,.2f}'.format(resource_total) }}</td>
+        </tr>
+        <tr>
+            <td class="fw-bold" style="background-color: #f9fafb;">Expenditure Subtotal (In Rs.)</td>
+            <td class="text-end font-monospace">{{ '{:,.2f}'.format(expenditure_total) }}</td>
+        </tr>
+        <tr>
+            <td class="fw-bold" style="background-color: #f3f4f6;">Sub-total (In Rs.)</td>
+            <td class="text-end font-monospace fw-bold">{{ '{:,.2f}'.format(sub_total) }}</td>
+        </tr>
+        <tr>
+            <td style="color: #4b5563;">Overhead Cost (30%)</td>
+            <td class="text-end font-monospace">{{ '{:,.2f}'.format(overhead_cost) }}</td>
+        </tr>
+        <tr class="grand-row">
+            <td class="fw-bold">GRAND TOTAL (In Rs.)</td>
+            <td class="text-end font-monospace fw-bold">{{ '{:,.2f}'.format(grand_total) }}</td>
+        </tr>
+    </table>
+
+    <div class="footer-stamp">
+        Generated on: {{ now.strftime('%d %b %Y, %I:%M %p') }} &bull; Ecometrix Consulting Project Monitoring System (Confidential)
+    </div>
+
+</body>
+</html>

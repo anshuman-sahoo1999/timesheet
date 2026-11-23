@@ -1,0 +1,433 @@
+{% extends "layout.html" %}
+
+{% block title %}Manage Client - PMS Ecometrix{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --client-green-hdr: #5b9a2b;
+        --client-green-hover: #4a8022;
+        --client-primary: #0e8749;
+        --client-border: #e2e8f0;
+    }
+
+    .client-manage-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding-bottom: 40px;
+    }
+
+    /* Page Header */
+    .manage-client-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 22px;
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+
+    .manage-client-title {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .btn-add-client {
+        background: var(--client-green-hdr);
+        color: #ffffff;
+        border: none;
+        padding: 9px 24px;
+        border-radius: 99px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 4px 12px rgba(91, 154, 43, 0.25);
+        transition: all 0.25s ease;
+    }
+
+    .btn-add-client:hover {
+        background: var(--client-green-hover);
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(91, 154, 43, 0.35);
+    }
+
+    /* Search Control Bar */
+    .client-search-bar {
+        background: #ffffff;
+        border: 1px solid var(--client-border);
+        border-radius: 12px;
+        padding: 12px 18px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        box-shadow: 0 2px 8px -2px rgba(0,0,0,0.03);
+    }
+
+    .client-search-input-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 260px;
+    }
+
+    .client-search-field {
+        width: 100%;
+        height: 40px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0 16px 0 36px;
+        font-size: 0.88rem;
+        color: #0f172a;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .client-search-field:focus {
+        background: #ffffff;
+        border-color: var(--client-primary);
+        box-shadow: 0 0 0 3px rgba(14, 135, 73, 0.15);
+    }
+
+    .client-search-icon {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
+
+    /* Client Table (Matching Image 2 Green Header) */
+    .client-table-card {
+        background: #ffffff;
+        border: 1px solid var(--client-border);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    .table-client-master {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+    }
+
+    .table-client-master thead th {
+        background: var(--client-green-hdr);
+        color: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 14px 16px;
+        border: none;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .table-client-master tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.15s ease;
+    }
+
+    .table-client-master tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .table-client-master tbody td {
+        padding: 14px 16px;
+        font-size: 0.86rem;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+
+    .td-sl {
+        font-weight: 700;
+        color: #64748b;
+        width: 50px;
+        text-align: center;
+    }
+
+    .td-client-name {
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .td-dept {
+        color: #334155;
+    }
+
+    .td-null {
+        color: #94a3b8;
+        font-style: italic;
+    }
+
+    /* Action Buttons (Square Blue & Red matching Image 2) */
+    .btn-action-square {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        cursor: pointer;
+        font-size: 0.82rem;
+        transition: transform 0.15s ease, opacity 0.15s ease;
+        text-decoration: none;
+    }
+
+    .btn-action-square:hover {
+        transform: scale(1.08);
+        opacity: 0.95;
+    }
+
+    .btn-action-edit {
+        background: #004d80;
+        color: #ffffff;
+    }
+
+    .btn-action-edit:hover {
+        background: #003366;
+        color: #ffffff;
+    }
+
+    .btn-action-delete {
+        background: #cc1100;
+        color: #ffffff;
+    }
+
+    .btn-action-delete:hover {
+        background: #aa0e00;
+        color: #ffffff;
+    }
+
+    .actions-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    @media (max-width: 768px) {
+        .manage-client-header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .manage-client-title {
+            font-size: 1.3rem;
+        }
+        .btn-add-client {
+            padding: 7px 18px;
+            font-size: 0.82rem;
+        }
+        .client-search-bar {
+            padding: 10px 14px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+        .client-search-input-wrap {
+            width: 100%;
+        }
+        .table-client-master thead th {
+            padding: 10px 12px;
+            font-size: 0.72rem;
+        }
+        .table-client-master tbody td {
+            padding: 10px 12px;
+            font-size: 0.82rem;
+        }
+    }
+</style>
+
+<div class="client-manage-container">
+    <!-- Header: Manage Client with Add + Button (Matching Image 2) -->
+    <div class="manage-client-header">
+        <h1 class="manage-client-title">
+            <span>Manage Client</span>
+        </h1>
+        <a href="{{ url_for('create_client') }}" class="btn-add-client">
+            <span>Add +</span>
+        </a>
+    </div>
+
+    <!-- Search Control Bar -->
+    <div class="client-search-bar">
+        <div class="client-search-input-wrap">
+            <i class="fas fa-search client-search-icon"></i>
+            <input type="text" class="client-search-field" id="clientSearchInput" placeholder="Search by Client Name, Department, PAN, GST..." oninput="filterClientTable()">
+        </div>
+        <div class="text-muted" style="font-size: 0.82rem;" id="clientCountBadge">
+            Total <strong>{{ clients|length }}</strong> Clients registered
+        </div>
+    </div>
+
+    <!-- Client Master Table (Matching Image 2) -->
+    <div class="client-table-card">
+        <div class="table-responsive">
+            <table class="table-client-master" id="clientMasterTable">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 50px;">SL</th>
+                        <th>NAME OF CLIENT/ORGANIZATION</th>
+                        <th>NAME OF DEPARTMENT/GOVERNMENT/COMPANY</th>
+                        <th>MOBILE</th>
+                        <th>ADDRESS</th>
+                        <th>PAN</th>
+                        <th>GST</th>
+                        <th style="width: 100px;">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr class="client-row" 
+                        data-name="{{ (client.client_name or '')|lower }}" 
+                        data-dept="{{ (client.department_name or '')|lower }}" 
+                        data-mobile="{{ (client.mobile or '')|lower }}" 
+                        data-pan="{{ (client.pan or '')|lower }}" 
+                        data-gst="{{ (client.gst_number or '')|lower }}">
+                        <td class="td-sl">{{ loop.index }}</td>
+                        <td class="td-client-name">{{ client.client_name }}</td>
+                        <td class="td-dept">{{ client.department_name }}</td>
+                        <td>
+                            {% if client.mobile %}
+                            <span>{{ client.mobile }}</span>
+                            {% else %}
+                            <span class="td-null">null</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if client.address %}
+                            <span>{{ client.address }}</span>
+                            {% else %}
+                            <span class="td-null">null</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if client.pan %}
+                            <span>{{ client.pan }}</span>
+                            {% else %}
+                            <span class="td-null">null</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if client.gst_number %}
+                            <span>{{ client.gst_number }}</span>
+                            {% else %}
+                            <span class="td-null">null</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="actions-wrap">
+                                <!-- Edit Button (Blue Square with Pencil) -->
+                                <a href="{{ url_for('edit_client', client_id=client.id) }}" class="btn-action-square btn-action-edit" title="Edit Client">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <!-- Delete Button (Red Square with Trash) -->
+                                <button type="button" class="btn-action-square btn-action-delete" title="Delete Client" onclick="confirmDeleteClient({{ client.id }}, '{{ client.client_name|replace("'", "\\'") }}')">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr id="emptyClientRow">
+                        <td colspan="8" class="text-center text-muted py-5">
+                            <i class="fas fa-building fa-3x mb-3 text-secondary"></i>
+                            <h5>No Clients Found</h5>
+                            <p class="mb-3">Start by registering your enterprise clients.</p>
+                            <a href="{{ url_for('create_client') }}" class="btn-add-client">Add Client +</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteClientModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Remove Client
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <p class="text-muted mb-1">Are you sure you want to remove the following client from active registry?</p>
+                <div class="p-3 bg-light rounded border mt-2">
+                    <strong class="text-dark" id="deleteClientNamePlaceholder"></strong>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteClientForm" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger rounded-pill px-4">
+                        <i class="fas fa-trash me-1"></i> Confirm Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Live Search Filter for Client Table
+    function filterClientTable() {
+        const query = (document.getElementById('clientSearchInput').value || '').toLowerCase().trim();
+        const rows = document.querySelectorAll('#clientMasterTable tbody tr.client-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name') || '';
+            const dept = row.getAttribute('data-dept') || '';
+            const mobile = row.getAttribute('data-mobile') || '';
+            const pan = row.getAttribute('data-pan') || '';
+            const gst = row.getAttribute('data-gst') || '';
+
+            const matches = !query || 
+                name.includes(query) || 
+                dept.includes(query) || 
+                mobile.includes(query) || 
+                pan.includes(query) || 
+                gst.includes(query);
+
+            if (matches) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const countBadge = document.getElementById('clientCountBadge');
+        if (countBadge) {
+            countBadge.innerHTML = `Showing <strong>${visibleCount}</strong> of <strong>${rows.length}</strong> Clients`;
+        }
+    }
+
+    // Delete confirmation handler
+    function confirmDeleteClient(clientId, clientName) {
+        document.getElementById('deleteClientNamePlaceholder').textContent = clientName;
+        document.getElementById('deleteClientForm').action = `/clients/delete/${clientId}`;
+        const modal = new bootstrap.Modal(document.getElementById('deleteClientModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}

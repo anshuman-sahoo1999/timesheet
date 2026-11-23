@@ -1,0 +1,300 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit Client - PMS Ecometrix{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --client-primary: #0e8749;
+        --client-border: #cbd5e1;
+        --client-bg-card: #ffffff;
+        --client-text-slate: #0f172a;
+    }
+
+    .client-page-container {
+        max-width: 1300px;
+        margin: 0 auto;
+        padding-bottom: 40px;
+    }
+
+    .client-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+
+    .client-heading-title {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--client-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .btn-view-clients {
+        background: #5b9a2b;
+        color: #ffffff;
+        border: none;
+        padding: 9px 24px;
+        border-radius: 99px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.25s ease;
+    }
+
+    .btn-view-clients:hover {
+        background: #4a8022;
+        color: #ffffff;
+    }
+
+    .client-card {
+        background: var(--client-bg-card);
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 32px 36px;
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    .client-form-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+        margin-bottom: 28px;
+    }
+
+    .client-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .client-field-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .client-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .client-field-icon {
+        position: absolute;
+        left: 14px;
+        color: #94a3b8;
+        font-size: 0.9rem;
+        pointer-events: none;
+    }
+
+    .client-input {
+        width: 100%;
+        height: 48px;
+        background: #ffffff;
+        border: 1px solid var(--client-border);
+        border-radius: 10px;
+        padding: 0 16px 0 42px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--client-text-slate);
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .client-input:focus {
+        border-color: var(--client-primary);
+        box-shadow: 0 0 0 3px rgba(14, 135, 73, 0.15);
+    }
+
+    .client-action-bar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding-top: 10px;
+    }
+
+    .btn-submit-client {
+        background: var(--client-primary);
+        color: #ffffff;
+        border: none;
+        padding: 11px 32px;
+        border-radius: 99px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.25s ease;
+    }
+
+    .btn-submit-client:hover {
+        background: #0b733d;
+        transform: translateY(-2px);
+    }
+
+    .btn-cancel-client {
+        background: #f8fafc;
+        color: #64748b;
+        border: 1px solid #cbd5e1;
+        padding: 11px 24px;
+        border-radius: 99px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    @media (max-width: 992px) {
+        .client-form-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 640px) {
+        .client-form-grid {
+            grid-template-columns: 1fr;
+        }
+        .client-card {
+            padding: 20px;
+        }
+    }
+    @media (max-width: 576px) {
+        .client-header-bar {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .client-heading-title {
+            font-size: 1.25rem;
+        }
+        .btn-view-clients {
+            padding: 7px 18px;
+            font-size: 0.82rem;
+        }
+        .client-card {
+            padding: 16px 12px;
+            border-radius: 14px;
+        }
+        .client-action-bar {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+        .btn-submit-client,
+        .btn-cancel-client {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="client-page-container">
+    <div class="client-header-bar">
+        <h1 class="client-heading-title">
+            <i class="fas fa-edit"></i>
+            <span>Edit Client: {{ client.client_name }}</span>
+        </h1>
+        <a href="{{ url_for('manage_clients') }}" class="btn-view-clients">
+            <i class="fas fa-table-list"></i>
+            <span>Back to List</span>
+        </a>
+    </div>
+
+    <div class="client-card">
+        <form method="POST" action="{{ url_for('edit_client', client_id=client.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="client-form-grid">
+                <div class="client-field-group">
+                    <label for="client_name" class="client-field-label">
+                        <i class="fas fa-city text-primary"></i>
+                        <span>Name of Client / Organization *</span>
+                    </label>
+                    <div class="client-input-wrap">
+                        <i class="fas fa-landmark client-field-icon"></i>
+                        <input type="text" class="client-input" id="client_name" name="client_name" value="{{ client.client_name }}" required>
+                    </div>
+                </div>
+
+                <div class="client-field-group">
+                    <label for="department_name" class="client-field-label">
+                        <i class="fas fa-building text-primary"></i>
+                        <span>Name of Department / Government / Company *</span>
+                    </label>
+                    <div class="client-input-wrap">
+                        <i class="fas fa-sitemap client-field-icon"></i>
+                        <input type="text" class="client-input" id="department_name" name="department_name" value="{{ client.department_name }}" required>
+                    </div>
+                </div>
+
+                <div class="client-field-group">
+                    <label for="mobile" class="client-field-label">
+                        <i class="fas fa-phone text-muted"></i>
+                        <span>Mobile</span>
+                    </label>
+                    <div class="client-input-wrap">
+                        <i class="fas fa-mobile-screen-button client-field-icon"></i>
+                        <input type="tel" class="client-input" id="mobile" name="mobile" value="{{ client.mobile or '' }}">
+                    </div>
+                </div>
+
+                <div class="client-field-group">
+                    <label for="gst_number" class="client-field-label">
+                        <i class="fas fa-receipt text-muted"></i>
+                        <span>GST Number</span>
+                    </label>
+                    <div class="client-input-wrap">
+                        <i class="fas fa-file-invoice client-field-icon"></i>
+                        <input type="text" class="client-input" id="gst_number" name="gst_number" value="{{ client.gst_number or '' }}" style="text-transform: uppercase;">
+                    </div>
+                </div>
+
+                <div class="client-field-group">
+                    <label for="pan" class="client-field-label">
+                        <i class="fas fa-id-card text-muted"></i>
+                        <span>PAN</span>
+                    </label>
+                    <div class="client-input-wrap">
+                        <i class="fas fa-credit-card client-field-icon"></i>
+                        <input type="text" class="client-input" id="pan" name="pan" value="{{ client.pan or '' }}" style="text-transform: uppercase;">
+                    </div>
+                </div>
+
+                <div class="client-field-group">
+                    <label for="address" class="client-field-label">
+                        <i class="fas fa-location-dot text-muted"></i>
+                        <span>Address</span>
+                    </label>
+                    <div class="client-input-wrap">
+                        <i class="fas fa-map-location-dot client-field-icon"></i>
+                        <input type="text" class="client-input" id="address" name="address" value="{{ client.address or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="client-action-bar">
+                <button type="submit" class="btn-submit-client">
+                    <i class="fas fa-save"></i>
+                    <span>Update Client</span>
+                </button>
+                <a href="{{ url_for('manage_clients') }}" class="btn-cancel-client">
+                    <i class="fas fa-times"></i>
+                    <span>Cancel</span>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

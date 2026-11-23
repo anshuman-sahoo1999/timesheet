@@ -1,0 +1,3206 @@
+{% extends "layout.html" %}
+
+{% block title %}Executive Dashboard - PMS Ecometrix{% endblock %}
+
+{% block content %}
+<style>
+    /* ================= EXECUTIVE DASHBOARD DESIGN SYSTEM ================= */
+    :root {
+        --dash-emerald: #0e8749;
+        --dash-emerald-light: #eaf7ef;
+        --dash-emerald-glow: rgba(14, 135, 73, 0.18);
+        --dash-blue: #0284c7;
+        --dash-blue-light: #e0f2fe;
+        --dash-amber: #d97706;
+        --dash-amber-light: #fef3c7;
+        --dash-rose: #e11d48;
+        --dash-rose-light: #ffe4e6;
+        --dash-purple: #7c3aed;
+        --dash-purple-light: #ede9fe;
+        --dash-slate: #0f172a;
+        --dash-muted: #64748b;
+        --dash-border: #e2e8f0;
+        --dash-card-bg: #ffffff;
+    }
+
+    /* Animation Keyframes */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulseGlow {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.6;
+            transform: scale(1.15);
+        }
+    }
+
+    .animate-fadeInUp {
+        animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* ================= DYNAMIC ATMOSPHERIC HERO GREETING ================= */
+    .executive-hero {
+        border-radius: 18px;
+        padding: 24px 28px;
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+        transition: background 1.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                    border-color 1s ease, 
+                    box-shadow 1s ease, 
+                    color 0.5s ease;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    /* Atmospheric Background Layers */
+    .hero-atmospheric-sky {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+        overflow: hidden;
+        border-radius: 18px;
+    }
+
+    .hero-stars-field {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 1.5s ease;
+    }
+
+    .hero-rain-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 2;
+        opacity: 0;
+        transition: opacity 0.8s ease;
+    }
+
+    .hero-lightning-flash {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 60% 20%, rgba(255, 255, 255, 0.95) 0%, rgba(186, 230, 253, 0.85) 40%, rgba(14, 165, 233, 0.3) 100%);
+        mix-blend-mode: screen;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 3;
+        transition: opacity 0.05s ease-out;
+    }
+
+    .hero-content-layer {
+        position: relative;
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 18px;
+    }
+
+    /* 1. MORNING THEME (5 AM - 11 AM): Bluish, yellowish gradient */
+    .executive-hero.theme-morning {
+        background: linear-gradient(135deg, #0284c7 0%, #38bdf8 30%, #fde047 70%, #f59e0b 100%);
+        border-color: rgba(56, 189, 248, 0.5);
+        box-shadow: 0 10px 30px -5px rgba(2, 132, 199, 0.28);
+    }
+    .executive-hero.theme-morning .hero-title {
+        color: #ffffff;
+        text-shadow: 0 2px 10px rgba(15, 23, 42, 0.45);
+    }
+    .executive-hero.theme-morning .hero-subtitle {
+        color: rgba(255, 255, 255, 0.95);
+        text-shadow: 0 1px 4px rgba(15, 23, 42, 0.3);
+    }
+
+    /* 2. NOON & AFTERNOON THEME (11 AM - 5 PM): Yellowish, red, orange, and blue gradient mix */
+    .executive-hero.theme-afternoon {
+        background: linear-gradient(135deg, #0284c7 0%, #06b6d4 22%, #eab308 50%, #f97316 75%, #ef4444 100%);
+        border-color: rgba(249, 115, 22, 0.45);
+        box-shadow: 0 10px 32px -5px rgba(239, 68, 68, 0.25);
+    }
+    .executive-hero.theme-afternoon .hero-title {
+        color: #ffffff;
+        text-shadow: 0 2px 12px rgba(15, 23, 42, 0.55);
+    }
+    .executive-hero.theme-afternoon .hero-subtitle {
+        color: rgba(255, 255, 255, 0.96);
+        text-shadow: 0 1px 4px rgba(15, 23, 42, 0.35);
+    }
+
+    /* 3. EVENING THEME (5 PM - 8 PM): Evening sky colour with few stars */
+    .executive-hero.theme-evening {
+        background: linear-gradient(135deg, #090d16 0%, #1e1b4b 28%, #4c1d95 55%, #c026d3 82%, #f97316 100%);
+        border-color: rgba(192, 38, 211, 0.4);
+        box-shadow: 0 12px 34px -5px rgba(76, 29, 149, 0.4);
+    }
+    .executive-hero.theme-evening .hero-title {
+        color: #ffffff;
+        text-shadow: 0 2px 14px rgba(0, 0, 0, 0.65);
+    }
+    .executive-hero.theme-evening .hero-subtitle {
+        color: rgba(241, 245, 249, 0.92);
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+    }
+
+    /* 4. NIGHT THEME (8 PM - 5 AM): Dark blue with glittering stars */
+    .executive-hero.theme-night {
+        background: linear-gradient(135deg, #020617 0%, #071329 35%, #0f2347 70%, #1e3a8a 100%);
+        border-color: rgba(56, 189, 248, 0.3);
+        box-shadow: 0 12px 36px -5px rgba(2, 6, 23, 0.7);
+    }
+    .executive-hero.theme-night .hero-title {
+        color: #ffffff;
+        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.85);
+    }
+    .executive-hero.theme-night .hero-subtitle {
+        color: rgba(226, 232, 240, 0.88);
+        text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+    }
+
+    /* 5. RAIN & LIGHTNING STORM THEME */
+    .executive-hero.theme-storm {
+        background: linear-gradient(135deg, #090d16 0%, #0f172a 35%, #1e293b 70%, #182844 100%) !important;
+        border-color: rgba(148, 163, 184, 0.35) !important;
+        box-shadow: 0 12px 38px -5px rgba(9, 13, 22, 0.8) !important;
+    }
+    .executive-hero.theme-storm .hero-title {
+        color: #ffffff !important;
+        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.9) !important;
+    }
+    .executive-hero.theme-storm .hero-subtitle {
+        color: rgba(203, 213, 225, 0.92) !important;
+    }
+
+    /* Stars styling */
+    .star-point {
+        position: absolute;
+        border-radius: 50%;
+        background: #ffffff;
+        pointer-events: none;
+    }
+    .star-twinkle {
+        animation: starTwinkle 2.5s infinite ease-in-out;
+    }
+    .star-glitter {
+        animation: starGlitter 2s infinite ease-in-out;
+        box-shadow: 0 0 4px #ffffff, 0 0 8px rgba(56, 189, 248, 0.8);
+    }
+    @keyframes starTwinkle {
+        0%, 100% { opacity: 0.2; transform: scale(0.8); }
+        50% { opacity: 0.95; transform: scale(1.3); }
+    }
+    @keyframes starGlitter {
+        0%, 100% { opacity: 0.25; transform: scale(0.7) rotate(0deg); }
+        50% { opacity: 1; transform: scale(1.4) rotate(45deg); }
+    }
+
+    /* Location & Weather Pill in Header */
+    .hero-weather-pill {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #ffffff;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 99px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+    .btn-weather-preview {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(15, 23, 42, 0.35);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 99px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-weather-preview:hover {
+        background: rgba(15, 23, 42, 0.55);
+        border-color: rgba(255, 255, 255, 0.45);
+        transform: translateY(-1px);
+    }
+    .btn-weather-preview.active-storm {
+        background: linear-gradient(135deg, #f59e0b, #ef4444);
+        border-color: #fde047;
+        color: #ffffff;
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+    }
+
+    /* Live Digital Clock Badge in Subtitle */
+    .hero-clock-pill {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 3px 11px;
+        border-radius: 8px;
+        letter-spacing: 0.05em;
+        font-variant-numeric: tabular-nums;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Glass Badge in Subtitle */
+    .hero-badge-glass {
+        background: rgba(255, 255, 255, 0.22);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+        font-weight: 700;
+    }
+
+    .hero-title {
+        font-size: 1.55rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+        line-height: 1.25;
+    }
+
+    .hero-subtitle {
+        font-size: 0.88rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+
+    .hero-quick-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn-hero-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 18px;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
+    }
+
+    .btn-hero-primary {
+        background: var(--dash-emerald);
+        color: #ffffff;
+        border: 1px solid transparent;
+        box-shadow: 0 4px 14px var(--dash-emerald-glow);
+    }
+
+    .btn-hero-primary:hover {
+        background: #0b733d;
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(14, 135, 73, 0.3);
+    }
+
+    .btn-hero-secondary {
+        background: #f8fafc;
+        color: var(--dash-slate);
+        border: 1px solid var(--dash-border);
+    }
+
+    .btn-hero-secondary:hover {
+        background: #f1f5f9;
+        color: var(--dash-slate);
+        border-color: #cbd5e1;
+        transform: translateY(-2px);
+    }
+
+    /* ================= INTERACTIVE KPI CARDS ================= */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .interactive-kpi-card {
+        background: #ffffff;
+        border: 1px solid var(--dash-border);
+        border-radius: 16px;
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .interactive-kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 32px -4px rgba(0, 0, 0, 0.08);
+        border-color: #cbd5e1;
+    }
+
+    .interactive-kpi-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        width: 100%;
+        opacity: 0.85;
+    }
+
+    .kpi-card-emerald::after { background: #10b981; }
+    .kpi-card-blue::after { background: #0284c7; }
+    .kpi-card-amber::after { background: #d97706; }
+    .kpi-card-rose::after { background: #e11d48; }
+    .kpi-card-purple::after { background: #7c3aed; }
+
+    .kpi-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+    }
+
+    .kpi-label-text {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--dash-muted);
+    }
+
+    .kpi-icon-bubble {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        transition: transform 0.25s ease;
+    }
+
+    .interactive-kpi-card:hover .kpi-icon-bubble {
+        transform: scale(1.1) rotate(4deg);
+    }
+
+    .bubble-emerald { background: var(--dash-emerald-light); color: var(--dash-emerald); }
+    .bubble-blue { background: var(--dash-blue-light); color: var(--dash-blue); }
+    .bubble-amber { background: var(--dash-amber-light); color: var(--dash-amber); }
+    .bubble-rose { background: var(--dash-rose-light); color: var(--dash-rose); }
+    .bubble-purple { background: var(--dash-purple-light); color: var(--dash-purple); }
+
+    .kpi-value-main {
+        font-size: 1.95rem;
+        font-weight: 800;
+        color: var(--dash-slate);
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+    }
+
+    .kpi-value-currency {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--dash-muted);
+    }
+
+    .kpi-footer-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        color: var(--dash-muted);
+        padding-top: 8px;
+        border-top: 1px dashed #f1f5f9;
+    }
+
+    .kpi-trend-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+    }
+
+    .trend-positive { background: #ecfdf5; color: #047857; }
+    .trend-negative { background: #fff1f2; color: #be123c; }
+    .trend-neutral { background: #f1f5f9; color: #475569; }
+
+    /* ================= LANDSCAPE TABS & SUB-TABS ================= */
+    .dashboard-landscape-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        padding: 6px;
+        margin-bottom: 24px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .dashboard-landscape-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .landscape-tab-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--dash-muted);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .landscape-tab-btn:hover {
+        color: var(--dash-slate);
+        background: #f8fafc;
+    }
+
+    .landscape-tab-btn.active {
+        color: #ffffff;
+        background: var(--dash-emerald);
+        box-shadow: 0 4px 12px var(--dash-emerald-glow);
+    }
+
+    .landscape-tab-btn .tab-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 99px;
+        background: rgba(0, 0, 0, 0.08);
+        color: inherit;
+    }
+
+    .landscape-tab-btn.active .tab-badge {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+    }
+
+    /* ================= SEARCH & MULTI-FILTER CONTROL HUB ================= */
+    .filter-control-card {
+        background: #ffffff;
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.03);
+    }
+
+    .filter-grid-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex: 1;
+        min-width: 260px;
+    }
+
+    .search-input-field {
+        width: 100%;
+        height: 42px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 0 16px 0 38px;
+        font-size: 0.88rem;
+        color: var(--dash-slate);
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .search-input-field:focus {
+        background: #ffffff;
+        border-color: var(--dash-emerald);
+        box-shadow: 0 0 0 3px var(--dash-emerald-glow);
+    }
+
+    .search-icon-inside {
+        position: absolute;
+        left: 13px;
+        top: 13px;
+        color: #94a3b8;
+        font-size: 0.88rem;
+        pointer-events: none;
+    }
+
+    .filter-select-field {
+        height: 42px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 0 14px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--dash-slate);
+        outline: none;
+        min-width: 170px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .filter-select-field:focus {
+        background: #ffffff;
+        border-color: var(--dash-emerald);
+        box-shadow: 0 0 0 3px var(--dash-emerald-glow);
+    }
+
+    .quick-status-pills {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .status-filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--dash-muted);
+        background: #f8fafc;
+        border: 1px solid var(--dash-border);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .status-filter-pill:hover {
+        background: #f1f5f9;
+        color: var(--dash-slate);
+    }
+
+    .status-filter-pill.active {
+        background: #0f172a;
+        color: #ffffff;
+        border-color: #0f172a;
+    }
+
+    .btn-reset-filters {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--dash-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-left: auto;
+    }
+
+    .btn-reset-filters:hover {
+        color: var(--dash-rose);
+        background: var(--dash-rose-light);
+    }
+
+    /* ================= MODERN DATA PANELS & CARDS ================= */
+    .enterprise-panel {
+        background: #ffffff;
+        border: 1px solid var(--dash-border);
+        border-radius: 16px;
+        box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+
+    .panel-header-bar {
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--dash-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #ffffff;
+    }
+
+    .panel-heading-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--dash-slate);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+    }
+
+    .panel-body-content {
+        padding: 22px;
+    }
+
+    /* Enterprise Data Table */
+    .enterprise-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .enterprise-table thead th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 12px 18px;
+        border-bottom: 1px solid var(--dash-border);
+        border-top: none;
+    }
+
+    .enterprise-table tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    .enterprise-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .enterprise-table tbody td {
+        padding: 14px 18px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.86rem;
+        color: var(--dash-slate);
+        vertical-align: middle;
+    }
+
+    /* Badges */
+    .badge-soft {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 99px;
+    }
+
+    .badge-soft-success { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .badge-soft-primary { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .badge-soft-warning { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .badge-soft-danger { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+    .badge-soft-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+    /* Manager Avatar */
+    .manager-avatar-wrap {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #0e8749, #10b981);
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 0.78rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    /* Quick Shortcuts Grid */
+    .quick-tools-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+
+    .tool-action-card {
+        background: #f8fafc;
+        border: 1px solid var(--dash-border);
+        border-radius: 12px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        text-decoration: none;
+        color: var(--dash-slate);
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .tool-action-card:hover {
+        background: #ffffff;
+        border-color: var(--dash-emerald);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px -4px rgba(14, 135, 73, 0.12);
+        color: var(--dash-slate);
+    }
+
+    .tool-icon-wrap {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        margin-bottom: 12px;
+    }
+
+    .tool-title {
+        font-weight: 700;
+        font-size: 0.92rem;
+        margin-bottom: 2px;
+    }
+
+    .tool-desc {
+        font-size: 0.76rem;
+        color: var(--dash-muted);
+    }
+
+    /* Chart Containers */
+    .chart-box-wrap {
+        position: relative;
+        height: 290px;
+        width: 100%;
+    }
+
+    /* Mobile & Tablet Adaptations */
+    @media (max-width: 1200px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .quick-tools-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .kpi-grid {
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+        .quick-tools-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .executive-hero {
+            padding: 18px 16px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .hero-title {
+            font-size: 1.25rem;
+        }
+        .hero-quick-actions {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .btn-hero-action {
+            width: 100%;
+            justify-content: center;
+        }
+        .filter-control-card {
+            padding: 14px;
+        }
+        .filter-grid-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+        .search-input-wrapper {
+            min-width: 100%;
+            width: 100%;
+        }
+        .filter-select-field {
+            width: 100%;
+            min-width: 100%;
+        }
+        .quick-status-pills {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 6px;
+            gap: 6px;
+        }
+        .status-filter-pill {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .dashboard-landscape-nav {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            -webkit-overflow-scrolling: touch;
+            padding: 4px;
+        }
+        .landscape-tab-btn {
+            flex-shrink: 0;
+            padding: 8px 14px;
+            font-size: 0.8rem;
+        }
+        .chart-box-wrap {
+            height: 250px;
+        }
+        .panel-header-bar {
+            padding: 14px 16px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .panel-body-content {
+            padding: 14px;
+        }
+        .table-responsive {
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .kpi-value-main {
+            font-size: 1.6rem;
+        }
+        .hero-title {
+            font-size: 1.15rem;
+        }
+    }
+</style>
+
+<div class="container-fluid px-0">
+    <!-- ================= 1. EXECUTIVE HERO GREETING BAR ================= -->
+    <section class="executive-hero animate-fadeInUp" id="executiveHeroBanner">
+        <!-- Atmospheric Celestial Sky (Morning/Afternoon/Evening/Night stars + Rain & Lightning) -->
+        <div class="hero-atmospheric-sky" aria-hidden="true">
+            <div class="hero-stars-field" id="heroStarsField"></div>
+            <canvas class="hero-rain-canvas" id="heroRainCanvas"></canvas>
+            <div class="hero-lightning-flash" id="heroLightningFlash"></div>
+        </div>
+
+        <div class="hero-content-layer">
+            <div class="hero-meta">
+                <!-- Location & Real-Time Live Weather Indicator (Acts on real-time CEO location) -->
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                    <div class="hero-weather-pill" id="heroWeatherPill" title="Live weather at CEO headquarters (Bhubaneswar)">
+                        <i class="fas fa-location-dot me-1 text-warning"></i>
+                        <span id="heroWeatherLocationText">Bhubaneswar</span>
+                        <span class="mx-1">&bull;</span>
+                        <span id="heroWeatherDesc"><i class="fas fa-spinner fa-spin fa-xs me-1"></i>Detecting Live Weather...</span>
+                    </div>
+                </div>
+
+                <h1 class="hero-title" id="greetingGreeting">
+                    Good Evening, {{ current_user.name }}
+                </h1>
+                <div class="hero-subtitle">
+                    <span><i class="far fa-calendar-alt text-white-50 me-1"></i> <span id="executiveDateText">Friday, October 16, 2026</span></span>
+                    <span class="text-white-50">&bull;</span>
+                    <span class="hero-clock-pill" title="Current Local Time (HH:MM:SS)">
+                        <i class="far fa-clock text-warning me-1"></i>
+                        <span id="executiveTimeText" class="font-monospace">--:--:--</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= EXECUTIVE ACTION: PENDING JOB CARDS & BUDGET APPROVALS ================= -->
+    {% if pending_job_cards_list and pending_job_cards_list|length > 0 %}
+    <section class="mb-4 animate-fadeInUp" style="animation-delay: 0.05s;">
+        <div class="card shadow-sm border-0" style="border-radius: 16px; background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%); border: 1.5px solid #fde68a !important; overflow: hidden;">
+            <div class="card-header bg-transparent border-bottom border-warning-subtle py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="p-2 rounded-3 bg-warning text-dark shadow-sm">
+                        <i class="fas fa-file-signature fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                            <span>Pending Job Card & Budget Approvals</span>
+                            <span class="badge bg-warning text-dark px-2 py-1 rounded-pill font-monospace fw-bold">{{ pending_job_cards_list|length }} Action Required</span>
+                        </h5>
+                        <small class="text-muted">Job Cards & budgets submitted by Project Managers requiring your executive review and sanction</small>
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ url_for('ceo_job_cards') }}" class="btn btn-sm btn-outline-warning text-dark fw-semibold" style="border-radius: 8px;">
+                        <i class="fas fa-layer-group me-1"></i>View All in Executive Cards &rarr;
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-3 p-md-4">
+                <div class="row g-3">
+                    {% for card in pending_job_cards_list %}
+                    <div class="col-12 col-lg-6">
+                        <div class="p-3 bg-white rounded-3 border border-warning-subtle shadow-sm h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="fw-bold mb-1 text-dark">{{ card.indent.project_name }}</h6>
+                                        <span class="badge bg-light text-dark font-monospace border small me-1">{{ card.indent.file_number }}</span>
+                                        <span class="badge bg-primary-subtle text-primary small">{{ card.indent.client_name }}</span>
+                                    </div>
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-clock me-1"></i>Submitted for Approval
+                                    </span>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <i class="fas fa-user-tie me-1 text-secondary"></i>PM: <strong>{{ card.indent.project_manager.name if card.indent.project_manager else 'Unassigned' }}</strong> • 
+                                    <i class="far fa-calendar-alt ms-1 me-1 text-secondary"></i>Submitted: {{ card.submitted_at.strftime('%d-%b-%Y') if card.submitted_at else 'Recent' }}
+                                </div>
+                                <div class="row g-2 py-2 mb-2 bg-light rounded-2 text-center" style="font-size: 0.85rem;">
+                                    <div class="col-4">
+                                        <div class="text-muted small">Contract Value</div>
+                                        <div class="fw-bold text-dark">₹ {{ '{:,.0f}'.format(card.indent.contract_value or 0) }}</div>
+                                    </div>
+                                    <div class="col-4 border-start border-end">
+                                        <div class="text-muted small">Estimated Budget</div>
+                                        <div class="fw-bold text-warning-emphasis">₹ {{ '{:,.0f}'.format(card.estimated_value or 0) }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-muted small">Est. Margin</div>
+                                        {% set cv = card.indent.contract_value or 0 %}
+                                        {% set ev = card.estimated_value or 0 %}
+                                        {% set margin = (((cv - ev) / cv) * 100) if cv > 0 else 0 %}
+                                        <div class="fw-bold {{ 'text-success' if margin >= 0 else 'text-danger' }}">
+                                            {{ margin|round(1) }}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+                                <a href="{{ url_for('view_job_card_details', card_id=card.id) }}" class="btn btn-warning text-dark btn-sm fw-bold px-3 shadow-sm" style="border-radius: 6px;">
+                                    <i class="fas fa-clipboard-check me-1"></i>Review & Sanction Budget &rarr;
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ================= 2. INTERACTIVE ANIMATED KPI CARDS ================= -->
+    <section class="kpi-grid animate-fadeInUp" style="animation-delay: 0.1s;">
+        <!-- Card 1: Total Projects -->
+        <div class="interactive-kpi-card kpi-card-emerald" onclick="switchDashboardTab('tabProjects')" title="Click to view Project Registry">
+            <div class="kpi-card-header">
+                <span class="kpi-label-text">Total Projects</span>
+                <div class="kpi-icon-bubble bubble-emerald">
+                    <i class="fas fa-cubes"></i>
+                </div>
+            </div>
+            <div class="kpi-value-main">
+                <span class="animated-counter" data-target="{{ total_projects }}">{{ total_projects }}</span>
+            </div>
+            <div class="kpi-footer-row">
+                <span class="kpi-trend-pill trend-positive">
+                    <i class="fas fa-arrow-up"></i> Active Portfolio
+                </span>
+                <span>{{ project_status_counts['In Progress'] }} In Progress</span>
+            </div>
+        </div>
+
+        <!-- Card 2: Total Contract Value -->
+        <div class="interactive-kpi-card kpi-card-blue" onclick="switchDashboardTab('tabAnalytics')" title="Click to view Financial Overview">
+            <div class="kpi-card-header">
+                <span class="kpi-label-text">Total Contract Value</span>
+                <div class="kpi-icon-bubble bubble-blue">
+                    <i class="fas fa-indian-rupee-sign"></i>
+                </div>
+            </div>
+            <div class="kpi-value-main">
+                <span class="kpi-value-currency">₹</span>
+                <span class="animated-counter-currency" data-raw="{{ total_contract_value }}">
+                    {{ '{:,.0f}'.format(total_contract_value) }}
+                </span>
+            </div>
+            <div class="kpi-footer-row">
+                <span class="kpi-trend-pill trend-positive">
+                    <i class="fas fa-file-contract"></i> Approved Value
+                </span>
+                <span>{{ projects|length }} Contracts</span>
+            </div>
+        </div>
+
+        <!-- Card 3: Avg. Profit Margin -->
+        <div class="interactive-kpi-card {{ 'kpi-card-rose' if avg_profit_margin < 0 else 'kpi-card-emerald' }}" onclick="switchDashboardTab('tabRisks')" title="Click to view Risk & Variance">
+            <div class="kpi-card-header">
+                <span class="kpi-label-text">Avg. Profit Margin</span>
+                <div class="kpi-icon-bubble {{ 'bubble-rose' if avg_profit_margin < 0 else 'bubble-emerald' }}">
+                    <i class="fas {{ 'fa-chart-line-down' if avg_profit_margin < 0 else 'fa-chart-line' }}"></i>
+                </div>
+            </div>
+            <div class="kpi-value-main {{ 'text-danger' if avg_profit_margin < 0 else 'text-success' }}">
+                <span class="animated-counter-float" data-target="{{ avg_profit_margin }}">{{ avg_profit_margin }}</span>%
+            </div>
+            <div class="kpi-footer-row">
+                {% if avg_profit_margin < 0 %}
+                <span class="kpi-trend-pill trend-negative">
+                    <i class="fas fa-exclamation-triangle"></i> Cost Variance
+                </span>
+                <span>Job Card vs Billing</span>
+                {% else %}
+                <span class="kpi-trend-pill trend-positive">
+                    <i class="fas fa-check-circle"></i> On Target
+                </span>
+                <span>Positive Margin</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Card 4: Active Workforce -->
+        <div class="interactive-kpi-card kpi-card-purple" onclick="switchDashboardTab('tabWorkforce')" title="Click to view Workforce Utilization">
+            <div class="kpi-card-header">
+                <span class="kpi-label-text">Active Employees</span>
+                <div class="kpi-icon-bubble bubble-purple">
+                    <i class="fas fa-users-gear"></i>
+                </div>
+            </div>
+            <div class="kpi-value-main">
+                <span class="animated-counter" data-target="{{ total_employees }}">{{ total_employees }}</span>
+            </div>
+            <div class="kpi-footer-row">
+                <span class="kpi-trend-pill trend-neutral">
+                    <i class="fas fa-network-wired"></i> Workforce
+                </span>
+                <span>{{ departments|length }} Departments</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 3. LANDSCAPE TABS (MAIN VIEWS) ================= -->
+    <nav class="dashboard-landscape-nav animate-fadeInUp" style="animation-delay: 0.15s;" id="dashboardLandscapeNav">
+        <button class="landscape-tab-btn active" data-tab-target="tabAnalytics" onclick="switchDashboardTab('tabAnalytics')">
+            <i class="fas fa-chart-pie"></i>
+            <span>Overview & Analytics</span>
+        </button>
+        <button class="landscape-tab-btn" data-tab-target="tabProjects" onclick="switchDashboardTab('tabProjects')">
+            <i class="fas fa-folder-open"></i>
+            <span>Projects Registry</span>
+            <span class="tab-badge" id="tabProjectsCountBadge">{{ projects|length }}</span>
+        </button>
+        <button class="landscape-tab-btn" data-tab-target="tabRisks" onclick="switchDashboardTab('tabRisks')">
+            <i class="fas fa-shield-halved"></i>
+            <span>Projects At Risk</span>
+            <span class="tab-badge bg-danger text-white">{{ at_risk_projects|length }}</span>
+        </button>
+        <button class="landscape-tab-btn" data-tab-target="tabWorkforce" onclick="switchDashboardTab('tabWorkforce')">
+            <i class="fas fa-user-clock"></i>
+            <span>Workforce Utilization</span>
+            <span class="tab-badge">{{ employee_progress|length }}</span>
+        </button>
+        <button class="landscape-tab-btn" data-tab-target="tabQuickTools" onclick="switchDashboardTab('tabQuickTools')">
+            <i class="fas fa-bolt"></i>
+            <span>Quick Operations</span>
+        </button>
+    </nav>
+
+    <!-- ================= 4. TAB CONTENT 1: OVERVIEW & CHARTS ================= -->
+    <div class="tab-content-pane" id="tabAnalyticsPane">
+        <div class="row g-4 mb-4">
+            <!-- Project Status Doughnut Chart -->
+            <div class="col-lg-6">
+                <div class="enterprise-panel h-100">
+                    <div class="panel-header-bar">
+                        <h2 class="panel-heading-title">
+                            <i class="fas fa-chart-pie text-success"></i>
+                            <span>Project Status Overview</span>
+                        </h2>
+                        <span class="badge bg-light text-muted border">Live Distribution</span>
+                    </div>
+                    <div class="panel-body-content">
+                        <div class="chart-box-wrap">
+                            <canvas id="projectStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Department-wise Bar Chart -->
+            <div class="col-lg-6">
+                <div class="enterprise-panel h-100">
+                    <div class="panel-header-bar">
+                        <h2 class="panel-heading-title">
+                            <i class="fas fa-chart-column text-primary"></i>
+                            <span>Department-wise Allocation</span>
+                        </h2>
+                        <span class="badge bg-light text-muted border">Project Count</span>
+                    </div>
+                    <div class="panel-body-content">
+                        <div class="chart-box-wrap">
+                            <canvas id="departmentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Projects Spotlight -->
+        <div class="enterprise-panel">
+            <div class="panel-header-bar">
+                <h2 class="panel-heading-title">
+                    <i class="fas fa-clock-rotate-left text-primary"></i>
+                    <span>Recent Project Activity</span>
+                </h2>
+                <button class="btn btn-sm btn-outline-secondary" onclick="switchDashboardTab('tabProjects')">
+                    View All Projects <i class="fas fa-arrow-right ms-1"></i>
+                </button>
+            </div>
+            <div class="panel-body-content p-0">
+                <div class="table-responsive">
+                    <table class="enterprise-table">
+                        <thead>
+                            <tr>
+                                <th>Project Name</th>
+                                <th>Client</th>
+                                <th>Status</th>
+                                <th>Created Date</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in recent_projects %}
+                            <tr>
+                                <td class="fw-bold">{{ project.project_name }}</td>
+                                <td>{{ project.client_name }}</td>
+                                <td>
+                                    <span class="badge-soft badge-soft-{{ 'success' if project.status == 'Completed' else 'primary' if project.status == 'In Progress' else 'warning' if project.status == 'Pending Approval' else 'secondary' }}">
+                                        {{ project.status }}
+                                    </span>
+                                </td>
+                                <td class="text-muted">{{ project.created_at.strftime('%d-%b-%Y') if project.created_at else 'Recent' }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('view_indent_details', indent_id=project.id) }}" class="btn btn-sm btn-outline-primary" style="border-radius: 8px;">
+                                        <i class="fas fa-eye me-1"></i> Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No recent project activities logged.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 5. TAB CONTENT 2: PROJECTS REGISTRY ================= -->
+    <div class="tab-content-pane d-none" id="tabProjectsPane">
+        <!-- Search & Multi-Filter Control Hub -->
+        <div class="filter-control-card">
+            <div class="filter-grid-row">
+                <div class="search-input-wrapper">
+                    <i class="fas fa-search search-icon-inside"></i>
+                    <input type="text" class="search-input-field" id="searchProjectInput" placeholder="Search project name, code, client, or manager... (Ctrl+K)">
+                </div>
+                <div>
+                    <select class="filter-select-field" id="statusSelectFilter">
+                        <option value="">All Statuses</option>
+                        <option value="Pending Approval">Pending Approval</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="On Hold">On Hold</option>
+                    </select>
+                </div>
+                <div>
+                    <select class="filter-select-field" id="departmentSelectFilter">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.name }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="applyProjectFilters()" style="height: 42px; border-radius: 10px; font-weight: 600; padding: 0 18px;">
+                    <i class="fas fa-filter me-1"></i> Apply
+                </button>
+                <button type="button" class="btn-reset-filters" onclick="resetProjectFilters()">
+                    <i class="fas fa-times-circle me-1"></i> Reset
+                </button>
+            </div>
+
+            <!-- Quick Status Counter Pills -->
+            <div class="quick-status-pills">
+                <span class="text-muted" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase;">Quick Filter:</span>
+                <button class="status-filter-pill active" data-filter-status="" onclick="quickFilterStatus(this, '')">
+                    All ({{ projects|length }})
+                </button>
+                <button class="status-filter-pill" data-filter-status="In Progress" onclick="quickFilterStatus(this, 'In Progress')">
+                    In Progress ({{ project_status_counts['In Progress'] }})
+                </button>
+                <button class="status-filter-pill" data-filter-status="Pending Approval" onclick="quickFilterStatus(this, 'Pending Approval')">
+                    Pending Approval ({{ project_status_counts['Pending Approval'] }})
+                </button>
+                <button class="status-filter-pill" data-filter-status="Completed" onclick="quickFilterStatus(this, 'Completed')">
+                    Completed ({{ project_status_counts['Completed'] }})
+                </button>
+                <button class="status-filter-pill" data-filter-status="On Hold" onclick="quickFilterStatus(this, 'On Hold')">
+                    On Hold ({{ project_status_counts['On Hold'] }})
+                </button>
+                <span class="ms-auto text-muted" style="font-size: 0.78rem;" id="filterMatchCount">
+                    Showing {{ projects|length }} of {{ projects|length }} projects
+                </span>
+            </div>
+        </div>
+
+        <!-- Master Projects Table -->
+        <div class="enterprise-panel">
+            <div class="panel-header-bar">
+                <h2 class="panel-heading-title">
+                    <i class="fas fa-table-list text-primary"></i>
+                    <span>Projects Registry</span>
+                </h2>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="exportProjectsTableCSV()" title="Export visible projects to CSV">
+                        <i class="fas fa-file-csv me-1"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+            <div class="panel-body-content p-0">
+                <div class="table-responsive">
+                    <table class="enterprise-table" id="masterProjectsTable">
+                        <thead>
+                            <tr>
+                                <th>Project Name & Code</th>
+                                <th>Client Name</th>
+                                <th>Status</th>
+                                <th>End Date</th>
+                                <th>Project Manager</th>
+                                <th>Team Members</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in projects %}
+                            <tr class="project-table-row" 
+                                data-project-name="{{ project.project_name|lower }}" 
+                                data-project-code="{{ (project.file_number or '')|lower }}" 
+                                data-client="{{ (project.client_name or '')|lower }}" 
+                                data-status="{{ project.status }}" 
+                                data-department="{{ (project.department.name if project.department else '')|lower }}"
+                                data-manager="{{ (project.project_manager.name if project.project_manager else '')|lower }}">
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span class="fw-bold text-dark">{{ project.project_name }}</span>
+                                        <span class="text-muted" style="font-size: 0.76rem;">{{ project.file_number or 'No Code' }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="far fa-building text-muted"></i>
+                                        <span>{{ project.client_name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge-soft badge-soft-{{ 'success' if project.status == 'Completed' else 'primary' if project.status == 'In Progress' else 'warning' if project.status == 'Pending Approval' else 'secondary' }}">
+                                        {{ project.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="text-muted">
+                                        {{ project.contract_end_date.strftime('%d-%b-%Y') if project.contract_end_date else 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if project.project_manager %}
+                                    <div class="manager-avatar-wrap">
+                                        <div class="avatar-circle">
+                                            {{ project.project_manager.name[:2]|upper }}
+                                        </div>
+                                        <span>{{ project.project_manager.name }}</span>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if project.job_card and project.job_card.tasks %}
+                                        {% set members = [] %}
+                                        {% for task in project.job_card.tasks %}
+                                            {% for assignee in task.assignees %}
+                                                {% if assignee.name not in members %}
+                                                    {% set _ = members.append(assignee.name) %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endfor %}
+                                        {% if members %}
+                                            <span class="badge bg-light text-dark border" title="{{ members|join(', ') }}">
+                                                <i class="fas fa-users me-1 text-primary"></i> {{ members|length }} Assigned
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">None</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('view_indent_details', indent_id=project.id) }}" class="btn btn-sm btn-outline-primary" style="border-radius: 8px;">
+                                        <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr id="emptyProjectRow">
+                                <td colspan="7" class="text-center text-muted py-5">
+                                    <i class="fas fa-folder-open fa-3x mb-3 text-secondary"></i>
+                                    <h5>No Projects Found</h5>
+                                    <p class="mb-0">There are currently no job indents created in the system.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 6. TAB CONTENT 3: PROJECTS AT RISK ================= -->
+    <div class="tab-content-pane d-none" id="tabRisksPane">
+        <div class="enterprise-panel border-danger">
+            <div class="panel-header-bar bg-danger-subtle">
+                <h2 class="panel-heading-title text-danger">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <span>High-Risk Projects & Delays</span>
+                </h2>
+                <span class="badge bg-danger text-white">{{ at_risk_projects|length }} Critical Flags</span>
+            </div>
+            <div class="panel-body-content p-0">
+                {% if at_risk_projects %}
+                <div class="table-responsive">
+                    <table class="enterprise-table">
+                        <thead>
+                            <tr>
+                                <th>Project Name & Code</th>
+                                <th>Client</th>
+                                <th>Risk Category</th>
+                                <th>Contract End Date</th>
+                                <th>Project Manager</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for risk_project in at_risk_projects %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span class="fw-bold text-dark">{{ risk_project.name }}</span>
+                                        <span class="text-muted" style="font-size: 0.76rem;">{{ risk_project.code }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ risk_project.client }}</td>
+                                <td>
+                                    <span class="badge-soft badge-soft-danger">
+                                        <i class="fas fa-circle-exclamation"></i> {{ risk_project.reason }}
+                                    </span>
+                                </td>
+                                <td class="text-danger fw-semibold">{{ risk_project.end_date }}</td>
+                                <td>{{ risk_project.pm }}</td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-danger" style="border-radius: 8px;">
+                                        <i class="fas fa-magnifying-glass me-1"></i> Review Risk
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-circle-check fa-4x text-success"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark">All Projects are On Track!</h5>
+                    <p class="text-muted">No delayed deliverables or over-budget variances currently detected.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 7. TAB CONTENT 4: WORKFORCE UTILIZATION ================= -->
+    <div class="tab-content-pane d-none" id="tabWorkforcePane">
+        <div class="enterprise-panel">
+            <div class="panel-header-bar flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <h2 class="panel-heading-title mb-0">
+                        <i class="fas fa-users-viewfinder text-primary"></i>
+                        <span>Employee Progress & Timesheet Tracker</span>
+                    </h2>
+                    <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2 shadow-sm" id="btnOpenExecutiveTimesheetsModal" style="border-radius: 8px; font-weight: 600; padding: 6px 14px; background: linear-gradient(135deg, #0284c7, #0369a1); border: none; transition: transform 0.15s ease, box-shadow 0.15s ease;">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>View Timesheets</span>
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm" id="employeeSearchInput" placeholder="Search employee..." style="width: 220px; border-radius: 8px;">
+                    <select class="form-select form-select-sm" id="employeeDeptSelectFilter" style="width: 160px; border-radius: 8px;">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.name }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="panel-body-content p-0">
+                <div class="table-responsive">
+                    <table class="enterprise-table" id="employeeProgressTable">
+                        <thead>
+                            <tr>
+                                <th>Employee Name</th>
+                                <th>Department</th>
+                                <th>Assigned Projects</th>
+                                <th>Ongoing</th>
+                                <th>Overdue</th>
+                                <th>Completed</th>
+                                <th>Pending</th>
+                                <th>Present Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for emp in employee_progress %}
+                            <tr class="emp-progress-row" data-emp-name="{{ emp.name|lower }}" data-dept="{{ (emp.department.name if emp.department else '')|lower }}">
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle" style="background: linear-gradient(135deg, #0284c7, #38bdf8);">
+                                            {{ emp.name[:2]|upper }}
+                                        </div>
+                                        <span class="fw-bold text-dark">{{ emp.name }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ emp.department.name if emp.department else 'General' }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ emp.assigned_projects }}</span></td>
+                                <td><span class="badge-soft badge-soft-primary">{{ emp.ongoing }}</span></td>
+                                <td><span class="badge-soft badge-soft-danger">{{ emp.overdue }}</span></td>
+                                <td><span class="badge-soft badge-soft-success">{{ emp.completed }}</span></td>
+                                <td><span class="badge-soft badge-soft-warning">{{ emp.pending }}</span></td>
+                                <td>
+                                    <span class="badge-soft badge-soft-{{ 'success' if emp.status == 'Working' else 'secondary' }}">
+                                        {{ emp.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">No employee progress metrics found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination for Employee Table -->
+                <div class="p-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <span class="text-muted" style="font-size: 0.82rem;">
+                        Showing <strong id="showingStartCount">1</strong> to <strong id="showingEndCount">10</strong> of <strong id="totalEmployeesCount">{{ employee_progress|length }}</strong> employees
+                    </span>
+                    <nav aria-label="Workforce pagination">
+                        <ul class="pagination pagination-sm mb-0" id="empPaginationList">
+                            <!-- Populated dynamically via JS -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 8. TAB CONTENT 5: QUICK OPERATIONS ================= -->
+    <div class="tab-content-pane d-none" id="tabQuickToolsPane">
+        <div class="enterprise-panel">
+            <div class="panel-header-bar">
+                <h2 class="panel-heading-title">
+                    <i class="fas fa-bolt text-warning"></i>
+                    <span>Executive Operations Hub</span>
+                </h2>
+                <span class="badge bg-light text-muted border">Quick Launch</span>
+            </div>
+            <div class="panel-body-content">
+                <div class="quick-tools-grid">
+                    <a href="{{ url_for('create_job_indent') }}" class="tool-action-card">
+                        <div class="tool-icon-wrap bubble-emerald">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <span class="tool-title">Create Job Indent</span>
+                        <span class="tool-desc">Initiate a new client project indent</span>
+                    </a>
+                    <a href="{{ url_for('manage_job_indents') }}" class="tool-action-card">
+                        <div class="tool-icon-wrap bubble-blue">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <span class="tool-title">Manage Indents</span>
+                        <span class="tool-desc">Review and approve project indents</span>
+                    </a>
+                    <a href="{{ url_for('manage_clients') }}" class="tool-action-card">
+                        <div class="tool-icon-wrap bubble-emerald">
+                            <i class="fas fa-building-user"></i>
+                        </div>
+                        <span class="tool-title">Client Master</span>
+                        <span class="tool-desc">Manage clients, authorities & GST/PAN</span>
+                    </a>
+                    <a href="{{ url_for('create_client') }}" class="tool-action-card">
+                        <div class="tool-icon-wrap bubble-blue">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <span class="tool-title">Add New Client</span>
+                        <span class="tool-desc">Register new organization / department</span>
+                    </a>
+                    <a href="{{ url_for('ceo_job_cards') }}" class="tool-action-card">
+                        <div class="tool-icon-wrap bubble-amber">
+                            <i class="fas fa-clipboard-check"></i>
+                        </div>
+                        <span class="tool-title">Executive Job Cards</span>
+                        <span class="tool-desc">Inspect task allocations and milestones</span>
+                    </a>
+                    <a href="{{ url_for('reports_page') }}" class="tool-action-card">
+                        <div class="tool-icon-wrap bubble-purple">
+                            <i class="fas fa-file-invoice"></i>
+                        </div>
+                        <span class="tool-title">Enterprise Reports</span>
+                        <span class="tool-desc">Generate portfolio and audit intelligence</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================================ -->
+<!-- 9. EXECUTIVE TIMESHEETS MODAL (MD / CEO PORTAL)                              -->
+<!-- ============================================================================ -->
+<div class="modal fade" id="executiveTimesheetsModal" tabindex="-1" aria-labelledby="executiveTimesheetsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 1250px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <!-- Modal Header -->
+            <div class="modal-header text-white px-4 py-3 border-0" style="background: linear-gradient(135deg, #0b1526, #1e293b);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px; background: rgba(2, 132, 199, 0.25); border: 1px solid rgba(56, 189, 248, 0.4);">
+                        <i class="fas fa-business-time text-info fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="modal-title fw-bold mb-0 text-white" id="executiveTimesheetsModalLabel">Executive Timesheet Review & Verification Portal</h5>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2" style="font-size: 0.72rem;">MD / CEO Exclusive</span>
+                        </div>
+                        <p class="text-white-50 small mb-0">Audit employee progress, track regular/missing submissions, and verify timesheets.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4" style="background: #f8fafc;">
+                <!-- Step 1: Questionnaire Scope Card -->
+                <div class="card border-0 shadow-sm mb-3" style="border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0 !important;">
+                    <div class="card-body p-3 p-md-3">
+                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="badge bg-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                    <i class="fas fa-question text-white" style="font-size: 0.75rem;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">Do you want to check timesheets of:</h6>
+                                    <small class="text-muted">Choose to view direct executive reportees or the entire organizational workforce.</small>
+                                </div>
+                            </div>
+                            <div class="btn-group p-1 bg-light rounded-pill border" role="group" id="execScopeGroup" style="min-width: 280px;">
+                                <input type="radio" class="btn-check" name="execScopeOption" id="execScopeReportsToMe" value="reports_to_me" checked autocomplete="off">
+                                <label class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold" for="execScopeReportsToMe">
+                                    <i class="fas fa-user-check me-1"></i> Reports to me
+                                </label>
+
+                                <input type="radio" class="btn-check" name="execScopeOption" id="execScopeAllEmployees" value="all" autocomplete="off">
+                                <label class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold" for="execScopeAllEmployees">
+                                    <i class="fas fa-users me-1"></i> All Employees
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Duration, Quick Filter Presets & Search Bar Card -->
+                <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0 !important;">
+                    <div class="card-body p-3 p-md-3">
+                        <!-- Quick Presets -->
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3 pb-2 border-bottom">
+                            <span class="text-muted small fw-bold text-uppercase d-flex align-items-center gap-1 me-2" style="font-size: 0.75rem;">
+                                <i class="fas fa-bolt text-warning"></i> Quick Filters:
+                            </span>
+                            <div class="d-flex flex-wrap gap-1" id="execFilterPresets">
+                                <button type="button" class="btn btn-xs btn-outline-secondary exec-preset-btn" data-preset="today">Today</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary exec-preset-btn" data-preset="yesterday">Yesterday</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary exec-preset-btn" data-preset="last3days">Last three days</button>
+                                <button type="button" class="btn btn-xs btn-primary active exec-preset-btn" data-preset="thisweek">This week</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary exec-preset-btn" data-preset="lastweek">Last Week</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary exec-preset-btn" data-preset="lastmonth">Last month</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary exec-preset-btn" data-preset="last6months">Last Six months</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary exec-preset-btn" data-preset="lastyear">Last Year</button>
+                            </div>
+                        </div>
+
+                        <!-- Date Pickers & Search Bar -->
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label class="form-label small fw-bold text-secondary mb-1">
+                                    <i class="far fa-calendar-alt text-primary me-1"></i> From Date
+                                </label>
+                                <input type="date" class="form-control form-control-sm" id="execFromDateInput" style="border-radius: 8px;">
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label class="form-label small fw-bold text-secondary mb-1">
+                                    <i class="far fa-calendar-check text-primary me-1"></i> To Date
+                                </label>
+                                <input type="date" class="form-control form-control-sm" id="execToDateInput" style="border-radius: 8px;">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small fw-bold text-secondary mb-1">
+                                    <i class="fas fa-search text-primary me-1"></i> Search Employee / Keyword
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0" style="border-radius: 8px 0 0 8px;"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" class="form-control border-start-0" id="execSearchInput" placeholder="Name, Emp ID, Mobile, Dept, Project..." style="border-radius: 0 8px 8px 0;">
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-2 d-flex">
+                                <button type="button" class="btn btn-sm btn-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-sm" id="btnExecRefresh" style="border-radius: 8px; height: 33px; background: linear-gradient(135deg, #0284c7, #0369a1); border: none;">
+                                    <i class="fas fa-sync-alt"></i> <span>Filter</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Quick Summary KPI Cards -->
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-white rounded-3 shadow-sm border border-light-subtle d-flex align-items-center justify-content-between h-100">
+                            <div>
+                                <span class="text-muted small fw-bold text-uppercase d-block" id="execSummaryReporteesLabel">Total Reportees</span>
+                                <h3 class="fw-bold mb-0 text-dark" id="execMetricTotalReportees">0</h3>
+                                <small class="text-success fw-semibold" id="execMetricActiveSubmitters"><i class="fas fa-check-circle me-1"></i>0 active submitters</small>
+                            </div>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background: #e0f2fe; color: #0284c7;">
+                                <i class="fas fa-users-viewfinder fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-white rounded-3 shadow-sm border border-light-subtle d-flex align-items-center justify-content-between h-100">
+                            <div>
+                                <span class="text-muted small fw-bold text-uppercase d-block">Total Timesheet Submission</span>
+                                <h3 class="fw-bold mb-0 text-primary" id="execMetricTotalSubmissions">0</h3>
+                                <small class="text-muted" id="execMetricTotalHours"><i class="fas fa-clock me-1"></i>0 total hours</small>
+                            </div>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background: #e0e7ff; color: #4f46e5;">
+                                <i class="fas fa-file-invoice text-indigo fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-white rounded-3 shadow-sm border border-light-subtle d-flex align-items-center justify-content-between h-100">
+                            <div>
+                                <span class="text-muted small fw-bold text-uppercase d-block">% of Timesheet Submissions</span>
+                                <h3 class="fw-bold mb-0 text-success" id="execMetricSubmissionRate">0%</h3>
+                                <small class="text-muted" id="execMetricWorkingDays"><i class="fas fa-calendar-day me-1"></i>0 working days in period</small>
+                            </div>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background: #dcfce7; color: #16a34a;">
+                                <i class="fas fa-chart-line fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Primary Reportees / Employees Table -->
+                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0 !important; overflow: hidden;">
+                    <div class="card-header bg-white py-3 px-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-table-list text-primary"></i>
+                            <h6 class="fw-bold mb-0 text-dark" id="execTableTitle">Reportees Timesheet Directory</h6>
+                            <span class="badge bg-light text-dark border px-2 py-1" id="execTableRowCountBadge">0 Records</span>
+                        </div>
+                        <div class="small text-muted">
+                            <span class="d-inline-flex align-items-center gap-1 me-2"><span class="badge-soft badge-soft-success">●</span> Regular (≥85%)</span>
+                            <span class="d-inline-flex align-items-center gap-1 me-2"><span class="badge-soft badge-soft-warning">●</span> Partial (50-84%)</span>
+                            <span class="d-inline-flex align-items-center gap-1"><span class="badge-soft badge-soft-danger">●</span> Irregular (&lt;50%)</span>
+                        </div>
+                    </div>
+
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 480px;">
+                            <table class="table table-hover align-middle mb-0" id="execEmployeesTable">
+                                <thead class="table-light sticky-top" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; z-index: 10;">
+                                    <tr>
+                                        <th class="ps-3 py-3" style="width: 60px;">Sl. No</th>
+                                        <th style="min-width: 220px;" id="execThReporteeName">Name of the Reportee</th>
+                                        <th style="min-width: 110px;">Employee ID</th>
+                                        <th style="min-width: 130px;">Mobile No</th>
+                                        <th style="min-width: 180px;">Email ID</th>
+                                        <th style="min-width: 120px;">Reports to</th>
+                                        <th style="min-width: 200px;">Name of the Project</th>
+                                        <th class="text-center" style="min-width: 110px;">Compliance</th>
+                                        <th class="text-end pe-3" style="width: 100px;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="execEmployeesTableBody" style="font-size: 0.85rem;">
+                                    <!-- Rendered dynamically via JavaScript -->
+                                    <tr>
+                                        <td colspan="9" class="text-center py-5 text-muted">
+                                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                            Loading executive timesheet metrics...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-light px-4 py-2 border-top">
+                <span class="small text-muted me-auto">
+                    <i class="fas fa-info-circle me-1 text-primary"></i> Click <strong>"View"</strong> to inspect day-wise submissions, trace missing dates, and verify timesheets.
+                </span>
+                <button type="button" class="btn btn-sm btn-secondary px-4 fw-semibold" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================================ -->
+<!-- 10. EMPLOYEE DATE-WISE DRILL-DOWN & REGULARITY MODAL                         -->
+<!-- ============================================================================ -->
+<div class="modal fade" id="employeeTimesheetDetailModal" tabindex="-1" aria-labelledby="employeeTimesheetDetailModalLabel" aria-hidden="true" style="background: rgba(11, 21, 38, 0.65);">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 1150px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <!-- Modal Header with Employee Profile Banner -->
+            <div class="modal-header text-white px-4 py-3 border-0" style="background: linear-gradient(135deg, #0284c7, #0369a1);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-circle shadow" id="drillEmpAvatar" style="width: 48px; height: 48px; font-size: 1.1rem; background: #ffffff; color: #0284c7; font-weight: 800; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        EM
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h5 class="modal-title fw-bold mb-0 text-white" id="drillEmpName">Employee Name</h5>
+                            <span class="badge bg-white text-dark shadow-sm" id="drillEmpId">EMP-ID</span>
+                            <span class="badge bg-white-50 text-white" id="drillEmpDept">Department</span>
+                            <span class="badge bg-warning text-dark fw-bold" id="drillEmpReportsTo"><i class="fas fa-user-tie me-1"></i>Reports to: CEO</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3 text-white-50 small mt-1 flex-wrap">
+                            <span><i class="fas fa-briefcase me-1"></i><span id="drillEmpDesignation">Designation</span></span>
+                            <span><i class="fas fa-phone me-1"></i><span id="drillEmpMobile">Mobile</span></span>
+                            <span><i class="fas fa-envelope me-1"></i><span id="drillEmpEmail">Email</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-success fw-bold d-inline-flex align-items-center gap-2 shadow-sm" id="btnBulkApproveTimesheets" style="border-radius: 8px; padding: 6px 14px;">
+                        <i class="fas fa-check-double"></i> Verify & Approve All
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4" style="background: #f8fafc;">
+                <!-- Regularity & Missing Dates Tracer Panel -->
+                <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0 !important;">
+                    <div class="card-body p-3 p-md-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fas fa-heart-pulse text-danger fs-5"></i>
+                                <h6 class="fw-bold mb-0 text-dark">Submission Regularity & Missing Dates Tracker</h6>
+                            </div>
+                            <span class="badge rounded-pill px-3 py-1 fs-7" id="drillRegularityStatusBadge">Checking...</span>
+                        </div>
+
+                        <!-- 4 Metric Chips -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-6 col-md-3">
+                                <div class="p-2 px-3 bg-light rounded-2 border text-center">
+                                    <span class="text-muted small d-block" style="font-size: 0.72rem;">Expected Working Days</span>
+                                    <strong class="fs-6 text-dark" id="drillExpectedDays">0</strong>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-2 px-3 bg-light rounded-2 border text-center">
+                                    <span class="text-muted small d-block" style="font-size: 0.72rem;">Days Submitted</span>
+                                    <strong class="fs-6 text-success" id="drillSubmittedDays">0</strong>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-2 px-3 bg-light rounded-2 border text-center">
+                                    <span class="text-muted small d-block" style="font-size: 0.72rem;">Missing Days</span>
+                                    <strong class="fs-6 text-danger" id="drillMissingDays">0</strong>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-2 px-3 bg-light rounded-2 border text-center">
+                                    <span class="text-muted small d-block" style="font-size: 0.72rem;">Compliance Rate</span>
+                                    <strong class="fs-6 text-primary" id="drillRegularityRate">0%</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Missing Dates Alert Container -->
+                        <div id="drillMissingDatesContainer">
+                            <!-- Populated via JavaScript: Alert with tags for missing dates -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Date-wise Timesheet Entries Table -->
+                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0 !important; overflow: hidden;">
+                    <div class="card-header bg-white py-3 px-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-calendar-alt text-primary"></i>
+                            <h6 class="fw-bold mb-0 text-dark">Date-wise Timesheet Records</h6>
+                            <span class="badge bg-light text-dark border" id="drillTimesheetCountBadge">0 Entries</span>
+                        </div>
+                        <span class="small text-muted" id="drillPeriodBadge">Period: --</span>
+                    </div>
+
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 420px;">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light sticky-top" style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <tr>
+                                        <th class="ps-3 py-3" style="min-width: 140px;">Date & Day</th>
+                                        <th style="min-width: 200px;">Project Name</th>
+                                        <th style="min-width: 180px;">Task Description</th>
+                                        <th class="text-center" style="width: 90px;">Hours</th>
+                                        <th style="min-width: 240px;">Progress / Remarks</th>
+                                        <th class="text-center" style="width: 110px;">Status</th>
+                                        <th class="text-end pe-3" style="width: 140px;">Verification Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="drillTimesheetTableBody" style="font-size: 0.85rem;">
+                                    <!-- Rendered dynamically via JavaScript -->
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5 text-muted">
+                                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                            Loading date-wise timesheets...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-light px-4 py-2 border-top d-flex justify-content-between">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="bootstrap.Modal.getInstance(document.getElementById('employeeTimesheetDetailModal')).hide(); bootstrap.Modal.getOrCreateInstance(document.getElementById('executiveTimesheetsModal')).show();">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Directory
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary px-4 fw-semibold" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= DASHBOARD CHART JSON DATA ================= -->
+<script id="dashboardChartData" type="application/json">
+{
+    "statusCounts": {
+        "pending": {{ (project_status_counts['Pending Approval'] if project_status_counts and 'Pending Approval' in project_status_counts else 0)|tojson }},
+        "inProgress": {{ (project_status_counts['In Progress'] if project_status_counts and 'In Progress' in project_status_counts else 0)|tojson }},
+        "completed": {{ (project_status_counts['Completed'] if project_status_counts and 'Completed' in project_status_counts else 0)|tojson }},
+        "onHold": {{ (project_status_counts['On Hold'] if project_status_counts and 'On Hold' in project_status_counts else 0)|tojson }}
+    },
+    "deptLabels": {{ ((dept_project_counts.keys()|list) if dept_project_counts else [])|tojson }},
+    "deptData": {{ ((dept_project_counts.values()|list) if dept_project_counts else [])|tojson }}
+}
+</script>
+
+<!-- ================= DASHBOARD SCRIPTS ================= -->
+<script>
+    // Tab switching controller
+    function switchDashboardTab(tabId) {
+        // Update nav buttons
+        document.querySelectorAll('#dashboardLandscapeNav .landscape-tab-btn').forEach(btn => {
+            if (btn.getAttribute('data-tab-target') === tabId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        // Hide all panes
+        document.querySelectorAll('.tab-content-pane').forEach(pane => {
+            pane.classList.add('d-none');
+        });
+
+        // Show targeted pane
+        const targetPane = document.getElementById(tabId + 'Pane');
+        if (targetPane) {
+            targetPane.classList.remove('d-none');
+            targetPane.classList.add('animate-fadeInUp');
+        }
+    }
+
+    // ============================================================================
+    // DYNAMIC ATMOSPHERIC CELESTIAL BACKGROUND & LIVE REAL-TIME WEATHER
+    // ============================================================================
+    let rainCanvasAnimId = null;
+    let lightningIntervalId = null;
+    let isRainActive = false;
+    let currentLiveWeatherData = null;
+    let clockIntervalId = null;
+
+    // Live Clock Ticker in HH:MM:SS format
+    function updateExecutiveLiveClock() {
+        const timeElem = document.getElementById('executiveTimeText');
+        if (!timeElem) return;
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        timeElem.textContent = `${hh}:${mm}:${ss}`;
+    }
+
+    // Dynamic greeting and celestial sky theme based on local hour and CEO location
+    function setupDynamicGreeting() {
+        const heroElem = document.getElementById('executiveHeroBanner');
+        const starsField = document.getElementById('heroStarsField');
+        const greetingElem = document.getElementById('greetingGreeting');
+        const dateElem = document.getElementById('executiveDateText');
+
+        const now = new Date();
+        const hour = now.getHours(); // 0 - 23
+
+        // Formatted executive date
+        if (dateElem) {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            dateElem.textContent = now.toLocaleDateString('en-US', options);
+        }
+
+        // Initialize clock immediately and run every second
+        updateExecutiveLiveClock();
+        if (!clockIntervalId) {
+            clockIntervalId = setInterval(updateExecutiveLiveClock, 1000);
+        }
+
+        if (!heroElem) return;
+
+        // Clean previous theme classes
+        heroElem.classList.remove('theme-morning', 'theme-afternoon', 'theme-evening', 'theme-night', 'theme-storm');
+        if (starsField) {
+            starsField.innerHTML = '';
+            starsField.style.opacity = '0';
+        }
+
+        let greetingPrefix = "Good Morning";
+        let activeTheme = 'theme-morning';
+
+        // 1. MORNING (5:00 AM - 10:59 AM): Bluish, yellowish gradient effect
+        if (hour >= 5 && hour < 11) {
+            greetingPrefix = "Good Morning";
+            activeTheme = 'theme-morning';
+        }
+        // 2. NOON & AFTERNOON (11:00 AM - 4:59 PM): Yellowish, red, orange, and blue gradient mix
+        else if (hour >= 11 && hour < 17) {
+            greetingPrefix = "Good Afternoon";
+            activeTheme = 'theme-afternoon';
+        }
+        // 3. EVENING (5:00 PM - 7:59 PM): Evening sky colour with few stars
+        else if (hour >= 17 && hour < 20) {
+            greetingPrefix = "Good Evening";
+            activeTheme = 'theme-evening';
+            renderStars(starsField, 16, 'twinkle');
+        }
+        // 4. NIGHT (8:00 PM - 4:59 AM): Dark blue with glittering stars
+        else {
+            greetingPrefix = (hour >= 20 && hour < 24) ? "Good Evening" : "Welcome Back";
+            activeTheme = 'theme-night';
+            renderStars(starsField, 38, 'glitter');
+        }
+
+        // Apply theme if not currently overridden by storm/rain
+        if (!isRainActive) {
+            heroElem.classList.add(activeTheme);
+        }
+
+        if (greetingElem) {
+            greetingElem.textContent = `${greetingPrefix}, {{ current_user.name }}`;
+        }
+
+        // Initialize Live Location Weather & CEO base Rain Detection
+        initLiveWeather(activeTheme);
+    }
+
+    // Render twinkling / glittering stars into celestial field
+    function renderStars(container, count, mode) {
+        if (!container) return;
+        container.innerHTML = '';
+        container.style.opacity = '1';
+
+        for (let i = 0; i < count; i++) {
+            const star = document.createElement('span');
+            star.className = `star-point ${mode === 'glitter' ? 'star-glitter' : 'star-twinkle'}`;
+            
+            const size = mode === 'glitter' ? (Math.random() * 2.4 + 1.2) : (Math.random() * 2 + 1);
+            const top = Math.random() * 95;
+            const left = Math.random() * 98;
+            const delay = (Math.random() * 3).toFixed(2);
+            const duration = (Math.random() * 2 + (mode === 'glitter' ? 1.5 : 2)).toFixed(2);
+
+            star.style.width = `${size}px`;
+            star.style.height = `${size}px`;
+            star.style.top = `${top}%`;
+            star.style.left = `${left}%`;
+            star.style.animationDelay = `${delay}s`;
+            star.style.animationDuration = `${duration}s`;
+
+            if (mode === 'glitter' && Math.random() > 0.6) {
+                star.style.background = '#bae6fd'; // soft cyan-white glitter
+            }
+
+            container.appendChild(star);
+        }
+    }
+
+    // Fetch Live CEO Location Weather (Bhubaneswar headquarters)
+    async function initLiveWeather(baseTheme) {
+        const weatherDescElem = document.getElementById('heroWeatherDesc');
+
+        try {
+            const res = await fetch('/api/weather/ceo-location');
+            const data = await res.json();
+            currentLiveWeatherData = data;
+
+            if (data && data.success) {
+                if (weatherDescElem) {
+                    const icon = data.is_raining ? 'fa-cloud-showers-heavy text-info' : (data.weather_code === 0 ? 'fa-sun text-warning' : 'fa-cloud-sun text-warning');
+                    weatherDescElem.innerHTML = `<i class="fas ${icon} me-1"></i>${data.temperature}&deg;C &bull; ${data.weather_desc}`;
+                }
+
+                // If it is raining or storming in real-time at the CEO's location, activate rain & lightning automatically
+                if (data.is_raining) {
+                    activateRainAndLightning(true);
+                } else if (isRainActive) {
+                    activateRainAndLightning(false);
+                }
+            }
+        } catch (err) {
+            console.warn('Weather detection fallback:', err);
+            if (weatherDescElem) {
+                weatherDescElem.innerHTML = `<i class="fas fa-cloud-sun text-warning me-1"></i>27&deg;C &bull; Clear`;
+            }
+        }
+
+        // Periodic background poll every 5 minutes for live weather & rain changes
+        if (!window._weatherPollInterval) {
+            window._weatherPollInterval = setInterval(() => initLiveWeather(baseTheme), 300000);
+        }
+    }
+
+    // Activate/Deactivate Atmospheric Rain Canvas & Ambient Lightning
+    function activateRainAndLightning(enable) {
+        const heroElem = document.getElementById('executiveHeroBanner');
+        const canvas = document.getElementById('heroRainCanvas');
+        const flashElem = document.getElementById('heroLightningFlash');
+        if (!heroElem || !canvas) return;
+
+        isRainActive = enable;
+
+        if (enable) {
+            heroElem.classList.add('theme-storm');
+            canvas.style.opacity = '1';
+            startRainAnimation(canvas);
+            startLightningFlashes(flashElem);
+        } else {
+            heroElem.classList.remove('theme-storm');
+            canvas.style.opacity = '0';
+            stopRainAnimation();
+            stopLightningFlashes(flashElem);
+            // Re-apply time based theme
+            setupDynamicGreeting();
+        }
+    }
+
+    // HTML5 Canvas Rain Streaks Animation
+    let rainDrops = [];
+    function startRainAnimation(canvas) {
+        stopRainAnimation();
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width || canvas.parentElement.offsetWidth || 1000;
+        canvas.height = rect.height || canvas.parentElement.offsetHeight || 160;
+
+        rainDrops = [];
+        const dropCount = Math.floor(canvas.width / 14); // smooth density
+
+        for (let i = 0; i < dropCount; i++) {
+            rainDrops.push({
+                x: Math.random() * (canvas.width + 100) - 50,
+                y: Math.random() * canvas.height,
+                len: Math.random() * 18 + 12,
+                speed: Math.random() * 7 + 10,
+                opacity: Math.random() * 0.45 + 0.3,
+                width: Math.random() * 1.2 + 0.8
+            });
+        }
+
+        function drawRain() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.lineCap = 'round';
+
+            for (let i = 0; i < rainDrops.length; i++) {
+                const d = rainDrops[i];
+                ctx.beginPath();
+                ctx.lineWidth = d.width;
+                ctx.strokeStyle = `rgba(186, 230, 253, ${d.opacity})`;
+                ctx.moveTo(d.x, d.y);
+                ctx.lineTo(d.x - 4, d.y + d.len); // diagonal wind angle
+                ctx.stroke();
+
+                d.y += d.speed;
+                d.x -= 1.6;
+
+                // Reset drop to top if it passes bottom
+                if (d.y > canvas.height) {
+                    d.y = -d.len;
+                    d.x = Math.random() * (canvas.width + 100) - 50;
+                }
+            }
+
+            rainCanvasAnimId = requestAnimationFrame(drawRain);
+        }
+
+        drawRain();
+
+        // Responsive resize
+        window.addEventListener('resize', onRainResize);
+    }
+
+    function onRainResize() {
+        const canvas = document.getElementById('heroRainCanvas');
+        if (canvas && isRainActive && canvas.parentElement) {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width || canvas.parentElement.offsetWidth;
+            canvas.height = rect.height || canvas.parentElement.offsetHeight;
+        }
+    }
+
+    function stopRainAnimation() {
+        if (rainCanvasAnimId) {
+            cancelAnimationFrame(rainCanvasAnimId);
+            rainCanvasAnimId = null;
+        }
+        window.removeEventListener('resize', onRainResize);
+        const canvas = document.getElementById('heroRainCanvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    // Cinematic Ambient Lightning Flashes
+    function startLightningFlashes(flashElem) {
+        stopLightningFlashes(flashElem);
+        if (!flashElem) return;
+
+        function triggerFlash() {
+            if (!isRainActive) return;
+            // First quick flash
+            flashElem.style.opacity = '0.75';
+            setTimeout(() => {
+                flashElem.style.opacity = '0.1';
+                // Secondary brighter flash (realistic thunderbolt flicker)
+                setTimeout(() => {
+                    flashElem.style.opacity = '0.95';
+                    setTimeout(() => {
+                        flashElem.style.opacity = '0';
+                    }, 80);
+                }, 50);
+            }, 60);
+
+            // Schedule next lightning flash randomly between 4s and 8s
+            const nextDelay = Math.random() * 4000 + 4000;
+            lightningIntervalId = setTimeout(triggerFlash, nextDelay);
+        }
+
+        // Initial flash after 1.5s
+        lightningIntervalId = setTimeout(triggerFlash, 1500);
+    }
+
+    function stopLightningFlashes(flashElem) {
+        if (lightningIntervalId) {
+            clearTimeout(lightningIntervalId);
+            lightningIntervalId = null;
+        }
+        if (flashElem) {
+            flashElem.style.opacity = '0';
+        }
+    }
+
+    // Number count-up animation for KPI cards
+    function runCounterAnimations() {
+        // Integer counters
+        document.querySelectorAll('.animated-counter').forEach(elem => {
+            const target = parseInt(elem.getAttribute('data-target'), 10) || 0;
+            let current = 0;
+            const duration = 1000;
+            const increment = target / (duration / 16);
+            
+            function updateCount() {
+                current += increment;
+                if (current < target) {
+                    elem.textContent = Math.ceil(current);
+                    requestAnimationFrame(updateCount);
+                } else {
+                    elem.textContent = target;
+                }
+            }
+            updateCount();
+        });
+
+        // Currency animated display
+        document.querySelectorAll('.animated-counter-currency').forEach(elem => {
+            const raw = parseFloat(elem.getAttribute('data-raw')) || 0;
+            let current = 0;
+            const duration = 1200;
+            const increment = raw / (duration / 16);
+
+            function updateCurrency() {
+                current += increment;
+                if (current < raw) {
+                    elem.textContent = Math.round(current).toLocaleString('en-IN');
+                    requestAnimationFrame(updateCurrency);
+                } else {
+                    elem.textContent = Math.round(raw).toLocaleString('en-IN');
+                }
+            }
+            updateCurrency();
+        });
+    }
+
+    // Chart.js Visualizations
+    function initDashboardCharts() {
+        const chartDataEl = document.getElementById('dashboardChartData');
+        const chartData = chartDataEl ? JSON.parse(chartDataEl.textContent || '{}') : {};
+        const statusCounts = chartData.statusCounts || { pending: 0, inProgress: 0, completed: 0, onHold: 0 };
+        const deptLabels = chartData.deptLabels || [];
+        const deptData = chartData.deptData || [];
+
+        // Project Status Donut Chart
+        const statusCanvas = document.getElementById('projectStatusChart');
+        if (statusCanvas) {
+            const ctx = statusCanvas.getContext('2d');
+            const totalStatusCount = (statusCounts.pending || 0) + (statusCounts.inProgress || 0) + (statusCounts.completed || 0) + (statusCounts.onHold || 0);
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending Approval', 'In Progress', 'Completed', 'On Hold'],
+                    datasets: [{
+                        data: [
+                            statusCounts.pending,
+                            statusCounts.inProgress,
+                            statusCounts.completed,
+                            statusCounts.onHold
+                        ],
+                        backgroundColor: ['#f59e0b', '#0284c7', '#10b981', '#94a3b8'],
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 18,
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    size: 12,
+                                    weight: 600
+                                },
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            padding: 12,
+                            titleFont: { size: 13, weight: 'bold' },
+                            bodyFont: { size: 12 }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'doughnutCenterText',
+                    beforeDraw(chart) {
+                        const { width, height, ctx } = chart;
+                        ctx.save();
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const centerX = width / 2;
+                        const chartArea = chart.chartArea;
+                        const centerY = chartArea ? (chartArea.top + chartArea.bottom) / 2 : height / 2;
+                        
+                        ctx.font = "bold 24px 'Plus Jakarta Sans', sans-serif";
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fillText(totalStatusCount.toString(), centerX, centerY - 8);
+                        
+                        ctx.font = "600 11px 'Plus Jakarta Sans', sans-serif";
+                        ctx.fillStyle = '#64748b';
+                        ctx.fillText(totalStatusCount === 1 ? 'PROJECT' : 'PROJECTS', centerX, centerY + 14);
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        // Department-wise Allocation Bar Chart
+        const deptCanvas = document.getElementById('departmentChart');
+        if (deptCanvas) {
+            const ctx = deptCanvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: deptLabels,
+                    datasets: [{
+                        label: 'Active Projects',
+                        data: deptData,
+                        backgroundColor: '#0e8749',
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#0b733d'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: { family: "'Plus Jakarta Sans', sans-serif" }
+                            },
+                            grid: {
+                                color: '#f1f5f9'
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { family: "'Plus Jakarta Sans', sans-serif", weight: 600 }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // Projects Table Filtering (Search + Status + Department)
+    function applyProjectFilters() {
+        const searchTerm = (document.getElementById('searchProjectInput').value || '').toLowerCase().trim();
+        const statusVal = document.getElementById('statusSelectFilter').value;
+        const deptVal = (document.getElementById('departmentSelectFilter').value || '').toLowerCase().trim();
+
+        const rows = document.querySelectorAll('#masterProjectsTable tbody tr.project-table-row');
+        let matchCount = 0;
+
+        rows.forEach(row => {
+            const projectName = row.getAttribute('data-project-name') || '';
+            const projectCode = row.getAttribute('data-project-code') || '';
+            const client = row.getAttribute('data-client') || '';
+            const manager = row.getAttribute('data-manager') || '';
+            const status = row.getAttribute('data-status') || '';
+            const department = row.getAttribute('data-department') || '';
+
+            const matchesSearch = !searchTerm || 
+                projectName.includes(searchTerm) || 
+                projectCode.includes(searchTerm) || 
+                client.includes(searchTerm) || 
+                manager.includes(searchTerm);
+
+            const matchesStatus = !statusVal || status === statusVal;
+            const matchesDept = !deptVal || department.includes(deptVal);
+
+            if (matchesSearch && matchesStatus && matchesDept) {
+                row.style.display = '';
+                matchCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update match count badge
+        const countBadge = document.getElementById('filterMatchCount');
+        if (countBadge) {
+            countBadge.textContent = `Showing ${matchCount} of ${rows.length} projects`;
+        }
+    }
+
+    function quickFilterStatus(btn, status) {
+        document.querySelectorAll('.quick-status-pills .status-filter-pill').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.getElementById('statusSelectFilter').value = status;
+        applyProjectFilters();
+    }
+
+    function resetProjectFilters() {
+        document.getElementById('searchProjectInput').value = '';
+        document.getElementById('statusSelectFilter').value = '';
+        document.getElementById('departmentSelectFilter').value = '';
+
+        document.querySelectorAll('.quick-status-pills .status-filter-pill').forEach((p, idx) => {
+            if (idx === 0) p.classList.add('active');
+            else p.classList.remove('active');
+        });
+
+        applyProjectFilters();
+    }
+
+    // Live search listener
+    document.addEventListener('DOMContentLoaded', function() {
+        setupDynamicGreeting();
+        runCounterAnimations();
+        initDashboardCharts();
+
+        const searchInput = document.getElementById('searchProjectInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', applyProjectFilters);
+        }
+        const statusFilter = document.getElementById('statusSelectFilter');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', applyProjectFilters);
+        }
+        const deptFilter = document.getElementById('departmentSelectFilter');
+        if (deptFilter) {
+            deptFilter.addEventListener('change', applyProjectFilters);
+        }
+
+        // Initialize Employee Progress Pagination
+        initEmployeePagination();
+    });
+
+    // Employee Progress Tracker Pagination & Search
+    let empCurrentPage = 1;
+    const empPerPage = 10;
+    let filteredEmpRows = [];
+
+    function initEmployeePagination() {
+        const rows = Array.from(document.querySelectorAll('#employeeProgressTable tbody tr.emp-progress-row'));
+        filteredEmpRows = rows;
+        updateEmployeeTable();
+
+        const empSearch = document.getElementById('employeeSearchInput');
+        if (empSearch) {
+            empSearch.addEventListener('input', filterEmployeesList);
+        }
+        const empDept = document.getElementById('employeeDeptSelectFilter');
+        if (empDept) {
+            empDept.addEventListener('change', filterEmployeesList);
+        }
+    }
+
+    function filterEmployeesList() {
+        const query = (document.getElementById('employeeSearchInput').value || '').toLowerCase().trim();
+        const dept = (document.getElementById('employeeDeptSelectFilter').value || '').toLowerCase().trim();
+
+        const allRows = Array.from(document.querySelectorAll('#employeeProgressTable tbody tr.emp-progress-row'));
+        filteredEmpRows = allRows.filter(row => {
+            const name = row.getAttribute('data-emp-name') || '';
+            const rowDept = row.getAttribute('data-dept') || '';
+            const matchesQuery = !query || name.includes(query);
+            const matchesDept = !dept || rowDept.includes(dept);
+            return matchesQuery && matchesDept;
+        });
+
+        empCurrentPage = 1;
+        updateEmployeeTable();
+    }
+
+    function updateEmployeeTable() {
+        const total = filteredEmpRows.length;
+        const totalPages = Math.ceil(total / empPerPage) || 1;
+        const start = (empCurrentPage - 1) * empPerPage;
+        const end = start + empPerPage;
+
+        // Hide all rows
+        document.querySelectorAll('#employeeProgressTable tbody tr.emp-progress-row').forEach(r => r.style.display = 'none');
+
+        // Show current slice
+        filteredEmpRows.slice(start, end).forEach(r => r.style.display = '');
+
+        // Update counts
+        const startElem = document.getElementById('showingStartCount');
+        const endElem = document.getElementById('showingEndCount');
+        const totalElem = document.getElementById('totalEmployeesCount');
+        if (startElem) startElem.textContent = total > 0 ? start + 1 : 0;
+        if (endElem) endElem.textContent = Math.min(end, total);
+        if (totalElem) totalElem.textContent = total;
+
+        // Render pagination buttons
+        renderPaginationButtons(totalPages);
+    }
+
+    function renderPaginationButtons(totalPages) {
+        const list = document.getElementById('empPaginationList');
+        if (!list) return;
+        list.innerHTML = '';
+
+        // Previous
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${empCurrentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<button class="page-link" onclick="goToEmpPage(${empCurrentPage - 1})"><i class="fas fa-chevron-left"></i></button>`;
+        list.appendChild(prevLi);
+
+        // Page Numbers (up to 5)
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === empCurrentPage ? 'active' : ''}`;
+            li.innerHTML = `<button class="page-link" onclick="goToEmpPage(${i})">${i}</button>`;
+            list.appendChild(li);
+        }
+
+        // Next
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${empCurrentPage >= totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<button class="page-link" onclick="goToEmpPage(${empCurrentPage + 1})"><i class="fas fa-chevron-right"></i></button>`;
+        list.appendChild(nextLi);
+    }
+
+    function goToEmpPage(page) {
+        const totalPages = Math.ceil(filteredEmpRows.length / empPerPage) || 1;
+        if (page >= 1 && page <= totalPages) {
+            empCurrentPage = page;
+            updateEmployeeTable();
+        }
+    }
+
+    // Export Projects Table to CSV
+    function exportProjectsTableCSV() {
+        const visibleRows = Array.from(document.querySelectorAll('#masterProjectsTable tbody tr.project-table-row'))
+            .filter(r => r.style.display !== 'none');
+        
+        let csv = 'Project Name,Project Code,Client,Status,End Date,Project Manager\n';
+        visibleRows.forEach(row => {
+            const cols = row.querySelectorAll('td');
+            if (cols.length >= 6) {
+                const name = cols[0].innerText.replace(/\n/g, ' ').replace(/"/g, '""');
+                const client = cols[1].innerText.trim().replace(/"/g, '""');
+                const status = cols[2].innerText.trim();
+                const endDate = cols[3].innerText.trim();
+                const manager = cols[4].innerText.trim().replace(/"/g, '""');
+                csv += `"${name}","${client}","${status}","${endDate}","${manager}"\n`;
+            }
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `EMC_Projects_Registry_${new Date().toISOString().slice(0,10)}.csv`;
+        link.click();
+    }
+
+    // ============================================================================
+    // EXECUTIVE TIMESHEET DIRECTORY & VERIFICATION CONTROLLER (MD / CEO)
+    // ============================================================================
+    let currentExecScope = 'reports_to_me';
+    let currentDrillEmployeeId = null;
+    let execSearchDebounceTimer = null;
+
+    // Helper: format Date object to YYYY-MM-DD
+    function formatIsoDate(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    // Initialize date preset ranges
+    function applyExecDatePreset(presetKey) {
+        const today = new Date();
+        let fromDate = new Date();
+        let toDate = new Date();
+
+        switch (presetKey) {
+            case 'today':
+                fromDate = new Date(today);
+                toDate = new Date(today);
+                break;
+            case 'yesterday':
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - 1);
+                toDate = new Date(fromDate);
+                break;
+            case 'last3days':
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - 2);
+                toDate = new Date(today);
+                break;
+            case 'thisweek':
+                // Monday of current week
+                const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday...
+                const distToMon = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - distToMon);
+                toDate = new Date(today);
+                break;
+            case 'lastweek':
+                // Monday of last week to Sunday of last week
+                const curDay = today.getDay();
+                const distToLastMon = (curDay === 0 ? 6 : curDay - 1) + 7;
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - distToLastMon);
+                toDate = new Date(fromDate);
+                toDate.setDate(fromDate.getDate() + 6);
+                break;
+            case 'lastmonth':
+                // First to last day of previous month
+                fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                break;
+            case 'last6months':
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - 180);
+                toDate = new Date(today);
+                break;
+            case 'lastyear':
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - 365);
+                toDate = new Date(today);
+                break;
+            default:
+                fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                toDate = new Date(today);
+        }
+
+        const fromInput = document.getElementById('execFromDateInput');
+        const toInput = document.getElementById('execToDateInput');
+        if (fromInput) fromInput.value = formatIsoDate(fromDate);
+        if (toInput) toInput.value = formatIsoDate(toDate);
+
+        // Update active preset button highlight
+        document.querySelectorAll('#execFilterPresets .exec-preset-btn').forEach(btn => {
+            if (btn.getAttribute('data-preset') === presetKey) {
+                btn.classList.add('btn-primary', 'active');
+                btn.classList.remove('btn-outline-secondary');
+            } else {
+                btn.classList.remove('btn-primary', 'active');
+                btn.classList.add('btn-outline-secondary');
+            }
+        });
+    }
+
+    // Fetch and render executive timesheet list
+    async function fetchExecutiveTimesheets() {
+        const fromDate = document.getElementById('execFromDateInput')?.value || '';
+        const toDate = document.getElementById('execToDateInput')?.value || '';
+        const search = document.getElementById('execSearchInput')?.value || '';
+        const tbody = document.getElementById('execEmployeesTableBody');
+
+        if (!tbody) return;
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center py-5 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    Loading executive timesheet metrics for ${currentExecScope === 'reports_to_me' ? 'Direct Reportees' : 'All Employees'}...
+                </td>
+            </tr>
+        `;
+
+        try {
+            const queryParams = new URLSearchParams({
+                scope: currentExecScope,
+                from_date: fromDate,
+                to_date: toDate,
+                search: search
+            });
+
+            const response = await fetch(`/api/executive/timesheets?${queryParams.toString()}`);
+            const data = await response.json();
+
+            if (!data.success) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle me-1"></i> ${data.error || 'Failed to load records.'}</td></tr>`;
+                return;
+            }
+
+            // Update KPI summary cards
+            const s = data.summary;
+            const isReportsToMe = (s.scope === 'reports_to_me');
+
+            document.getElementById('execSummaryReporteesLabel').textContent = isReportsToMe ? 'Total Reportees' : 'Total Employees';
+            document.getElementById('execThReporteeName').textContent = isReportsToMe ? 'Name of the Reportee' : 'Name of Employee';
+            document.getElementById('execTableTitle').textContent = isReportsToMe ? 'Reportees Timesheet Directory' : 'All Employees Timesheet Directory';
+
+            document.getElementById('execMetricTotalReportees').textContent = s.total_reportees;
+            document.getElementById('execMetricActiveSubmitters').innerHTML = `<i class="fas fa-check-circle me-1"></i>${s.active_submitters} active submitters`;
+
+            document.getElementById('execMetricTotalSubmissions').textContent = s.total_submissions;
+            document.getElementById('execMetricTotalHours').innerHTML = `<i class="fas fa-clock me-1"></i>${s.total_hours} total hours`;
+
+            document.getElementById('execMetricSubmissionRate').textContent = `${s.submission_percentage}%`;
+            document.getElementById('execMetricWorkingDays').innerHTML = `<i class="fas fa-calendar-day me-1"></i>${s.working_days} working days in period`;
+
+            document.getElementById('execTableRowCountBadge').textContent = `${data.employees.length} Records`;
+
+            // Render table rows
+            if (!data.employees || data.employees.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="fas fa-folder-open fs-2 d-block mb-2 text-muted" style="opacity: 0.5;"></i>
+                            <strong>No timesheet records found</strong><br>
+                            <span class="small">Try adjusting the date range or clearing search keywords.</span>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let rowsHtml = '';
+            data.employees.forEach((emp, index) => {
+                const initials = emp.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+                // Format project badges
+                let projBadges = '';
+                if (emp.projects && emp.projects.length > 0) {
+                    projBadges = emp.projects.map(p => `<span class="badge bg-light text-dark border me-1 mb-1 text-truncate" style="max-width: 170px; display: inline-block; vertical-align: middle;" title="${p}">${p}</span>`).join('');
+                } else {
+                    projBadges = '<span class="text-muted small">None</span>';
+                }
+
+                // Compliance badge color
+                let compBadgeClass = 'badge-soft-secondary';
+                if (emp.submission_percentage >= 85) compBadgeClass = 'badge-soft-success';
+                else if (emp.submission_percentage >= 50) compBadgeClass = 'badge-soft-warning';
+                else if (emp.total_submissions > 0) compBadgeClass = 'badge-soft-danger';
+
+                // Reports to badge
+                const reportsBadge = isReportsToMe 
+                    ? `<span class="badge bg-warning-subtle text-dark border border-warning-subtle fw-bold"><i class="fas fa-user-tie me-1 text-warning"></i>CEO</span>`
+                    : (emp.reports_to === 'CEO' 
+                        ? `<span class="badge bg-warning-subtle text-dark border border-warning-subtle fw-bold"><i class="fas fa-user-tie me-1 text-warning"></i>CEO</span>` 
+                        : `<span class="badge bg-light text-secondary border">${emp.reports_to}</span>`);
+
+                rowsHtml += `
+                    <tr class="align-middle">
+                        <td class="ps-3 text-muted fw-bold">${index + 1}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-circle shadow-sm" style="width: 34px; height: 34px; font-size: 0.8rem; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    ${initials}
+                                </div>
+                                <div>
+                                    <span class="fw-bold text-dark d-block">${emp.name}</span>
+                                    <small class="text-muted" style="font-size: 0.75rem;">${emp.designation} • ${emp.department}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge bg-light text-dark border font-monospace">${emp.emp_id}</span></td>
+                        <td><span class="text-dark small"><i class="fas fa-phone text-muted me-1" style="font-size: 0.72rem;"></i>${emp.mobile}</span></td>
+                        <td><span class="text-muted small text-truncate d-block" style="max-width: 170px;" title="${emp.email}"><i class="fas fa-envelope text-muted me-1" style="font-size: 0.72rem;"></i>${emp.email}</span></td>
+                        <td>${reportsBadge}</td>
+                        <td>${projBadges}</td>
+                        <td class="text-center">
+                            <span class="${compBadgeClass} fw-bold px-2 py-1">${emp.submission_percentage}%</span>
+                            <div class="small text-muted mt-1" style="font-size: 0.7rem;">${emp.submitted_working_days}/${emp.working_days} Days</div>
+                        </td>
+                        <td class="text-end pe-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm" onclick="openEmployeeTimesheetDrilldown(${emp.id})" style="border-radius: 6px; padding: 4px 10px; font-weight: 600;">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = rowsHtml;
+
+        } catch (err) {
+            console.error('Error fetching executive timesheets:', err);
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger"><i class="fas fa-exclamation-circle me-1"></i> Error loading data: ${err.message}</td></tr>`;
+        }
+    }
+
+    // Open Drill-down Modal for a specific employee
+    async function openEmployeeTimesheetDrilldown(empId) {
+        currentDrillEmployeeId = empId;
+        const fromDate = document.getElementById('execFromDateInput')?.value || '';
+        const toDate = document.getElementById('execToDateInput')?.value || '';
+
+        const drillModalElem = document.getElementById('employeeTimesheetDetailModal');
+        const drillModal = bootstrap.Modal.getOrCreateInstance(drillModalElem);
+        drillModal.show();
+
+        const tbody = document.getElementById('drillTimesheetTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-5 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    Loading date-wise timesheet breakdown and missing dates analysis...
+                </td>
+            </tr>
+        `;
+
+        try {
+            const queryParams = new URLSearchParams({
+                from_date: fromDate,
+                to_date: toDate
+            });
+
+            const res = await fetch(`/api/executive/employee-timesheets/${empId}?${queryParams.toString()}`);
+            const data = await res.json();
+
+            if (!data.success) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">${data.error || 'Failed to load details.'}</td></tr>`;
+                return;
+            }
+
+            const emp = data.employee;
+            const comp = data.compliance;
+            const timesheets = data.timesheets;
+            currentDrillIsDirectReportee = emp.is_direct_reportee;
+
+            // Toggle Bulk Approve button: CEO can only approve direct reportees
+            const btnBulkApprove = document.getElementById('btnBulkApproveTimesheets');
+            if (btnBulkApprove) {
+                btnBulkApprove.style.display = emp.is_direct_reportee ? 'inline-flex' : 'none';
+            }
+
+            // Update Employee Profile Banner
+            document.getElementById('drillEmpAvatar').textContent = emp.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('drillEmpName').textContent = emp.name;
+            document.getElementById('drillEmpId').textContent = emp.emp_id;
+            document.getElementById('drillEmpDept').textContent = emp.department;
+            document.getElementById('drillEmpDesignation').textContent = emp.designation;
+            document.getElementById('drillEmpMobile').textContent = emp.mobile;
+            document.getElementById('drillEmpEmail').textContent = emp.email;
+            document.getElementById('drillEmpReportsTo').innerHTML = emp.is_direct_reportee 
+                ? `<i class="fas fa-user-check me-1"></i>Direct Reportee (Reports to: ${emp.reports_to})`
+                : `<i class="fas fa-user-tie me-1"></i>Reports to: ${emp.reports_to}`;
+
+            document.getElementById('drillPeriodBadge').textContent = `Period: ${data.period.from_date} to ${data.period.to_date}`;
+            document.getElementById('drillTimesheetCountBadge').textContent = `${timesheets.length} Entries`;
+
+            // Regularity & Missing Dates Stats
+            document.getElementById('drillExpectedDays').textContent = comp.expected_working_days;
+            document.getElementById('drillSubmittedDays').textContent = comp.submitted_working_days;
+            document.getElementById('drillMissingDays').textContent = comp.missing_days_count;
+            document.getElementById('drillRegularityRate').textContent = `${comp.regularity_percentage}%`;
+
+            const statusBadge = document.getElementById('drillRegularityStatusBadge');
+            statusBadge.textContent = comp.compliance_status;
+            statusBadge.className = `badge rounded-pill px-3 py-1 ${comp.compliance_badge_class}`;
+
+            // Render Missing Dates Alert Banner
+            const missingContainer = document.getElementById('drillMissingDatesContainer');
+            if (comp.missing_dates && comp.missing_dates.length > 0) {
+                let tagsHtml = comp.missing_dates.map(d => `<span class="badge bg-danger-subtle text-danger border border-danger-subtle me-1 mb-1 px-2 py-1"><i class="fas fa-calendar-xmark me-1"></i>${d.display}</span>`).join('');
+                missingContainer.innerHTML = `
+                    <div class="alert alert-warning border-0 p-3 mb-0" style="border-radius: 8px; background: #fffbeb; border-left: 4px solid #f59e0b !important;">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="fas fa-triangle-exclamation text-warning mt-1"></i>
+                            <div>
+                                <strong class="text-dark d-block mb-1">Missing Dates on Record (${comp.missing_days_count} Working Days):</strong>
+                                <p class="small text-muted mb-2">No timesheet submissions were logged on the following dates during this review period:</p>
+                                <div class="d-flex flex-wrap gap-1">${tagsHtml}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                missingContainer.innerHTML = `
+                    <div class="alert alert-success border-0 p-3 mb-0 d-flex align-items-center gap-2" style="border-radius: 8px; background: #f0fdf4; border-left: 4px solid #22c55e !important;">
+                        <i class="fas fa-circle-check text-success fs-5"></i>
+                        <div>
+                            <strong class="text-dark d-block">Full Submission Compliance (100%)</strong>
+                            <small class="text-muted">This employee has submitted timesheets for every single scheduled working day in the selected period.</small>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Render Date-wise Table
+            if (!timesheets || timesheets.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-calendar-times fs-2 d-block mb-2 text-muted" style="opacity: 0.5;"></i>
+                            No timesheet submissions recorded in this date range.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let tRowsHtml = '';
+            timesheets.forEach(ts => {
+                const isApproved = (ts.status === 'CEO Approved' || ts.status === 'Verified' || ts.status === 'Approved');
+                const statusBadge = isApproved 
+                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-double me-1"></i>${ts.status}</span>`
+                    : `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="fas fa-clock me-1"></i>${ts.status}</span>`;
+
+                let actionButton = '';
+                if (isApproved) {
+                    actionButton = `<span class="text-success small fw-semibold"><i class="fas fa-shield-check me-1"></i>Approved</span>`;
+                } else if (!emp.is_direct_reportee) {
+                    actionButton = `<span class="badge bg-light text-secondary border" title="CEO monitor mode: Timesheet is verified by their designated Reporting Manager (${emp.reports_to})"><i class="fas fa-eye me-1"></i>RM: ${emp.reports_to}</span>`;
+                } else if (ts.needs_pm_first) {
+                    actionButton = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning" title="Employee worked on project. PM must verify before RM/CEO approval"><i class="fas fa-user-clock me-1"></i>Awaiting PM First</span>`;
+                } else {
+                    actionButton = `<button type="button" class="btn btn-xs btn-outline-success fw-bold d-inline-flex align-items-center gap-1 shadow-sm" onclick="verifyApproveSingleTimesheet(${ts.id}, ${empId})" style="border-radius: 6px; padding: 3px 8px;">
+                           <i class="fas fa-check"></i> Verify & Approve
+                       </button>`;
+                }
+
+                tRowsHtml += `
+                    <tr class="align-middle">
+                        <td class="ps-3">
+                            <span class="fw-bold text-dark d-block">${ts.date_formatted}</span>
+                            <small class="text-muted">${ts.day_name}</small>
+                        </td>
+                        <td><span class="badge bg-light text-dark border text-wrap text-start">${ts.project_name}</span></td>
+                        <td><span class="small text-secondary">${ts.task_description}</span></td>
+                        <td class="text-center"><span class="badge bg-primary text-white fw-bold">${ts.hours} hrs</span></td>
+                        <td><span class="small text-dark" style="max-width: 250px; display: inline-block;">${ts.progress}</span></td>
+                        <td class="text-center">${statusBadge}</td>
+                        <td class="text-end pe-3">${actionButton}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = tRowsHtml;
+
+        } catch (err) {
+            console.error('Error loading drilldown:', err);
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger"><i class="fas fa-exclamation-circle me-1"></i> Error: ${err.message}</td></tr>`;
+        }
+    }
+
+    // Single Timesheet Approval by CEO
+    async function verifyApproveSingleTimesheet(timesheetId, empId) {
+        try {
+            const res = await fetch('/api/executive/timesheets/verify-approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'single', timesheet_id: timesheetId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Refresh drilldown and main table
+                openEmployeeTimesheetDrilldown(empId);
+                fetchExecutiveTimesheets();
+            } else {
+                alert('Approval failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            alert('Error during approval: ' + err.message);
+        }
+    }
+
+    // Bulk Approve All Timesheets for Employee
+    async function verifyApproveBulkTimesheets(empId) {
+        if (!empId) return;
+        if (!currentDrillIsDirectReportee) {
+            alert('Approval restriction: CEO can only approve timesheets for employees reporting directly to CEO. For other employees, their designated Reporting Manager must approve.');
+            return;
+        }
+        const fromDate = document.getElementById('execFromDateInput')?.value || '';
+        const toDate = document.getElementById('execToDateInput')?.value || '';
+
+        if (!confirm('Are you sure you want to verify and approve all pending timesheet entries for this employee in the selected date range?')) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/executive/timesheets/verify-approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'bulk',
+                    employee_id: empId,
+                    from_date: fromDate,
+                    to_date: toDate
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+                openEmployeeTimesheetDrilldown(empId);
+                fetchExecutiveTimesheets();
+            } else {
+                alert('Bulk approval failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            alert('Error during bulk approval: ' + err.message);
+        }
+    }
+
+    // DOM Ready setup for Executive Timesheets
+    document.addEventListener('DOMContentLoaded', function() {
+        // Trigger button next to Employee Progress & Timesheet Tracker
+        const btnOpenModal = document.getElementById('btnOpenExecutiveTimesheetsModal');
+        if (btnOpenModal) {
+            btnOpenModal.addEventListener('click', function() {
+                applyExecDatePreset('thisweek');
+                fetchExecutiveTimesheets();
+                const execModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('executiveTimesheetsModal'));
+                execModal.show();
+            });
+        }
+
+        // Scope Questionnaire radio toggle: Reports to me vs All Employees
+        const scopeReportsToMeRadio = document.getElementById('execScopeReportsToMe');
+        const scopeAllEmployeesRadio = document.getElementById('execScopeAllEmployees');
+
+        if (scopeReportsToMeRadio) {
+            scopeReportsToMeRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    currentExecScope = 'reports_to_me';
+                    fetchExecutiveTimesheets();
+                }
+            });
+        }
+
+        if (scopeAllEmployeesRadio) {
+            scopeAllEmployeesRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    currentExecScope = 'all';
+                    fetchExecutiveTimesheets();
+                }
+            });
+        }
+
+        // Preset filter buttons
+        document.querySelectorAll('#execFilterPresets .exec-preset-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const preset = this.getAttribute('data-preset');
+                applyExecDatePreset(preset);
+                fetchExecutiveTimesheets();
+            });
+        });
+
+        // Search input with debounce
+        const searchInput = document.getElementById('execSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                clearTimeout(execSearchDebounceTimer);
+                execSearchDebounceTimer = setTimeout(() => {
+                    fetchExecutiveTimesheets();
+                }, 300);
+            });
+        }
+
+        // Refresh/Filter button
+        const btnRefresh = document.getElementById('btnExecRefresh');
+        if (btnRefresh) {
+            btnRefresh.addEventListener('click', function() {
+                fetchExecutiveTimesheets();
+            });
+        }
+
+        // Date input change triggers
+        const fromDateInput = document.getElementById('execFromDateInput');
+        const toDateInput = document.getElementById('execToDateInput');
+        if (fromDateInput) {
+            fromDateInput.addEventListener('change', function() {
+                fetchExecutiveTimesheets();
+            });
+        }
+        if (toDateInput) {
+            toDateInput.addEventListener('change', function() {
+                fetchExecutiveTimesheets();
+            });
+        }
+
+        // Bulk approve button in drill-down modal
+        const btnBulkApprove = document.getElementById('btnBulkApproveTimesheets');
+        if (btnBulkApprove) {
+            btnBulkApprove.addEventListener('click', function() {
+                if (currentDrillEmployeeId) {
+                    verifyApproveBulkTimesheets(currentDrillEmployeeId);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

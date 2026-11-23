@@ -22,6 +22,12 @@ try:
 except Exception:
     pass
 
+try:
+    import psycopg2
+    sys.modules['psycopg'] = psycopg2
+except Exception:
+    pass
+
 # Ensure project root is in python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)

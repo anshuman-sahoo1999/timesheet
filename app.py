@@ -22,6 +22,12 @@ try:
 except Exception:
     pass
 
+try:
+    import psycopg2
+    sys.modules['psycopg'] = psycopg2
+except Exception:
+    pass
+
 from dotenv import load_dotenv
 load_dotenv()
 from flask import (Flask, abort, flash, redirect, render_template, request,
@@ -285,10 +291,14 @@ def create_database_indexes():
     except Exception as e:
         print(f"[WARNING] Could not create database indexes: {e}")
 
-NEON_FALLBACK_URL = 'postgresql://neondb_owner:npg_GRCyKtOID8V1@ep-empty-base-be7tfogx-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require'
+NEON_FALLBACK_URL = 'postgresql+psycopg2://neondb_owner:npg_GRCyKtOID8V1@ep-empty-base-be7tfogx-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require'
 db_url = os.environ.get('DATABASE_URL') or NEON_FALLBACK_URL
 if db_url.startswith('postgres://'):
-    db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    db_url = db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
+elif db_url.startswith('postgresql://'):
+    db_url = db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+elif db_url.startswith('postgresql+psycopg://'):
+    db_url = db_url.replace('postgresql+psycopg://', 'postgresql+psycopg2://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {

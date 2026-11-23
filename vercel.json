@@ -1,28 +1,13 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "includeFiles": [
-          "templates/**",
-          "static/**",
-          "app.py",
-          "mail.py",
-          "reports.py"
-        ]
-      }
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "{templates/**,static/**,app.py,mail.py,reports.py}"
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.py"
+      "source": "/(.*)",
+      "destination": "/api/index"
     }
   ]
 }

@@ -1115,12 +1115,10 @@ def generate_financial_years():
 
 # --- Routes ---
 @app.route('/')
-@app.route('/api/index')
 def landing_page():
     return render_template('admin_login.html')
 
 @app.route('/login', methods=['GET', 'POST'])
-@app.route('/api/index/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         identifier = request.form.get('email', '').strip()

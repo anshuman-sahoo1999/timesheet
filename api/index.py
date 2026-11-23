@@ -38,6 +38,25 @@ if current_dir not in sys.path:
 
 try:
     from app import app
+    
+    class VercelPathMiddleware:
+        def __init__(self, wsgi_app):
+            self.wsgi_app = wsgi_app
+
+        def __call__(self, environ, start_response):
+            matched = (
+                environ.get('HTTP_X_MATCHED_PATH') or
+                environ.get('HTTP_X_FORWARDED_URI') or
+                environ.get('RAW_URI') or
+                environ.get('REQUEST_URI')
+            )
+            if matched:
+                clean_path = matched.split('?')[0]
+                if clean_path and clean_path not in ('/api/index', '/api/index.py', '/api'):
+                    environ['PATH_INFO'] = clean_path
+            return self.wsgi_app(environ, start_response)
+            
+    app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
 except Exception as e:
     import traceback
     tb = traceback.format_exc()

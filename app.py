@@ -119,8 +119,12 @@ def add_strict_anti_cache_headers(response):
         response.headers['Expires'] = '0'
     return response
 
+from werkzeug.exceptions import HTTPException
+
 @app.errorhandler(Exception)
 def handle_unexpected_error(e):
+    if isinstance(e, HTTPException):
+        return e
     import traceback
     tb = traceback.format_exc()
     print(f"[UNHANDLED EXCEPTION] {e}\n{tb}", file=sys.stderr)
@@ -1115,6 +1119,7 @@ def generate_financial_years():
 
 # --- Routes ---
 @app.route('/')
+@app.route('/api/index')
 def landing_page():
     return render_template('admin_login.html')
 

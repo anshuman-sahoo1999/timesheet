@@ -44,16 +44,16 @@ try:
             self.wsgi_app = wsgi_app
 
         def __call__(self, environ, start_response):
-            matched = (
-                environ.get('HTTP_X_MATCHED_PATH') or
-                environ.get('HTTP_X_FORWARDED_URI') or
-                environ.get('RAW_URI') or
-                environ.get('REQUEST_URI')
-            )
-            if matched:
-                clean_path = matched.split('?')[0]
-                if clean_path and clean_path not in ('/api/index', '/api/index.py', '/api'):
-                    environ['PATH_INFO'] = clean_path
+            import urllib.parse
+            query_string = environ.get('QUERY_STRING', '')
+            params = urllib.parse.parse_qs(query_string)
+            if 'path' in params and params['path'] and params['path'][0]:
+                orig = params['path'][0]
+                if not orig.startswith('/'):
+                    orig = '/' + orig
+                environ['PATH_INFO'] = orig
+            elif environ.get('PATH_INFO') in ('/api/index', '/api/index.py', '/api'):
+                environ['PATH_INFO'] = '/'
             return self.wsgi_app(environ, start_response)
             
     app.wsgi_app = VercelPathMiddleware(app.wsgi_app)

@@ -144,7 +144,27 @@ class ErrorLoggingWSGI:
             start_response('500 Internal Server Error', headers)
             return [f"<h3>WSGI Error</h3><pre>{tb}</pre>".encode('utf-8')]
 
-app.wsgi_app = ErrorLoggingWSGI(app.wsgi_app)
+class VercelPathMiddleware:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        import urllib.parse
+        query_string = environ.get('QUERY_STRING', '')
+        if 'path=' in query_string:
+            params = urllib.parse.parse_qs(query_string)
+            if 'path' in params and params['path'] and params['path'][0]:
+                p = params['path'][0]
+                if not p.startswith('/'):
+                    p = '/' + p
+                del params['path']
+                environ['QUERY_STRING'] = urllib.parse.urlencode(params, doseq=True)
+                environ['PATH_INFO'] = p
+        elif environ.get('PATH_INFO') in ('/api/index', '/api/index.py', '/api', '', None):
+            environ['PATH_INFO'] = '/'
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPathMiddleware(ErrorLoggingWSGI(app.wsgi_app))
 
 @app.context_processor
 def inject_year():
@@ -1133,20 +1153,10 @@ def debug_env():
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
-@app.route('/api/index', methods=['GET', 'POST'])
-@app.route('/api/index/login', methods=['GET', 'POST'])
 @csrf.exempt
 def login():
-    if request.headers.get('X-Debug') == '1' or request.args.get('debug') == '1':
-        return jsonify({
-            'source_file': 'app.py',
-            'path': request.path,
-            'full_path': request.full_path,
-            'url': request.url,
-            'endpoint': request.endpoint,
-            'headers': {k: str(v) for k, v in request.headers.items()},
-            'environ_path_keys': {k: str(v) for k, v in request.environ.items() if 'PATH' in k or 'URI' in k or 'ROUTE' in k or 'VERCEL' in k}
-        })
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         identifier = request.form.get('email', '').strip()
         password = request.form.get('password', '')

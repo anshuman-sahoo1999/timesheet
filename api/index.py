@@ -46,28 +46,45 @@ try:
         def __call__(self, environ, start_response):
             import urllib.parse
             query_string = environ.get('QUERY_STRING', '')
-            params = urllib.parse.parse_qs(query_string)
+            params = urllib.parse.parse_qs(query_string) if query_string else {}
+            resolved_path = None
             if 'path' in params and params['path'] and params['path'][0]:
-                orig = params['path'][0]
-                if not orig.startswith('/'):
-                    orig = '/' + orig
-                environ['PATH_INFO'] = orig
-            elif environ.get('PATH_INFO') in ('/api/index', '/api/index.py', '/api'):
-                raw_path = (
+                p = params['path'][0]
+                if not p.startswith('/'):
+                    p = '/' + p
+                if p not in ('/api/index', '/api/index.py', '/api'):
+                    resolved_path = p
+
+            if not resolved_path:
+                candidate = (
+                    environ.get('HTTP_X_MATCHED_PATH') or 
+                    environ.get('HTTP_X_FORWARDED_PATH') or 
                     environ.get('HTTP_X_FORWARDED_URI') or 
+                    environ.get('HTTP_X_ORIGINAL_URI') or 
                     environ.get('HTTP_X_REAL_PATH') or 
                     environ.get('REQUEST_URI') or 
                     environ.get('RAW_URI')
                 )
-                if raw_path:
-                    clean = raw_path.split('?')[0]
+                if candidate:
+                    clean = candidate.split('?')[0].strip()
                     if clean and clean not in ('/api/index', '/api/index.py', '/api'):
-                        environ['PATH_INFO'] = clean
-                    else:
-                        environ['PATH_INFO'] = '/'
-                else:
-                    environ['PATH_INFO'] = '/'
-            return self.wsgi_app(environ, start_response)
+                        if not clean.startswith('/'):
+                            clean = '/' + clean
+                        resolved_path = clean
+
+            current_path = environ.get('PATH_INFO', '')
+            if resolved_path:
+                environ['PATH_INFO'] = resolved_path
+            elif current_path in ('/api/index', '/api/index.py', '/api', '', None):
+                environ['PATH_INFO'] = '/'
+
+            def custom_start_response(status, headers, exc_info=None):
+                headers.append(('X-Resolved-Path', environ.get('PATH_INFO', '')))
+                if 'HTTP_X_MATCHED_PATH' in environ:
+                    headers.append(('X-Matched-Path', str(environ.get('HTTP_X_MATCHED_PATH'))))
+                return start_response(status, headers, exc_info)
+
+            return self.wsgi_app(environ, custom_start_response)
             
     app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
 except Exception as e:

@@ -1135,7 +1135,10 @@ def debug_env():
 @app.route('/login', methods=['GET', 'POST'])
 @app.route('/api/index', methods=['GET', 'POST'])
 @app.route('/api/index/login', methods=['GET', 'POST'])
+@csrf.exempt
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         identifier = request.form.get('email', '').strip()
         password = request.form.get('password', '')

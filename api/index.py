@@ -47,10 +47,8 @@ try:
             import urllib.parse
             import json
 
-            # Instant Raw WSGI Debugger
-            raw_path = environ.get('PATH_INFO', '')
-            query_string = environ.get('QUERY_STRING', '')
-            if 'debug' in raw_path or 'debug' in query_string:
+            # If client sends X-Debug: 1 header or ?debug=1, dump the entire WSGI environ
+            if environ.get('HTTP_X_DEBUG') == '1' or 'debug=1' in environ.get('QUERY_STRING', ''):
                 start_response('200 OK', [('Content-Type', 'application/json')])
                 dump = {k: str(v) for k, v in sorted(environ.items()) if not k.startswith('wsgi.')}
                 return [json.dumps(dump, indent=2).encode('utf-8')]

@@ -1137,6 +1137,16 @@ def debug_env():
 @app.route('/api/index/login', methods=['GET', 'POST'])
 @csrf.exempt
 def login():
+    if request.headers.get('X-Debug') == '1' or request.args.get('debug') == '1':
+        return jsonify({
+            'source_file': 'app.py',
+            'path': request.path,
+            'full_path': request.full_path,
+            'url': request.url,
+            'endpoint': request.endpoint,
+            'headers': {k: str(v) for k, v in request.headers.items()},
+            'environ_path_keys': {k: str(v) for k, v in request.environ.items() if 'PATH' in k or 'URI' in k or 'ROUTE' in k or 'VERCEL' in k}
+        })
     if request.method == 'POST':
         identifier = request.form.get('email', '').strip()
         password = request.form.get('password', '')

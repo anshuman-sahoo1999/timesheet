@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 
 # Ensure markupsafe and werkzeug compatibility for Flask-WTF and extensions
 try:

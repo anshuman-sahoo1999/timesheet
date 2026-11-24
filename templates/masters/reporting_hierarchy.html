@@ -25,7 +25,7 @@
             </div>
 
             <!-- Department Filter -->
-            <select class="form-select form-select-sm flex-grow-1 flex-sm-grow-0" id="filterDeptHierarchy" style="min-width: 130px;">
+            <select class="form-select form-select-sm flex-grow-1 flex-sm-grow-0" id="filterDeptHierarchy" style="min-width: 140px;">
                 <option value="">All Departments</option>
                 {% for d in departments %}
                 <option value="{{ d.name }}">{{ d.name }}</option>
@@ -33,7 +33,7 @@
             </select>
 
             <!-- Employee Search -->
-            <div class="input-group input-group-sm flex-grow-1" style="min-width: 150px;">
+            <div class="input-group input-group-sm flex-grow-1" style="min-width: 170px;">
                 <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
                 <input type="text" class="form-control border-start-0" id="searchHierarchyEmp" placeholder="Search employee...">
             </div>
@@ -41,21 +41,22 @@
     </div>
 
     <!-- Drag & Drop Help Banner -->
-    <div class="alert alert-info border-0 shadow-sm py-2 px-3 mb-3 d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2">
-        <div class="small">
+    <div class="alert alert-light border shadow-sm py-2 px-3 mb-3 d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 rounded-3" style="background-color: #f8fafc;">
+        <div class="small text-secondary">
             <i class="fas fa-info-circle me-2 text-primary"></i>
-            <strong>Reporting Hierarchy:</strong> Drag employee cards onto managers, or tap the <i class="fas fa-user-edit text-dark opacity-75"></i> edit icon on any node to reassign.
+            <strong>Reporting Structure:</strong> Drag employee cards onto any manager to reassign reporting line, or click <span class="badge bg-light text-dark border px-2 py-1"><i class="fas fa-user-edit text-primary me-1"></i>Reassign</span>.
         </div>
         <span class="badge bg-white text-dark border small fw-bold">
             Total Staff: {{ employees|length }}
         </span>
     </div>
 
-    <!-- VIEW 1: INTERACTIVE ORG TREE (Matching Image-5 Top Tree Structure) -->
+    <!-- VIEW 1: INTERACTIVE ORG TREE -->
     <div id="treeViewContainer" class="card shadow-sm border-0 rounded-3 mb-4">
         <div class="card-header bg-white border-bottom py-3 d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
-            <div class="fw-bold text-dark small text-uppercase tracking-wide">
-                <i class="fas fa-project-diagram text-success me-2"></i>Organizational Tree View
+            <div class="fw-bold text-dark small text-uppercase tracking-wide d-flex align-items-center gap-2">
+                <i class="fas fa-project-diagram text-success"></i>
+                <span>Organizational Hierarchy Tree</span>
             </div>
             <div class="d-flex gap-2 w-100 w-sm-auto justify-content-between justify-content-sm-end">
                 <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1 flex-sm-grow-0" id="btnExpandAll">
@@ -66,7 +67,7 @@
                 </button>
             </div>
         </div>
-        <div class="card-body p-4 overflow-x-auto">
+        <div class="card-body p-4 overflow-x-auto" style="background-color: #f8fafc; min-height: 480px;">
             <div id="orgTreeRoot" class="org-tree-wrapper">
                 <div class="text-center py-5 text-muted">
                     <div class="spinner-border text-success" role="status"></div>
@@ -76,62 +77,58 @@
         </div>
     </div>
 
-    <!-- VIEW 2: COLORFUL EMPLOYEE CARD GRID (Matching Image-5 Bottom Cards) -->
+    <!-- VIEW 2: EMPLOYEE CARD GRID -->
     <div id="cardViewContainer" class="mb-4 d-none">
         <div class="row g-3" id="employeeCardsGrid">
             {% for emp in employees %}
-            {% set dept_idx = (emp.department_id or 1) % 5 %}
-            {% if dept_idx == 0 %}
-                {% set card_color = '#fed7aa' %}{# warm peach/orange #}
-                {% set text_color = '#7c2d12' %}
-            {% elif dept_idx == 1 %}
-                {% set card_color = '#bbf7d0' %}{# soft green #}
-                {% set text_color = '#14532d' %}
-            {% elif dept_idx == 2 %}
-                {% set card_color = '#a7f3d0' %}{# mint #}
-                {% set text_color = '#064e3b' %}
-            {% elif dept_idx == 3 %}
-                {% set card_color = '#bae6fd' %}{# sky blue #}
-                {% set text_color = '#0c4a6e' %}
-            {% else %}
-                {% set card_color = '#d9f99d' %}{# lime / light green #}
-                {% set text_color = '#365314' %}
-            {% endif %}
-
             <div class="col-12 col-sm-6 col-md-4 col-lg-3 emp-card-col" 
                  data-emp-id="{{ emp.id }}" 
-                 data-emp-name="{{ emp.name|lower }}" 
+                 data-emp-name="{{ (emp.clean_name or emp.name)|lower }}" 
                  data-dept="{{ emp.department.name|lower if emp.department else '' }}"
                  data-mgr-id="{{ emp.manager_id or '' }}">
                 
-                <div class="hierarchy-card p-3 rounded-3 shadow-sm h-100 d-flex flex-column justify-content-between position-relative"
-                     style="background-color: {{ card_color }}; color: {{ text_color }}; cursor: grab;"
+                <div class="card h-100 border border-slate-200 rounded-3 shadow-sm hover-shadow transition"
+                     style="border-left: 4px solid #0e8749 !important; cursor: grab;"
                      draggable="true" 
-                     ondragstart="handleCardDragStart(event, {{ emp.id }}, '{{ emp.name|replace("'", "\\'") }}')">
+                     ondragstart="handleCardDragStart(event, {{ emp.id }}, '{{ (emp.clean_name or emp.name)|replace("'", "\\'") }}')">
                     
-                    <div>
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="badge bg-white text-dark shadow-sm px-2 py-1 small fw-bold">
-                                {{ emp.emp_id }}
-                            </span>
-                            <button type="button" class="btn btn-sm p-0 text-dark opacity-50 btn-reassign" 
-                                    onclick="openQuickReassignModal({{ emp.id }}, '{{ emp.name|replace("'", "\\'") }}', {{ emp.manager_id or 0 }})"
-                                    title="Change Manager">
-                                <i class="fas fa-user-edit"></i>
-                            </button>
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge bg-light text-dark border small fw-bold">
+                                    {{ emp.emp_id }}
+                                </span>
+                                <button type="button" class="btn btn-sm btn-light border py-0 px-2 text-primary" 
+                                        onclick="openQuickReassignModal({{ emp.id }}, '{{ (emp.clean_name or emp.name)|replace("'", "\\'") }}', {{ emp.manager_id or 0 }})"
+                                        title="Change Manager">
+                                    <i class="fas fa-user-edit small"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; min-width: 38px; font-size: 0.9rem;">
+                                    {{ emp.initials }}
+                                </div>
+                                <div class="overflow-hidden">
+                                    <h6 class="fw-bold mb-0 text-dark text-truncate" title="{{ emp.clean_name or emp.name }}">{{ emp.clean_name or emp.name }}</h6>
+                                    <div class="text-muted small text-truncate" style="font-size: 0.8rem;" title="{{ emp.designation or emp.role }}">{{ emp.designation or emp.role }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-2">
+                                <span class="badge bg-light text-secondary border small text-truncate" style="max-width: 100%;">
+                                    <i class="fas fa-building me-1 opacity-75"></i>{{ emp.department.name if emp.department else 'General' }}
+                                </span>
+                            </div>
                         </div>
-                        <h6 class="fw-bold mb-1 text-center" style="font-size: 0.98rem;">{{ emp.name }}</h6>
-                        <div class="text-center small mb-2 opacity-75">
-                            {{ emp.designation or emp.role }}
-                        </div>
-                    </div>
 
-                    <div class="pt-2 border-top border-dark border-opacity-10 text-center">
-                        <div class="small fw-semibold" style="font-size: 0.84rem;">
-                            Reports to:
-                        </div>
-                        <div class="fw-bold text-truncate" style="font-size: 0.88rem;" title="{{ emp.manager.name if emp.manager else 'Executive Head' }}">
-                            {{ emp.manager.name if emp.manager else 'Executive Head' }}
+                        <div class="pt-2 border-top text-center bg-light bg-opacity-50 rounded-2 p-2 mt-2">
+                            <div class="text-muted small" style="font-size: 0.76rem;">
+                                Reports to
+                            </div>
+                            <div class="fw-bold text-dark text-truncate small" title="{{ (emp.manager.clean_name or emp.manager.name) if emp.manager else 'Executive Head' }}">
+                                <i class="fas fa-user-tie me-1 text-success"></i>{{ (emp.manager.clean_name or emp.manager.name) if emp.manager else 'Executive Head' }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -162,7 +159,7 @@
                     <select id="modalNewManager" class="form-select">
                         <option value="">No Manager (Top Executive)</option>
                         {% for m in managers %}
-                        <option value="{{ m.id }}">{{ m.name }} ({{ m.designation or m.role }})</option>
+                        <option value="{{ m.id }}">{{ m.clean_name or m.name }} ({{ m.designation or m.role }}) - {{ m.department.name if m.department else 'General' }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -233,6 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterDept) {
         filterDept.addEventListener('change', function() {
             filterCards();
+            filterTreeByDept(this.value.trim());
         });
     }
 
@@ -263,7 +261,7 @@ function loadHierarchyTree() {
         })
         .catch(err => {
             console.error('Error fetching tree:', err);
-            document.getElementById('orgTreeRoot').innerHTML = '<div class="text-danger p-3">Failed to load tree.</div>';
+            document.getElementById('orgTreeRoot').innerHTML = '<div class="text-danger p-3">Failed to load organizational tree.</div>';
         });
 }
 
@@ -271,24 +269,35 @@ function createTreeNodeElement(node, level) {
     const wrapper = document.createElement('div');
     wrapper.className = 'org-tree-node-wrapper mb-2';
     wrapper.id = `treeNode_${node.id}`;
+    wrapper.setAttribute('data-node-id', node.id);
+    wrapper.setAttribute('data-dept', (node.department || '').toLowerCase());
+    wrapper.setAttribute('data-name', (node.name || '').toLowerCase());
 
     const pill = document.createElement('div');
-    pill.className = 'org-tree-pill d-flex align-items-center justify-content-between p-2 px-3 rounded-3 shadow-sm';
-    
-    // Background colors matching Image-5 top tree
+    pill.className = `org-tree-pill d-flex align-items-center justify-content-between p-2 px-3 rounded-3 shadow-sm border level-${level}`;
+
+    // Styling by level
     if (level === 0) {
-        pill.style.backgroundColor = '#f87171'; // soft pink/salmon (CEO)
-        pill.style.color = '#ffffff';
+        pill.style.backgroundColor = '#ffffff';
+        pill.style.borderLeft = '5px solid #0e8749';
+        pill.style.boxShadow = '0 4px 12px rgba(14, 135, 73, 0.12)';
     } else if (level === 1) {
-        pill.style.backgroundColor = '#4ade80'; // soft green (Sr Manager)
-        pill.style.color = '#064e3b';
+        pill.style.backgroundColor = '#ffffff';
+        pill.style.borderLeft = '4px solid #0284c7';
     } else {
-        pill.style.backgroundColor = '#f1f5f9';
-        pill.style.color = '#1e293b';
-        pill.style.border = '1px solid #cbd5e1';
+        pill.style.backgroundColor = '#ffffff';
+        pill.style.borderLeft = '3px solid #94a3b8';
     }
 
-    // Allow node to be dropped onto
+    // Drag and drop setup
+    if (level > 0) {
+        pill.setAttribute('draggable', 'true');
+        pill.ondragstart = function(e) {
+            e.dataTransfer.setData('text/plain', node.id.toString());
+            e.dataTransfer.effectAllowed = 'move';
+        };
+    }
+
     pill.ondragover = function(e) {
         e.preventDefault();
         pill.classList.add('drag-over-active');
@@ -305,17 +314,24 @@ function createTreeNodeElement(node, level) {
         }
     };
 
-    // Node Left Info
+    // Left info (avatar, toggle chevron, name, designation, dept)
     const leftWrap = document.createElement('div');
-    leftWrap.className = 'd-flex align-items-center gap-2';
+    leftWrap.className = 'd-flex align-items-center gap-2 flex-wrap';
 
-    if (node.subordinates && node.subordinates.length > 0) {
+    const hasReports = node.subordinates && node.subordinates.length > 0;
+
+    if (hasReports) {
         const toggleBtn = document.createElement('button');
         toggleBtn.type = 'button';
         toggleBtn.className = 'btn btn-sm p-0 me-1 btn-node-toggle';
-        toggleBtn.style.color = level === 0 ? '#ffffff' : '#1e293b';
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-        toggleBtn.onclick = function() {
+        toggleBtn.style.width = '24px';
+        toggleBtn.style.height = '24px';
+        toggleBtn.style.color = '#475569';
+        // Auto-expand Level 0 and Level 1
+        const isDefaultExpanded = (level < 2);
+        toggleBtn.innerHTML = `<i class="fas fa-chevron-${isDefaultExpanded ? 'down' : 'right'}"></i>`;
+        toggleBtn.onclick = function(e) {
+            e.stopPropagation();
             const childContainer = wrapper.querySelector('.org-node-children');
             if (childContainer) {
                 childContainer.classList.toggle('d-none');
@@ -329,32 +345,93 @@ function createTreeNodeElement(node, level) {
         };
         leftWrap.appendChild(toggleBtn);
     } else {
-        const leafIcon = document.createElement('i');
-        leafIcon.className = 'fas fa-user-circle opacity-50 me-1';
-        leftWrap.appendChild(leafIcon);
+        const emptyDot = document.createElement('span');
+        emptyDot.className = 'd-inline-block me-1 text-muted opacity-50';
+        emptyDot.style.width = '24px';
+        emptyDot.style.textAlign = 'center';
+        emptyDot.innerHTML = '<i class="fas fa-circle" style="font-size: 6px;"></i>';
+        leftWrap.appendChild(emptyDot);
     }
 
-    const nameText = document.createElement('span');
-    nameText.className = 'fw-bold';
-    nameText.innerHTML = `${node.name} <span class="small fw-normal opacity-90">(${node.designation})</span>`;
-    leftWrap.appendChild(nameText);
+    // Avatar Circle with dynamic initials
+    const avatar = document.createElement('div');
+    avatar.className = 'rounded-circle fw-bold d-flex align-items-center justify-content-center text-white';
+    if (level === 0) {
+        avatar.style.width = '42px';
+        avatar.style.height = '42px';
+        avatar.style.minWidth = '42px';
+        avatar.style.fontSize = '0.98rem';
+        avatar.style.background = 'linear-gradient(135deg, #0e8749, #10b981)';
+    } else if (level === 1) {
+        avatar.style.width = '36px';
+        avatar.style.height = '36px';
+        avatar.style.minWidth = '36px';
+        avatar.style.fontSize = '0.85rem';
+        avatar.style.background = 'linear-gradient(135deg, #0284c7, #38bdf8)';
+    } else {
+        avatar.style.width = '32px';
+        avatar.style.height = '32px';
+        avatar.style.minWidth = '32px';
+        avatar.style.fontSize = '0.78rem';
+        avatar.style.background = '#64748b';
+    }
+    avatar.textContent = node.initials || 'EM';
+    leftWrap.appendChild(avatar);
 
-    // Node Right Meta & Reassign button
+    // Text Wrap
+    const textWrap = document.createElement('div');
+    textWrap.className = 'd-flex flex-column';
+    
+    const nameLine = document.createElement('div');
+    nameLine.className = 'd-flex align-items-center gap-2 flex-wrap';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = (level === 0) ? 'fw-bold text-dark fs-6' : 'fw-bold text-dark';
+    nameSpan.textContent = node.name;
+    nameLine.appendChild(nameSpan);
+
+    if (level === 0) {
+        const crownBadge = document.createElement('span');
+        crownBadge.className = 'badge bg-warning-subtle text-dark border border-warning-subtle small py-1 px-2';
+        crownBadge.innerHTML = '<i class="fas fa-crown text-warning me-1"></i> Apex Leadership';
+        nameLine.appendChild(crownBadge);
+    }
+
+    textWrap.appendChild(nameLine);
+
+    const metaLine = document.createElement('div');
+    metaLine.className = 'd-flex align-items-center gap-2 small text-muted flex-wrap';
+    metaLine.innerHTML = `
+        <span class="text-secondary fw-semibold">${node.designation}</span>
+        <span>&bull;</span>
+        <span class="badge bg-light text-secondary border" style="font-size: 0.75rem;">${node.department}</span>
+        <span class="text-muted" style="font-size: 0.75rem;">ID: ${node.emp_id}</span>
+    `;
+    textWrap.appendChild(metaLine);
+
+    leftWrap.appendChild(textWrap);
+
+    // Right info: direct reports count badge + edit button
     const rightWrap = document.createElement('div');
     rightWrap.className = 'd-flex align-items-center gap-2';
 
-    if (node.subordinates && node.subordinates.length > 0) {
-        const badge = document.createElement('span');
-        badge.className = 'badge bg-white bg-opacity-75 text-dark small px-2 py-1';
-        badge.textContent = `${node.subordinates.length} reports`;
-        rightWrap.appendChild(badge);
+    if (hasReports) {
+        const reportsBadge = document.createElement('span');
+        if (level === 0) {
+            reportsBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill fw-bold';
+            reportsBadge.innerHTML = `<i class="fas fa-sitemap me-1"></i> ${node.direct_reports_count} Direct Reports &bull; ${node.total_reports_count} Team`;
+        } else {
+            reportsBadge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill small fw-semibold';
+            reportsBadge.innerHTML = `<i class="fas fa-users me-1"></i> ${node.direct_reports_count} Reports`;
+        }
+        rightWrap.appendChild(reportsBadge);
     }
 
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
-    editBtn.className = 'btn btn-sm btn-light py-0 px-2 small';
-    editBtn.innerHTML = '<i class="fas fa-user-edit small"></i>';
-    editBtn.title = 'Change Manager';
+    editBtn.className = 'btn btn-sm btn-outline-secondary py-1 px-2 rounded-2';
+    editBtn.innerHTML = '<i class="fas fa-user-edit me-1"></i><span class="d-none d-md-inline small">Reassign</span>';
+    editBtn.title = 'Change Reporting Manager';
     editBtn.onclick = function(e) {
         e.stopPropagation();
         openQuickReassignModal(node.id, node.name, null);
@@ -365,10 +442,11 @@ function createTreeNodeElement(node, level) {
     pill.appendChild(rightWrap);
     wrapper.appendChild(pill);
 
-    // Children Nodes
-    if (node.subordinates && node.subordinates.length > 0) {
+    // Children Nodes Container
+    if (hasReports) {
         const childrenContainer = document.createElement('div');
-        childrenContainer.className = 'org-node-children ps-2 ps-sm-4 mt-2 border-start border-2 border-success border-opacity-25';
+        const isDefaultExpanded = (level < 2);
+        childrenContainer.className = `org-node-children ${isDefaultExpanded ? '' : 'd-none'}`;
         node.subordinates.forEach(sub => {
             childrenContainer.appendChild(createTreeNodeElement(sub, level + 1));
         });
@@ -401,7 +479,6 @@ function updateReportingManager(empId, newManagerId) {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            // Show alert or toast
             alert(data.message);
             location.reload();
         } else {
@@ -433,7 +510,7 @@ function submitReassignManager() {
     const newMgrId = document.getElementById('modalNewManager').value;
     const alertBox = document.getElementById('reassignAlert');
 
-    const csrfToken = '{{ csrf_token() }}';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
     fetch('/api/hierarchy/update-manager', {
         method: 'POST',
@@ -483,51 +560,127 @@ function filterCards() {
     });
 }
 
-function highlightInTree(query) {
-    document.querySelectorAll('.org-tree-pill').forEach(pill => {
-        pill.classList.remove('tree-search-highlight');
-        if (query && pill.textContent.toLowerCase().includes(query)) {
-            pill.classList.add('tree-search-highlight');
+function filterTreeByDept(deptName) {
+    if (!deptName) {
+        document.querySelectorAll('.org-tree-node-wrapper').forEach(el => el.style.display = '');
+        return;
+    }
+    const targetDept = deptName.toLowerCase();
+    document.querySelectorAll('.org-tree-node-wrapper').forEach(wrapper => {
+        const dept = wrapper.getAttribute('data-dept') || '';
+        const hasMatchingChild = wrapper.querySelector(`[data-dept*="${targetDept}"]`);
+        if (dept.includes(targetDept) || hasMatchingChild || wrapper.querySelector('.level-0')) {
+            wrapper.style.display = '';
+            const children = wrapper.querySelector('.org-node-children');
+            if (children && hasMatchingChild) {
+                children.classList.remove('d-none');
+                const icon = wrapper.querySelector('.btn-node-toggle i');
+                if (icon) icon.className = 'fas fa-chevron-down';
+            }
+        } else {
+            wrapper.style.display = 'none';
         }
     });
+}
+
+function highlightInTree(query) {
+    if (!query) {
+        document.querySelectorAll('.org-tree-pill').forEach(pill => {
+            pill.classList.remove('tree-search-highlight');
+        });
+        return;
+    }
+
+    let firstMatch = null;
+    document.querySelectorAll('.org-tree-node-wrapper').forEach(wrapper => {
+        const pill = wrapper.querySelector('.org-tree-pill');
+        const name = (wrapper.getAttribute('data-name') || '');
+        const dept = (wrapper.getAttribute('data-dept') || '');
+        
+        if (name.includes(query) || dept.includes(query)) {
+            pill.classList.add('tree-search-highlight');
+            if (!firstMatch) firstMatch = pill;
+
+            // Expand all ancestors so the matching employee is visible!
+            let parent = wrapper.parentElement;
+            while (parent && parent.id !== 'orgTreeRoot') {
+                if (parent.classList.contains('org-node-children')) {
+                    parent.classList.remove('d-none');
+                    const parentNodeWrapper = parent.parentElement;
+                    const toggleBtnIcon = parentNodeWrapper.querySelector('.btn-node-toggle i');
+                    if (toggleBtnIcon) toggleBtnIcon.className = 'fas fa-chevron-down';
+                }
+                parent = parent.parentElement;
+            }
+        } else {
+            pill.classList.remove('tree-search-highlight');
+        }
+    });
+
+    if (firstMatch) {
+        firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
 </script>
 
 <style>
 .master-page-title {
-    color: #559132;
+    color: #0e8749;
     font-weight: 700;
 }
 
-.hierarchy-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+.org-tree-wrapper {
+    min-width: 650px;
 }
 
-.hierarchy-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+.org-tree-pill {
+    transition: all 0.2s ease;
+    background-color: #ffffff;
+}
+
+.org-tree-pill:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-1px);
+}
+
+.org-node-children {
+    position: relative;
+    margin-left: 20px;
+    padding-left: 24px;
+    border-left: 2px dashed #94a3b8;
+}
+
+.org-tree-node-wrapper {
+    position: relative;
+}
+
+.org-node-children > .org-tree-node-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 26px;
+    left: -24px;
+    width: 22px;
+    height: 2px;
+    border-top: 2px dashed #94a3b8;
 }
 
 .drag-over-active {
-    outline: 2px dashed #0f766e !important;
-    background-color: #d1fae5 !important;
-    color: #064e3b !important;
+    outline: 2px dashed #0e8749 !important;
+    background-color: #ecfdf5 !important;
 }
 
 .tree-search-highlight {
     outline: 3px solid #f59e0b !important;
-    animation: pulse 1s infinite;
+    background-color: #fffbeb !important;
 }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
+.hover-shadow:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+    transform: translateY(-2px);
 }
 
-.org-tree-wrapper {
-    min-width: 600px;
+.transition {
+    transition: all 0.2s ease;
 }
 </style>
 {% endblock %}

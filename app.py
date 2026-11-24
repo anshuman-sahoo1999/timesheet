@@ -5413,10 +5413,21 @@ def reporting_hierarchy():
         flash('Unauthorized access to Master Management.', 'danger')
         return redirect(url_for('dashboard'))
 
-    employees = Employee.query.filter_by(is_active=True).order_by(Employee.name).all()
+    employees = Employee.query.filter_by(is_active=True).filter(
+        Employee.employment_type != 'DEPARTMENT',
+        ~Employee.name.ilike('%Department%')
+    ).order_by(Employee.name).all()
     departments = Department.query.filter(Department.parent_department_id == None).order_by(Department.name).all()
-    managers = Employee.query.filter(Employee.is_active == True).order_by(Employee.name).all()
-    ceo = Employee.query.filter(Employee.role == 'MD').first() or Employee.query.filter(Employee.manager_id == None).first()
+    managers = Employee.query.filter(
+        Employee.is_active == True,
+        Employee.employment_type != 'DEPARTMENT',
+        ~Employee.name.ilike('%Department%')
+    ).order_by(Employee.name).all()
+    ceo = Employee.query.filter(Employee.role == 'MD').first() or Employee.query.filter(
+        Employee.manager_id == None,
+        Employee.employment_type != 'DEPARTMENT',
+        ~Employee.name.ilike('%Department%')
+    ).first()
 
     return render_template(
         'masters/reporting_hierarchy.html',
@@ -5431,11 +5442,14 @@ def reporting_hierarchy():
 def api_hierarchy_tree():
     """Builds recursive JSON org tree for interactive visualization"""
     palette = [
-        '#f59e0b', '#10b981', '#06b6d4', '#ec4899', '#8b5cf6',
-        '#3b82f6', '#14b8a6', '#6366f1', '#84cc16', '#f43f5e'
+        '#059669', '#0284c7', '#7c3aed', '#d97706', '#dc2626',
+        '#0d9488', '#4f46e5', '#ea580c', '#0891b2', '#16a34a'
     ]
 
-    all_employees = Employee.query.filter_by(is_active=True).order_by(Employee.name).all()
+    all_employees = Employee.query.filter_by(is_active=True).filter(
+        Employee.employment_type != 'DEPARTMENT',
+        ~Employee.name.ilike('%Department%')
+    ).order_by(Employee.name).all()
     emp_map = {e.id: e for e in all_employees}
 
     subs_by_mgr = {}
@@ -5445,25 +5459,51 @@ def api_hierarchy_tree():
             subs_by_mgr[m_id] = []
         subs_by_mgr[m_id].append(e)
 
+    def count_total_subordinates(emp_id):
+        direct = subs_by_mgr.get(emp_id, [])
+        total = len(direct)
+        for sub in direct:
+            total += count_total_subordinates(sub.id)
+        return total
+
     def build_node(emp, depth=0):
         color = palette[(emp.department_id or 1) % len(palette)]
         sub_list = subs_by_mgr.get(emp.id, [])
+        # Prioritize subordinates who themselves manage people
+        sub_list = sorted(sub_list, key=lambda x: (len(subs_by_mgr.get(x.id, [])) == 0, x.clean_name or x.name))
         return {
             'id': emp.id,
             'emp_id': emp.emp_id,
-            'name': emp.name,
-            'designation': emp.designation or 'Team Member',
+            'name': emp.clean_name or emp.name,
+            'initials': emp.initials,
+            'designation': emp.designation or ('Managing Director & CEO' if emp.role == 'MD' else emp.role or 'Team Member'),
             'department': emp.department.name if emp.department else 'General',
+            'department_id': emp.department_id,
             'role': emp.role,
+            'email': emp.email,
             'color': color,
+            'depth': depth,
             'direct_reports_count': len(sub_list),
+            'total_reports_count': count_total_subordinates(emp.id),
             'subordinates': [build_node(s, depth + 1) for s in sub_list]
         }
 
-    # Top leaders (where manager_id is None or manager not in active list)
-    roots = [e for e in all_employees if not e.manager_id or e.manager_id not in emp_map]
-    if not roots and all_employees:
-        roots = [all_employees[0]]
+    # Top leader: CEO / MD is the single apex root
+    ceo = next((e for e in all_employees if e.role == 'MD'), None)
+    if ceo:
+        # If any active non-CEO employee lacks manager_id or manager not in active list, assign to CEO
+        other_unassigned = [e for e in all_employees if e.id != ceo.id and (not e.manager_id or e.manager_id not in emp_map)]
+        if other_unassigned:
+            if ceo.id not in subs_by_mgr:
+                subs_by_mgr[ceo.id] = []
+            for un in other_unassigned:
+                if un not in subs_by_mgr[ceo.id]:
+                    subs_by_mgr[ceo.id].append(un)
+        roots = [ceo]
+    else:
+        roots = [e for e in all_employees if not e.manager_id or e.manager_id not in emp_map]
+        if not roots and all_employees:
+            roots = [all_employees[0]]
 
     tree = [build_node(r) for r in roots]
 

@@ -53,7 +53,20 @@ try:
                     orig = '/' + orig
                 environ['PATH_INFO'] = orig
             elif environ.get('PATH_INFO') in ('/api/index', '/api/index.py', '/api'):
-                environ['PATH_INFO'] = '/'
+                raw_path = (
+                    environ.get('HTTP_X_FORWARDED_URI') or 
+                    environ.get('HTTP_X_REAL_PATH') or 
+                    environ.get('REQUEST_URI') or 
+                    environ.get('RAW_URI')
+                )
+                if raw_path:
+                    clean = raw_path.split('?')[0]
+                    if clean and clean not in ('/api/index', '/api/index.py', '/api'):
+                        environ['PATH_INFO'] = clean
+                    else:
+                        environ['PATH_INFO'] = '/'
+                else:
+                    environ['PATH_INFO'] = '/'
             return self.wsgi_app(environ, start_response)
             
     app.wsgi_app = VercelPathMiddleware(app.wsgi_app)

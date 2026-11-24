@@ -1118,12 +1118,23 @@ def generate_financial_years():
     return financial_years
 
 # --- Routes ---
-@app.route('/')
-@app.route('/api/index')
-def landing_page():
-    return render_template('admin_login.html')
+@app.route('/debug/env', methods=['GET', 'POST'])
+def debug_env():
+    return jsonify({
+        'PATH_INFO': request.environ.get('PATH_INFO'),
+        'REQUEST_METHOD': request.environ.get('REQUEST_METHOD'),
+        'QUERY_STRING': request.environ.get('QUERY_STRING'),
+        'RAW_URI': request.environ.get('RAW_URI'),
+        'REQUEST_URI': request.environ.get('REQUEST_URI'),
+        'HTTP_X_MATCHED_PATH': request.environ.get('HTTP_X_MATCHED_PATH'),
+        'HTTP_X_FORWARDED_URI': request.environ.get('HTTP_X_FORWARDED_URI'),
+        'headers': {k: str(v) for k, v in request.environ.items() if k.startswith('HTTP_')}
+    })
 
+@app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
+@app.route('/api/index', methods=['GET', 'POST'])
+@app.route('/api/index/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         identifier = request.form.get('email', '').strip()

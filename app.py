@@ -151,15 +151,18 @@ class VercelPathMiddleware:
     def __call__(self, environ, start_response):
         import urllib.parse
         query_string = environ.get('QUERY_STRING', '')
+        p = None
         if 'path=' in query_string:
-            params = urllib.parse.parse_qs(query_string)
-            if 'path' in params and params['path'] and params['path'][0]:
-                p = params['path'][0]
-                if not p.startswith('/'):
-                    p = '/' + p
-                del params['path']
+            params = urllib.parse.parse_qs(query_string, keep_blank_values=True)
+            if 'path' in params:
+                val = params.pop('path')[0].strip()
+                p = val if val else '/'
                 environ['QUERY_STRING'] = urllib.parse.urlencode(params, doseq=True)
-                environ['PATH_INFO'] = p
+
+        if p:
+            if not p.startswith('/'):
+                p = '/' + p
+            environ['PATH_INFO'] = p
         elif environ.get('PATH_INFO') in ('/api/index', '/api/index.py', '/api', '', None):
             environ['PATH_INFO'] = '/'
         return self.wsgi_app(environ, start_response)
@@ -1153,6 +1156,7 @@ def debug_env():
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
+@app.route('/api/index', methods=['GET', 'POST'])
 @csrf.exempt
 def login():
     if current_user.is_authenticated:

@@ -45,7 +45,16 @@ try:
 
         def __call__(self, environ, start_response):
             import urllib.parse
+            import json
+
+            # Instant Raw WSGI Debugger
+            raw_path = environ.get('PATH_INFO', '')
             query_string = environ.get('QUERY_STRING', '')
+            if 'debug' in raw_path or 'debug' in query_string:
+                start_response('200 OK', [('Content-Type', 'application/json')])
+                dump = {k: str(v) for k, v in sorted(environ.items()) if not k.startswith('wsgi.')}
+                return [json.dumps(dump, indent=2).encode('utf-8')]
+
             params = urllib.parse.parse_qs(query_string) if query_string else {}
             resolved_path = None
             if 'path' in params and params['path'] and params['path'][0]:

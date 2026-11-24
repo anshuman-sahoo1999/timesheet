@@ -1370,9 +1370,9 @@
                                     {% if project.project_manager %}
                                     <div class="manager-avatar-wrap">
                                         <div class="avatar-circle">
-                                            {{ project.project_manager.name[:2]|upper }}
+                                            {{ project.project_manager.initials }}
                                         </div>
-                                        <span>{{ project.project_manager.name }}</span>
+                                        <span>{{ project.project_manager.clean_name or project.project_manager.name }}</span>
                                     </div>
                                     {% else %}
                                     <span class="text-muted">Unassigned</span>
@@ -1530,9 +1530,9 @@
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="avatar-circle" style="background: linear-gradient(135deg, #0284c7, #38bdf8);">
-                                            {{ emp.name[:2]|upper }}
+                                            {{ emp.initials }}
                                         </div>
-                                        <span class="fw-bold text-dark">{{ emp.name }}</span>
+                                        <span class="fw-bold text-dark">{{ emp.clean_name or emp.name }}</span>
                                     </div>
                                 </td>
                                 <td>{{ emp.department.name if emp.department else 'General' }}</td>

@@ -373,9 +373,9 @@
                                 </div>
                             </div>
                             
-                            <div class="table-responsive">
-                                <table class="table table-hover" id="employeesTable">
-                                    <thead>
+                            <div class="table-responsive employee-table-scroll" style="max-height: 560px; overflow-y: auto; scroll-behavior: smooth; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                                <table class="table table-hover align-middle mb-0" id="employeesTable">
+                                    <thead class="bg-white sticky-top" style="position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
                                         <tr>
                                             <th>Employee</th>
                                             <th>Department</th>
@@ -390,23 +390,23 @@
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                                        {{ employee.name[0] }}
+                                                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 fw-bold" style="width: 40px; height: 40px; min-width: 40px; font-size: 0.92rem; letter-spacing: 0.5px;">
+                                                        {{ employee.initials }}
                                                     </div>
                                                     <div>
-                                                        <strong>{{ employee.name }}</strong><br>
+                                                        <strong>{{ employee.clean_name or employee.name }}</strong><br>
                                                         <small class="text-muted">{{ employee.email }}</small>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>{{ employee.department.name if employee.department else 'N/A' }}</td>
-                                            <td>{{ employee.position or 'N/A' }}</td>
+                                            <td>{{ employee.designation or employee.position or 'N/A' }}</td>
                                             <td>
                                                 <span class="badge bg-{{ 'success' if employee.is_active else 'danger' }}">
                                                     {{ 'Active' if employee.is_active else 'Inactive' }}
                                                 </span>
                                             </td>
-                                            <td>{{ employee.join_date.strftime('%d-%b-%Y') if employee.join_date else 'N/A' }}</td>
+                                            <td>{{ (employee.date_of_joining or employee.join_date).strftime('%d-%b-%Y') if (employee.date_of_joining or employee.join_date) else 'N/A' }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <a href="{{ url_for('edit_employee', emp_id=employee.id) }}" class="btn btn-sm btn-outline-primary">
@@ -604,11 +604,11 @@
                                             <!-- Member Summary Header -->
                                             <div class="card-header bg-white py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-3 border-bottom">
                                                 <div class="d-flex align-items-center gap-3">
-                                                    <div class="avatar-circle rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 46px; height: 46px; font-size: 1.1rem;">
-                                                        {{ member.name[:2]|upper }}
+                                                    <div class="avatar-circle rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 46px; height: 46px; font-size: 1.05rem;">
+                                                        {{ member.initials }}
                                                     </div>
                                                     <div>
-                                                        <h6 class="fw-bold mb-0 text-dark">{{ member.name }}</h6>
+                                                        <h6 class="fw-bold mb-0 text-dark">{{ member.clean_name or member.name }}</h6>
                                                         <div class="d-flex flex-wrap align-items-center gap-2 small text-muted">
                                                             <span><i class="fas fa-id-badge me-1 text-primary"></i>ID: <strong>{{ member.emp_id }}</strong></span>
                                                             <span>&bull;</span>
@@ -764,35 +764,6 @@
                                     </div>
                                 {% endif %}
                             </div>
-
-                            <!-- Optional: Quick Add Employee to HR Delegation -->
-                            {% if other_employees %}
-                            <div class="card border-0 rounded-4 shadow-sm mt-4 p-4 bg-white border-top border-3 border-primary">
-                                <h6 class="fw-bold text-dark mb-2">
-                                    <i class="fas fa-user-plus text-primary me-2"></i>Delegate Authority to Other Staff Member
-                                </h6>
-                                <p class="text-muted small mb-3">
-                                    Need to delegate HR authority to a staff member outside the standard HR department roster? Select the employee below to assign them to the HR Department and configure their powers.
-                                </p>
-                                <div class="row g-2 align-items-center">
-                                    <div class="col-md-8">
-                                        <select class="form-select" id="additionalEmployeeSelect">
-                                            <option value="">-- Choose Employee to add to HR Delegation --</option>
-                                            {% for emp in other_employees %}
-                                            {% if emp not in hr_team_members %}
-                                            <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.emp_id }}) - {{ emp.designation or 'Employee' }} [{{ emp.department.name if emp.department else 'No Dept' }}]</option>
-                                            {% endif %}
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <button type="button" class="btn btn-outline-primary w-100" onclick="addEmployeeToHrDept()">
-                                            <i class="fas fa-plus me-1"></i> Add to HR Delegation List
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
                         </div>
     </div> <!-- end tab-content -->
 
@@ -1445,34 +1416,6 @@ function filterDopCards() {
     });
 }
 
-function addEmployeeToHrDept() {
-    const select = document.getElementById('additionalEmployeeSelect');
-    const empId = select.value;
-    if (!empId) {
-        alert('Please select an employee first.');
-        return;
-    }
-    fetch(`/api/hr/delegation/add-member/${empId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
-        }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToastSuccess(data.message || 'Employee added to delegation list!');
-            setTimeout(() => location.reload(), 1200);
-        } else {
-            alert(data.error || 'Failed to add employee');
-        }
-    })
-    .catch(err => {
-        alert('Error adding employee to delegation list');
-    });
-}
-
 function showToastSuccess(msg) {
     let toast = document.getElementById('dopToast');
     if (!toast) {
@@ -1554,6 +1497,28 @@ function showToastSuccess(msg) {
 
 <style>
 /* ================= HR DASHBOARD DESIGN SYSTEM (MATCHING PROPOSED MOCKUP EXACTLY) ================= */
+.employee-table-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.employee-table-scroll::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 4px;
+}
+.employee-table-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.employee-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+.employee-table-scroll thead th {
+    background-color: #ffffff !important;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-bottom: 2px solid #e2e8f0;
+}
 .hr-dashboard-canvas {
     background-color: #f0f4f9;
     min-height: calc(100vh - 80px);

@@ -88,10 +88,10 @@
                             {% if dept.department_head %}
                             <div class="d-flex align-items-center">
                                 <div class="avatar-circle-sm bg-primary-subtle text-primary fw-bold me-2">
-                                    {{ dept.department_head.name[:2]|upper }}
+                                    {{ dept.department_head.initials }}
                                 </div>
                                 <div>
-                                    <span class="fw-semibold text-dark">{{ dept.department_head.name }}</span>
+                                    <span class="fw-semibold text-dark">{{ dept.department_head.clean_name or dept.department_head.name }}</span>
                                     <div class="text-muted small" style="font-size: 0.78rem;">{{ dept.department_head.designation or 'Head' }}</div>
                                 </div>
                             </div>

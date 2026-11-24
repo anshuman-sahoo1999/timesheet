@@ -378,10 +378,10 @@
                     <div class="text-muted small mb-1">Assigned Project Manager:</div>
                     <div class="d-flex align-items-center gap-2">
                         <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.85rem;">
-                            {{ indent.project_manager.name[:2]|upper if indent.project_manager else 'PM' }}
+                            {{ indent.project_manager.initials if indent.project_manager else 'PM' }}
                         </div>
                         <div>
-                            <div class="fw-bold text-dark small">{{ indent.project_manager.name if indent.project_manager else current_user.name }}</div>
+                            <div class="fw-bold text-dark small">{{ (indent.project_manager.clean_name or indent.project_manager.name) if indent.project_manager else (current_user.clean_name or current_user.name) }}</div>
                             <div class="text-muted" style="font-size: 0.75rem;">{{ indent.project_manager.designation if indent.project_manager else 'Project Manager' }}</div>
                         </div>
                     </div>

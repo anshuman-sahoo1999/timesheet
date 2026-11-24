@@ -177,6 +177,28 @@ def inject_year():
 def inject_current_date():
     return {'current_date': datetime.utcnow()}
 
+@app.template_filter('initials')
+def initials_filter(name):
+    if not name:
+        return 'EM'
+    import re
+    cleaned = re.sub(r'^(Mr\.|Ms\.|Mrs\.|Dr\.|Shri|Smt\.)\s*', '', str(name), flags=re.IGNORECASE).strip()
+    parts = cleaned.split()
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[-1][0]).upper()
+    elif len(parts) == 1 and len(parts[0]) >= 2:
+        return parts[0][:2].upper()
+    elif len(parts) == 1:
+        return parts[0][0].upper()
+    return 'EM'
+
+@app.template_filter('strip_title')
+def strip_title_filter(name):
+    if not name:
+        return ''
+    import re
+    return re.sub(r'^(Mr\.|Ms\.|Mrs\.|Dr\.|Shri|Smt\.)\s*', '', str(name), flags=re.IGNORECASE).strip()
+
 @app.context_processor
 def inject_notifications():
     if not current_user.is_authenticated:
@@ -399,6 +421,35 @@ class Employee(UserMixin, db.Model):
         elif sal > 0:
             return 'S-2'
         return 'E-1'
+
+    @property
+    def position(self):
+        return self.designation or 'N/A'
+
+    @property
+    def join_date(self):
+        return self.date_of_joining
+
+    @property
+    def clean_name(self):
+        if not self.name:
+            return ''
+        import re
+        return re.sub(r'^(Mr\.|Ms\.|Mrs\.|Dr\.|Shri|Smt\.)\s*', '', self.name, flags=re.IGNORECASE).strip()
+
+    @property
+    def initials(self):
+        name = self.clean_name
+        if not name:
+            return 'EM'
+        parts = name.split()
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[-1][0]).upper()
+        elif len(parts) == 1 and len(parts[0]) >= 2:
+            return parts[0][:2].upper()
+        elif len(parts) == 1:
+            return parts[0][0].upper()
+        return 'EM'
 
     # Status lifecycle tracking
     status = db.Column(db.String(20), default='Active') # Active, Blocked, Resigned
@@ -3528,6 +3579,7 @@ def add_employee():
 
     if request.method == 'POST':
         name = bleach.clean(request.form.get('name', '')).strip()
+        name = re.sub(r'^(Mr\.|Ms\.|Mrs\.|Dr\.|Shri|Smt\.)\s*', '', name, flags=re.IGNORECASE).strip()
         emp_id = bleach.clean(request.form.get('emp_id', '')).strip()
         email = bleach.clean(request.form.get('email', '')).strip()
         password = request.form.get('password', '').strip()
@@ -3614,6 +3666,7 @@ def edit_employee(emp_id):
 
     if request.method == 'POST':
         name = bleach.clean(request.form.get('name', '')).strip()
+        name = re.sub(r'^(Mr\.|Ms\.|Mrs\.|Dr\.|Shri|Smt\.)\s*', '', name, flags=re.IGNORECASE).strip()
         new_emp_id = bleach.clean(request.form.get('emp_id', '')).strip()
         email = bleach.clean(request.form.get('email', '')).strip()
         designation = bleach.clean(request.form.get('designation', '')).strip()
@@ -4500,23 +4553,18 @@ def dashboard():
                 'attendance_percentage': 92
             })
         
-        # Delegation of Power: HR Department team members & all employees for delegation
-        hr_dept = Department.query.filter(or_(Department.short_code == 'HR', Department.name.ilike('%Admin%'))).first()
-        hr_dept_id = hr_dept.id if hr_dept else None
+        # Delegation of Power: Strictly HR Department team members ONLY
+        hr_dept = Department.query.filter(or_(Department.short_code == 'HR', Department.name == 'HR')).first()
+        hr_dept_id = hr_dept.id if hr_dept else 16
 
         hr_team_members = Employee.query.filter(
             Employee.is_active == True,
             Employee.employment_type != 'DEPARTMENT',
-            Employee.email != 'hr@ecometrix.co.in'
-        ).filter(
-            or_(Employee.department_id.in_([5, 15, 16]), Employee.department_id == hr_dept_id)
+            Employee.email != 'hr@ecometrix.co.in',
+            Employee.department_id == hr_dept_id
         ).order_by(Employee.name).all()
 
-        other_employees = Employee.query.filter(
-            Employee.is_active == True,
-            Employee.employment_type != 'DEPARTMENT',
-            Employee.email != 'hr@ecometrix.co.in'
-        ).order_by(Employee.name).all()
+        other_employees = []
         
         return render_template('dashboards/hr_dashboard.html',
                              employees=employees,
@@ -8573,6 +8621,12 @@ def api_save_hr_delegation():
         return jsonify({'success': False, 'error': 'Employee ID is required.'}), 400
 
     emp = Employee.query.get_or_404(employee_id)
+    
+    # Strictly ensure that delegation is ONLY allowed for HR Department employees
+    hr_dept = Department.query.filter(or_(Department.short_code == 'HR', Department.name == 'HR')).first()
+    hr_dept_id = hr_dept.id if hr_dept else 16
+    if emp.department_id != hr_dept_id:
+        return jsonify({'success': False, 'error': 'Delegation of Power can only be granted to HR Department employees.'}), 400
     
     delegation = HRDelegation.query.filter_by(employee_id=emp.id).first()
     if not delegation:

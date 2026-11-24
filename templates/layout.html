@@ -1195,10 +1195,10 @@
         <!-- Sidebar User Profile Card -->
         <div class="sidebar-user-card">
             <div class="user-avatar">
-                {% if 'Chinmay' in current_user.name %}CT{% else %}{{ current_user.name[:2]|upper }}{% endif %}
+                {{ current_user.initials if current_user.initials is defined else (current_user.name|initials) }}
             </div>
             <div class="user-info-text">
-                <span class="user-full-name">{{ current_user.name }}</span>
+                <span class="user-full-name">{{ current_user.clean_name if current_user.clean_name is defined else (current_user.name|strip_title) }}</span>
                 <span class="user-role-badge">
                     <span class="online-dot"></span>
                     {{ current_user.designation or ('CEO' if current_user.role == 'MD' else current_user.role) }} &bull; Active
@@ -1534,10 +1534,10 @@
                 <div class="dropdown">
                     <button class="user-dropdown-btn" type="button" id="userMenuDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="topbar-avatar">
-                            {% if 'Chinmay' in current_user.name %}CT{% else %}{{ current_user.name[:2]|upper }}{% endif %}
+                            {{ current_user.initials if current_user.initials is defined else (current_user.name|initials) }}
                         </div>
                         <div class="d-none d-md-flex flex-column text-start">
-                            <span style="font-size: 0.85rem; font-weight: 700; color: #1e293b;">{{ current_user.name }}</span>
+                            <span style="font-size: 0.85rem; font-weight: 700; color: #1e293b;">{{ current_user.clean_name if current_user.clean_name is defined else (current_user.name|strip_title) }}</span>
                             <span style="font-size: 0.72rem; color: #64748b;">{{ current_user.designation or ('CEO' if current_user.role == 'MD' else current_user.role) }}</span>
                         </div>
                         <i class="fas fa-chevron-down ms-1" style="font-size: 0.7rem; color: #94a3b8;"></i>

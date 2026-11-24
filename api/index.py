@@ -79,9 +79,11 @@ try:
                 environ['PATH_INFO'] = '/'
 
             def custom_start_response(status, headers, exc_info=None):
-                headers.append(('X-Resolved-Path', environ.get('PATH_INFO', '')))
-                if 'HTTP_X_MATCHED_PATH' in environ:
-                    headers.append(('X-Matched-Path', str(environ.get('HTTP_X_MATCHED_PATH'))))
+                headers.append(('X-Resolved-Path', str(environ.get('PATH_INFO', ''))))
+                headers.append(('X-Environ-Keys', ','.join(k for k in environ.keys() if 'HTTP' in k or 'PATH' in k or 'URI' in k or 'ROUT' in k or 'VERCEL' in k)))
+                for k in environ:
+                    if 'PATH' in k or 'URI' in k or 'URL' in k:
+                        headers.append((f'X-Val-{k}', str(environ[k])[:100]))
                 return start_response(status, headers, exc_info)
 
             return self.wsgi_app(environ, custom_start_response)

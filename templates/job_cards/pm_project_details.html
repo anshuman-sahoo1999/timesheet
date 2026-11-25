@@ -504,44 +504,60 @@
                                     {% if indent.work_order_pdf %}
                                     <tr>
                                         <td><i class="fas fa-file-pdf text-danger me-2"></i><strong>Work Order PDF</strong></td>
-                                        <td>{{ indent.work_order_pdf }}</td>
-                                        <td><span class="badge bg-success">Uploaded</span></td>
+                                        <td><code>{{ indent.work_order_pdf }}</code></td>
+                                        <td><span class="badge bg-success">Archived</span></td>
                                         <td class="text-end">
-                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.work_order_pdf) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
-                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.work_order_pdf) }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.work_order_pdf) }}', 'Work Order: {{ indent.project_name }}', '{{ indent.work_order_pdf }}')">
+                                                <i class="fas fa-eye me-1"></i> Preview
+                                            </button>
+                                            <a href="{{ url_for('serve_indent_file', filename=indent.work_order_pdf) }}?download=1" download class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-download"></i>
+                                            </a>
                                         </td>
                                     </tr>
                                     {% endif %}
                                     {% if indent.scope_of_work_file %}
                                     <tr>
                                         <td><i class="fas fa-file-word text-primary me-2"></i><strong>Scope of Work</strong></td>
-                                        <td>{{ indent.scope_of_work_file }}</td>
-                                        <td><span class="badge bg-success">Uploaded</span></td>
+                                        <td><code>{{ indent.scope_of_work_file }}</code></td>
+                                        <td><span class="badge bg-success">Archived</span></td>
                                         <td class="text-end">
-                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.scope_of_work_file) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
-                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.scope_of_work_file) }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.scope_of_work_file) }}', 'Scope of Work: {{ indent.project_name }}', '{{ indent.scope_of_work_file }}')">
+                                                <i class="fas fa-eye me-1"></i> Preview
+                                            </button>
+                                            <a href="{{ url_for('serve_indent_file', filename=indent.scope_of_work_file) }}?download=1" download class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-download"></i>
+                                            </a>
                                         </td>
                                     </tr>
                                     {% endif %}
                                     {% if indent.rfp_document_file %}
                                     <tr>
                                         <td><i class="fas fa-file-alt text-info me-2"></i><strong>RFP Tender Document</strong></td>
-                                        <td>{{ indent.rfp_document_file }}</td>
-                                        <td><span class="badge bg-success">Uploaded</span></td>
+                                        <td><code>{{ indent.rfp_document_file }}</code></td>
+                                        <td><span class="badge bg-success">Archived</span></td>
                                         <td class="text-end">
-                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.rfp_document_file) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
-                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.rfp_document_file) }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.rfp_document_file) }}', 'RFP Tender: {{ indent.project_name }}', '{{ indent.rfp_document_file }}')">
+                                                <i class="fas fa-eye me-1"></i> Preview
+                                            </button>
+                                            <a href="{{ url_for('serve_indent_file', filename=indent.rfp_document_file) }}?download=1" download class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-download"></i>
+                                            </a>
                                         </td>
                                     </tr>
                                     {% endif %}
                                     {% if indent.technical_bid_file %}
                                     <tr>
                                         <td><i class="fas fa-file-invoice text-success me-2"></i><strong>Technical Bid Submission</strong></td>
-                                        <td>{{ indent.technical_bid_file }}</td>
-                                        <td><span class="badge bg-success">Uploaded</span></td>
+                                        <td><code>{{ indent.technical_bid_file }}</code></td>
+                                        <td><span class="badge bg-success">Archived</span></td>
                                         <td class="text-end">
-                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.technical_bid_file) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
-                                            <a href="{{ url_for('static', filename='uploads/' ~ indent.technical_bid_file) }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.technical_bid_file) }}', 'Technical Bid: {{ indent.project_name }}', '{{ indent.technical_bid_file }}')">
+                                                <i class="fas fa-eye me-1"></i> Preview
+                                            </button>
+                                            <a href="{{ url_for('serve_indent_file', filename=indent.technical_bid_file) }}?download=1" download class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-download"></i>
+                                            </a>
                                         </td>
                                     </tr>
                                     {% endif %}
@@ -1170,6 +1186,91 @@
             </div>
         </form>
     </div>
+<!-- Modal: Modern In-Screen Pop-Up PDF & Document Viewer -->
+<div class="modal fade" id="docViewerModal" tabindex="-1" aria-labelledby="docViewerModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 92vw;">
+        <div class="modal-content border-0 shadow-2xl" style="border-radius: 16px; overflow: hidden; background: #0f172a;">
+            <!-- Modal Header Toolbar -->
+            <div class="modal-header py-2 px-3 bg-dark border-bottom border-secondary d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2 text-white">
+                    <span class="badge bg-danger p-2 rounded-2"><i class="fas fa-file-pdf fa-lg"></i></span>
+                    <div>
+                        <h6 class="modal-title fw-bold text-white mb-0" id="docViewerModalTitle" style="font-size: 0.95rem;">
+                            Document Preview
+                        </h6>
+                        <small class="text-white-50 font-monospace" id="docViewerModalFilename" style="font-size: 0.75rem;"></small>
+                    </div>
+                </div>
+                <!-- Action Controls: Print, Download, Open in New Tab, Close -->
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-light d-flex align-items-center gap-1" onclick="printDocumentViewer()" title="Print this document">
+                        <i class="fas fa-print"></i>
+                        <span class="d-none d-sm-inline">Print</span>
+                    </button>
+                    <a id="docViewerDownloadBtn" href="#" download class="btn btn-sm btn-success text-white d-flex align-items-center gap-1 shadow-sm" title="Download file to device">
+                        <i class="fas fa-download"></i>
+                        <span class="d-none d-sm-inline">Download</span>
+                    </a>
+                    <a id="docViewerNewTabBtn" href="#" target="_blank" class="btn btn-sm btn-outline-light d-flex align-items-center gap-1" title="Open in dedicated tab">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                    <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="modal" aria-label="Close" onclick="closeDocViewer()"></button>
+                </div>
+            </div>
+            <!-- Modal Body with embedded iframe -->
+            <div class="modal-body p-0 position-relative" style="height: 80vh; background: #1e293b;">
+                <!-- Loading indicator -->
+                <div id="docViewerLoader" class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="spinner-border text-primary mb-2" role="status" style="width: 2.5rem; height: 2.5rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="small text-white-50">Rendering document viewer...</div>
+                </div>
+                <!-- Iframe Viewer -->
+                <iframe id="docViewerFrame" src="about:blank" style="width: 100%; height: 100%; border: none; background: #ffffff;" onload="onDocViewerLoaded()"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Upload Project Document -->
+<div class="modal fade" id="uploadDocModal" tabindex="-1" aria-labelledby="uploadDocModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">
+            <form action="{{ url_for('upload_indent_document', indent_id=indent.id) }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fs-6 fw-bold text-dark" id="uploadDocModalLabel">
+                        <i class="fas fa-file-upload text-success me-2"></i>Attach or Update Project Document
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">Select Document Type</label>
+                        <select class="form-select" name="doc_type" required>
+                            <option value="work_order" {% if not indent.work_order_pdf %}selected{% endif %}>Work Order PDF (Formal Order)</option>
+                            <option value="scope_of_work" {% if not indent.scope_of_work_file and indent.work_order_pdf %}selected{% endif %}>Scope of Work Document</option>
+                            <option value="rfp">RFP Tender Document</option>
+                            <option value="technical_bid">Technical Bid Document</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">Upload File (.pdf, .doc, .docx - Max 4MB)</label>
+                        <input type="file" class="form-control" name="document_file" accept=".pdf,.doc,.docx" required>
+                        <div class="form-text small text-muted mt-1">Files are permanently secured with cloud database backup.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="fas fa-cloud-upload-alt me-1"></i> Upload & Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 </div>
 {% endblock %}
 
@@ -1985,6 +2086,61 @@
                 window.location.reload();
             }
         });
+    }
+
+    // Pop-Up In-Screen Document Viewer Helpers
+    function openPdfModal(fileUrl, title, filename) {
+        const modalEl = document.getElementById('docViewerModal');
+        if (!modalEl) return;
+        
+        document.getElementById('docViewerModalTitle').textContent = title || 'Document Preview';
+        document.getElementById('docViewerModalFilename').textContent = filename || '';
+        
+        const downloadBtn = document.getElementById('docViewerDownloadBtn');
+        if (downloadBtn) {
+            downloadBtn.href = fileUrl + (fileUrl.indexOf('?') >= 0 ? '&download=1' : '?download=1');
+            downloadBtn.setAttribute('download', filename || 'document.pdf');
+        }
+        
+        const newTabBtn = document.getElementById('docViewerNewTabBtn');
+        if (newTabBtn) {
+            newTabBtn.href = fileUrl;
+        }
+        
+        const loader = document.getElementById('docViewerLoader');
+        if (loader) loader.style.display = 'block';
+        
+        const frame = document.getElementById('docViewerFrame');
+        if (frame) {
+            frame.src = fileUrl;
+        }
+        
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+
+    function onDocViewerLoaded() {
+        const loader = document.getElementById('docViewerLoader');
+        if (loader) loader.style.display = 'none';
+    }
+
+    function closeDocViewer() {
+        const frame = document.getElementById('docViewerFrame');
+        if (frame) frame.src = 'about:blank';
+    }
+
+    function printDocumentViewer() {
+        const frame = document.getElementById('docViewerFrame');
+        if (!frame || !frame.src || frame.src === 'about:blank') return;
+        try {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        } catch (e) {
+            const printWin = window.open(frame.src, '_blank');
+            if (printWin) {
+                printWin.onload = function() { printWin.print(); };
+            }
+        }
     }
 
     // Initialize everything on load

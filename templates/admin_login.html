@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In &bull; EMC Project Monitoring System</title>
+    <title>DayLog &bull; Unified Timesheet & Project Management System</title>
     
     <!-- Anti-caching & Session Protection -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -43,6 +43,7 @@
             --brand-green-hover: #0b733d;
             --brand-green-light: #ecfdf5;
             --brand-green-glow: rgba(14, 135, 73, 0.16);
+            --brand-teal: #0d9488;
             --text-main: #0f172a;
             --text-secondary: #475569;
             --text-muted: #64748b;
@@ -71,7 +72,7 @@
             background: #f8fafc;
         }
 
-        /* Clean ambient image canvas */
+        /* Ambient background canvas */
         body {
             display: flex;
             flex-direction: column;
@@ -92,7 +93,7 @@
             position: relative;
             z-index: 1;
             width: 100%;
-            max-width: 410px;
+            max-width: 420px;
             margin: auto 0;
             animation: cardAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
@@ -110,12 +111,12 @@
 
         /* Card Surface with crisp glassmorphism */
         .auth-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.90);
             border-radius: var(--radius-lg);
-            padding: 22px 26px 18px;
+            padding: 22px 26px 20px;
             box-shadow: 
                 0 4px 6px -1px rgba(15, 23, 42, 0.06),
                 0 22px 42px -10px rgba(15, 23, 42, 0.25),
@@ -136,11 +137,11 @@
             flex-direction: column;
             align-items: center;
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         .logo-wrap {
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -157,50 +158,104 @@
             transform: scale(1.02);
         }
 
-        .system-pill {
+        /* Animated Welcome to DayLog */
+        .welcome-row {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 2px 8px;
-            border-radius: 99px;
-            background: var(--brand-green-light);
-            border: 1px solid rgba(14, 135, 73, 0.18);
-            font-size: 0.67rem;
-            font-weight: 600;
-            color: var(--brand-green);
-            letter-spacing: 0.02em;
-            margin-bottom: 4px;
+            justify-content: center;
+            gap: 7px;
+            margin-bottom: 3px;
         }
 
-        .live-dot {
-            width: 5px;
-            height: 5px;
-            background: #10b981;
-            border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
-        }
-
-        .card-title {
+        .welcome-text {
             font-size: 1.25rem;
             font-weight: 700;
             color: var(--text-main);
             letter-spacing: -0.02em;
-            margin-bottom: 2px;
-            line-height: 1.2;
+        }
+
+        .daylog-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .daylog-logo-icon {
+            height: 28px;
+            width: auto;
+            object-fit: contain;
+            animation: daylogFloat 3s ease-in-out infinite;
+            filter: drop-shadow(0 2px 6px rgba(14, 135, 73, 0.28));
+        }
+
+        @keyframes daylogFloat {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                transform: translateY(-2px) scale(1.06);
+            }
+        }
+
+        .daylog-brand-title {
+            font-size: 1.28rem;
+            font-weight: 800;
+            color: var(--brand-green);
+            letter-spacing: -0.02em;
         }
 
         .card-subtitle {
-            font-size: 0.78rem;
+            font-size: 0.77rem;
             color: var(--text-muted);
-            font-weight: 400;
+            font-weight: 500;
+            line-height: 1.35;
+        }
+
+        /* Role Selector Segment */
+        .role-picker-wrap {
+            background: #f1f5f9;
+            border-radius: var(--radius-md);
+            padding: 3px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-light);
+        }
+
+        .role-opt-btn {
+            border: none;
+            background: transparent;
+            padding: 7px 10px;
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all var(--transition-fast);
+        }
+
+        .role-opt-btn.active {
+            background: #ffffff;
+            color: var(--brand-green);
+            box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+            font-weight: 700;
+        }
+
+        .role-opt-btn i {
+            font-size: 0.82rem;
         }
 
         /* Form elements */
         .login-form {
             display: flex;
             flex-direction: column;
-            gap: 9px;
+            gap: 10px;
         }
 
         .form-group {
@@ -227,7 +282,7 @@
             border-radius: var(--radius-md);
             transition: var(--transition-smooth);
             overflow: hidden;
-            height: 36px;
+            height: 38px;
         }
 
         .input-box:focus-within {
@@ -253,9 +308,9 @@
         .form-control {
             width: 100%;
             height: 100%;
-            padding: 0 8px;
+            padding: 0 10px;
             font-family: inherit;
-            font-size: 0.82rem;
+            font-size: 0.84rem;
             color: var(--text-main);
             background: transparent;
             border: none;
@@ -304,7 +359,7 @@
             align-items: center;
             justify-content: space-between;
             margin-top: 1px;
-            margin-bottom: 1px;
+            margin-bottom: 2px;
         }
 
         .checkbox-container {
@@ -350,7 +405,7 @@
         }
 
         .forgot-link {
-            font-size: 0.76rem;
+            font-size: 0.75rem;
             font-weight: 600;
             color: var(--brand-green);
             text-decoration: none;
@@ -362,22 +417,22 @@
             text-decoration: underline;
         }
 
-        /* Primary Sign In Button */
+        /* Primary Submit Button */
         .btn-submit {
             width: 100%;
-            height: 38px;
+            height: 40px;
             border: none;
             border-radius: var(--radius-md);
             background: linear-gradient(180deg, #0f9350 0%, #0b733d 100%);
             color: #ffffff;
             font-family: inherit;
-            font-size: 0.86rem;
+            font-size: 0.88rem;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
             box-shadow: 0 3px 8px rgba(14, 135, 73, 0.22);
             transition: all var(--transition-smooth);
             margin-top: 2px;
@@ -394,7 +449,6 @@
             box-shadow: 0 2px 4px rgba(14, 135, 73, 0.18);
         }
 
-        /* Spinner for loading state */
         .btn-submit .btn-spinner {
             display: none;
             width: 15px;
@@ -418,72 +472,146 @@
             to { transform: rotate(360deg); }
         }
 
-        /* SSO Divider */
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 10px 0 8px;
-            color: #94a3b8;
-            font-size: 0.66rem;
-            font-weight: 600;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #e2e8f0;
-        }
-
-        .divider span {
-            padding: 0 8px;
-        }
-
-        /* SSO Button Row */
-        .sso-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-
-        .sso-btn {
-            height: 33px;
-            border: 1px solid var(--border-light);
-            border-radius: 6px;
-            background: #ffffff;
+        /* Secondary Back/Reset button */
+        .btn-back-step {
+            width: 100%;
+            height: 32px;
+            background: transparent;
+            border: 1px dashed var(--border-light);
+            border-radius: var(--radius-md);
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
+            gap: 6px;
             transition: all var(--transition-fast);
-            color: var(--text-secondary);
         }
 
-        .sso-btn:hover {
+        .btn-back-step:hover {
             background: #f8fafc;
+            color: var(--text-main);
             border-color: #cbd5e1;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
         }
 
-        .sso-btn svg {
-            width: 14px;
-            height: 14px;
+        /* TOTP / QR Enrollment Box */
+        .totp-enrollment-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 12px;
+            text-align: center;
+            margin-top: 4px;
+            margin-bottom: 6px;
+            animation: fadeIn 0.3s ease;
         }
 
-        /* Alert notifications */
+        .qr-image-frame {
+            background: #ffffff;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        .qr-image-frame img {
+            width: 130px;
+            height: 130px;
+            display: block;
+        }
+
+        .totp-step-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 8px;
+            border-radius: 99px;
+            background: var(--brand-green-light);
+            color: var(--brand-green);
+            font-size: 0.68rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .totp-instruction {
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-bottom: 6px;
+        }
+
+        .totp-secret-box {
+            font-family: monospace;
+            font-size: 0.75rem;
+            background: #ffffff;
+            border: 1px dashed #cbd5e1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+
+        .totp-code-input {
+            letter-spacing: 0.35em;
+            text-align: center;
+            font-size: 1.15rem !important;
+            font-weight: 700 !important;
+            font-family: monospace !important;
+        }
+
+        /* "Facing issues? Contact IT Admin" Section */
+        .support-ticket-row {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px dashed #e2e8f0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn-facing-issues {
+            background: transparent;
+            border: 1px solid transparent;
+            padding: 6px 12px;
+            border-radius: 99px;
+            color: var(--brand-green);
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-facing-issues:hover {
+            background: var(--brand-green-light);
+            border-color: rgba(14, 135, 73, 0.2);
+            color: var(--brand-green-hover);
+        }
+
+        .btn-facing-issues i {
+            font-size: 0.85rem;
+        }
+
+        /* Alerts */
         .alert-box {
             display: flex;
             align-items: flex-start;
             gap: 7px;
-            padding: 7px 9px;
+            padding: 8px 10px;
             border-radius: 6px;
             font-size: 0.75rem;
             line-height: 1.35;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             animation: fadeIn 0.3s ease;
         }
 
@@ -505,12 +633,18 @@
             border: 1px solid #dbeafe;
         }
 
+        .alert-warning {
+            background: #fffbeb;
+            color: #92400e;
+            border: 1px solid #fef3c7;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Center-aligned Legal Footer */
+        /* Centered Legal Footer */
         .footer-wrap {
             width: 100%;
             display: flex;
@@ -545,7 +679,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(15, 23, 42, 0.45);
+            background: rgba(15, 23, 42, 0.50);
             backdrop-filter: blur(4px);
             z-index: 100;
             align-items: center;
@@ -556,12 +690,12 @@
         .modal-panel {
             background: #ffffff;
             border-radius: 14px;
-            max-width: 360px;
+            max-width: 440px;
             width: 100%;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            padding: 22px 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22);
             animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            position: relative;
         }
 
         @keyframes modalPop {
@@ -569,99 +703,63 @@
             to { opacity: 1; transform: scale(1); }
         }
 
-        .modal-icon-wrap {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--brand-green-light);
-            color: var(--brand-green);
+        .modal-header-line {
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin: 0 auto 9px;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f1f5f9;
         }
 
-        .modal-title {
+        .modal-header-title {
             font-size: 1.05rem;
             font-weight: 700;
             color: var(--text-main);
-            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .modal-body {
-            font-size: 0.80rem;
-            color: var(--text-secondary);
-            line-height: 1.45;
-            margin-bottom: 16px;
-        }
-
-        .modal-close-btn {
-            width: 100%;
-            height: 34px;
-            border: 1px solid var(--border-light);
-            background: #f8fafc;
-            color: var(--text-main);
-            font-weight: 600;
-            font-size: 0.82rem;
-            border-radius: 6px;
+        .modal-close-icon {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.1rem;
             cursor: pointer;
-            transition: var(--transition-fast);
+            padding: 4px;
         }
 
-        .modal-close-btn:hover {
-            background: #f1f5f9;
+        .modal-close-icon:hover {
+            color: var(--text-main);
         }
 
-        /* Device & Mobile Responsiveness */
-        @media (max-width: 640px) {
-            body {
-                padding: 16px 12px;
-                min-height: 100vh;
-                height: auto;
-                background-attachment: scroll;
-            }
-
-            .login-wrapper {
-                max-width: 100%;
-                width: 100%;
-            }
-
-            .auth-card {
-                padding: 20px 18px 16px;
-                border-radius: 14px;
-            }
-
-            .card-title {
-                font-size: 1.22rem;
-            }
-
-            .brand-logo {
-                height: 32px;
-            }
-
-            /* Prevents iOS Safari auto-zoom on form focus */
-            .form-control {
-                font-size: 16px;
-            }
-
-            .footer-note {
-                font-size: 0.68rem;
-                padding: 4px 10px;
-            }
+        .ticket-info-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.77rem;
+            margin-bottom: 12px;
+            line-height: 1.5;
         }
 
-        @media (max-height: 600px) and (min-width: 641px) {
-            body {
-                padding: 12px 16px;
-                min-height: 100vh;
-                height: auto;
-            }
-            .login-wrapper {
-                margin: auto 0;
-            }
+        .ticket-info-card strong {
+            color: #334155;
         }
 
-        /* Desktop/PC Mode Only Live Clock (Plain text, no background card, glassmorphic styled) */
+        .ticket-info-badge {
+            display: inline-block;
+            background: #ecfdf5;
+            color: #065f46;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.72rem;
+            border: 1px solid #a7f3d0;
+        }
+
+        /* Desktop Live Clock */
         .desktop-clock-display {
             display: none;
             position: absolute;
@@ -740,12 +838,35 @@
                 0 2px 8px rgba(15, 23, 42, 0.45),
                 0 4px 14px rgba(15, 23, 42, 0.25);
         }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 16px 12px;
+                min-height: 100vh;
+                height: auto;
+                background-attachment: scroll;
+            }
+
+            .login-wrapper {
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .auth-card {
+                padding: 20px 18px 16px;
+                border-radius: 14px;
+            }
+
+            .form-control {
+                font-size: 16px; /* Prevents iOS auto-zoom */
+            }
+        }
     </style>
 </head>
 <body>
 
     <main class="login-wrapper">
-        <!-- Desktop/PC Mode Only Live Time & Date Display (Left of Form) -->
+        <!-- Desktop Live Time & Date Display (Left of Form) -->
         <aside class="desktop-clock-display" aria-label="Current Time and Date">
             <div class="clock-time-line">
                 <span id="liveClockTime" class="clock-big-time">11:48</span>
@@ -753,7 +874,7 @@
             </div>
             <div class="clock-calendar-line">
                 <div id="liveClockDay" class="clock-day-text">Wednesday</div>
-                <div id="liveClockDate" class="clock-date-text">21 October 2026</div>
+                <div id="liveClockDate" class="clock-date-text">25 November 2026</div>
             </div>
         </aside>
 
@@ -764,14 +885,16 @@
                 <div class="logo-wrap">
                     <img src="{{ url_for('static', filename='emc_logo_clean.png') }}" alt="EMC - Unlocking Transformation" class="brand-logo">
                 </div>
-                
-                <div class="system-pill">
-                    <span class="live-dot"></span>
-                    <span>Project Monitoring System</span>
-                </div>
 
-                <h1 class="card-title">Welcome back</h1>
-                <p class="card-subtitle">Sign in to your timesheet & project portal</p>
+                <!-- Cropped DayLog Logo + Inline Welcome to DayLog -->
+                <div class="welcome-row">
+                    <span class="welcome-text">Welcome to</span>
+                    <div class="daylog-brand">
+                        <img src="{{ url_for('static', filename='daylog_logo.png') }}" alt="DayLog Icon" class="daylog-logo-icon">
+                        <span class="daylog-brand-title">DayLog</span>
+                    </div>
+                </div>
+                <p class="card-subtitle">DayLog - Unified Timesheet & Project Management System Portal</p>
             </div>
 
             <!-- Flashed Messages -->
@@ -792,110 +915,218 @@
                 {% endif %}
             {% endwith %}
 
-            <!-- Login Form -->
-            <form method="POST" action="" class="login-form" id="loginForm" autocomplete="on">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <!-- Username / Email -->
-                <div class="form-group">
-                    <label for="email" class="form-label">Username / Work Email</label>
-                    <div class="input-box">
-                        <span class="input-icon">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
-                        </span>
-                        <input type="text" class="form-control" id="email" name="email" required placeholder="Enter username or work email" autocomplete="username">
-                    </div>
-                </div>
-
-                <!-- Password -->
-                <div class="form-group">
-                    <div class="form-label">
-                        <span>Password</span>
-                    </div>
-                    <div class="input-box">
-                        <span class="input-icon">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                            </svg>
-                        </span>
-                        <input type="password" class="form-control" id="password" name="password" required placeholder="•••••••••" autocomplete="current-password">
-                        <button type="button" class="btn-toggle-pw" id="togglePasswordBtn" aria-label="Toggle password visibility">
-                            <svg id="eyeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                        </button>
-                    </div>
-                    <!-- Caps Lock alert -->
-                    <div class="caps-notice" id="capsNotice">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        <span>Caps Lock is ON</span>
-                    </div>
-                </div>
-
-                <!-- Remember Me & Forgot Password -->
-                <div class="form-meta-row">
-                    <label class="checkbox-container">
-                        <input type="checkbox" name="remember" id="remember" checked>
-                        <span class="custom-check">
-                            <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
-                                <path d="M1 4L3.8 7L9 1" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </span>
-                        <span>Remember me</span>
-                    </label>
-
-                    <a href="javascript:void(0)" class="forgot-link" id="forgotBtn">Forgot password?</a>
-                </div>
-
-                <!-- Submit Button -->
-                <button type="submit" class="btn-submit" id="submitBtn">
-                    <span class="btn-text">Sign In</span>
-                    <svg class="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                    <span class="btn-spinner"></span>
-                </button>
-            </form>
-
-            <!-- Social / SSO Divider -->
-            <div class="divider">
-                <span>or continue with</span>
+            <div id="clientAlert" class="alert-box alert-danger" style="display: none;">
+                <i class="fas fa-exclamation-circle" style="margin-top: 2px;"></i>
+                <span id="clientAlertText"></span>
             </div>
 
-            <!-- SSO Provider Buttons -->
-            <div class="sso-row">
-                <!-- Microsoft 365 -->
-                <button type="button" class="sso-btn" id="ssoMsBtn" title="Sign in with Microsoft 365" aria-label="Sign in with Microsoft 365">
-                    <svg viewBox="0 0 24 24">
-                        <rect x="2" y="2" width="9" height="9" fill="#F25022"/>
-                        <rect x="13" y="2" width="9" height="9" fill="#7FBA00"/>
-                        <rect x="2" y="13" width="9" height="9" fill="#00A4EF"/>
-                        <rect x="13" y="13" width="9" height="9" fill="#FFB900"/>
-                    </svg>
+            <!-- Role Picker: Choose your Role (Admin vs Employee) -->
+            <div class="role-picker-wrap">
+                <button type="button" class="role-opt-btn {% if selected_role != 'admin' %}active{% endif %}" id="roleBtnEmployee">
+                    <i class="fas fa-id-badge"></i>
+                    <span>Employee</span>
                 </button>
-
-                <!-- Google Workspace -->
-                <button type="button" class="sso-btn" id="ssoGoogleBtn" title="Sign in with Google Workspace" aria-label="Sign in with Google Workspace">
-                    <svg viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                    </svg>
+                <button type="button" class="role-opt-btn {% if selected_role == 'admin' %}active{% endif %}" id="roleBtnAdmin">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Admin</span>
                 </button>
+            </div>
 
-                <!-- Enterprise Mail -->
-                <button type="button" class="sso-btn" id="ssoMailBtn" title="Corporate Single Sign-On" aria-label="Corporate Single Sign-On">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <rect width="20" height="16" x="2" y="4" rx="2"></rect>
-                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
-                    </svg>
+            <!-- Form Wrapper -->
+            <form method="POST" action="{{ url_for('login') }}" class="login-form" id="mainLoginForm" autocomplete="on">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="login_role" id="hiddenLoginRole" value="{{ selected_role or 'employee' }}">
+
+                <!-- ================= EMPLOYEE ROLE FIELDS (Passwordless TOTP) ================= -->
+                <div id="employeeRoleSection" style="display: {% if selected_role == 'admin' %}none{% else %}block{% endif %};">
+                    
+                    <!-- STEP 1: Employee ID Input -->
+                    <div id="empStep1" style="display: {% if employee_step == 'verify' %}none{% else %}block{% endif %};">
+                        <div class="form-group mb-2">
+                            <label for="emp_id_input" class="form-label">
+                                <span>Employee ID</span>
+                                <span class="text-muted" style="font-size: 0.70rem; font-weight: 500;">Passwordless Access</span>
+                            </label>
+                            <div class="input-box">
+                                <span class="input-icon">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                                        <path d="M7 7h10"></path>
+                                        <path d="M7 12h10"></path>
+                                        <path d="M7 17h10"></path>
+                                    </svg>
+                                </span>
+                                <input type="text" class="form-control" id="emp_id_input" name="emp_id" 
+                                       value="{{ entered_emp_id or (emp.emp_id if emp else '') }}" 
+                                       placeholder="Enter your Employee ID" autocomplete="username">
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-submit" id="btnEmpContinue">
+                            <span class="btn-text">Continue</span>
+                            <svg class="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                            <span class="btn-spinner"></span>
+                        </button>
+                    </div>
+
+                    <!-- STEP 2: TOTP Verification / Enrollment Card -->
+                    <div id="empStep2" style="display: {% if employee_step == 'verify' %}block{% else %}none{% endif %};">
+                        
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-bold" id="empGreetingName">{{ emp.clean_name if emp else '' }}</span>
+                            <span class="badge bg-secondary-subtle text-secondary" id="empBadgeId">{{ emp.emp_id if emp else '' }}</span>
+                        </div>
+
+                        <!-- First Time Setup: QR Code -->
+                        <div id="firstTimeQrCard" class="totp-enrollment-card" style="display: {% if first_time %}block{% else %}none{% endif %};">
+                            <div class="totp-step-badge">
+                                <i class="fas fa-qrcode"></i>
+                                <span>First-Time Setup Only</span>
+                            </div>
+                            <p class="totp-instruction">
+                                Scan this QR code in <strong>Zoho Auth</strong> (or Google/Microsoft Authenticator):
+                            </p>
+                            <div class="qr-image-frame">
+                                <img id="totpQrImage" src="{{ qr_data_uri or '' }}" alt="Zoho Auth Setup QR Code">
+                            </div>
+                            <div class="small text-muted" style="font-size: 0.70rem; margin-bottom: 2px;">
+                                Setup key: <code id="totpSecretKey" class="totp-secret-box">{{ emp.totp_secret if emp and first_time else '' }}</code>
+                            </div>
+                        </div>
+
+                        <!-- 6-digit TOTP Input -->
+                        <div class="form-group mb-2">
+                            <label for="totp_token" class="form-label">
+                                <span id="totpLabelText">{% if first_time %}Enter 6-Digit Code from Zoho Auth{% else %}Enter Zoho Auth 6-Digit Code{% endif %}</span>
+                                <span class="text-success" style="font-size: 0.70rem; font-weight: 600;"><i class="fas fa-shield-alt"></i> TOTP</span>
+                            </label>
+                            <div class="input-box">
+                                <span class="input-icon">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                    </svg>
+                                </span>
+                                <input type="text" class="form-control totp-code-input" id="totp_token" name="totp_token" 
+                                       maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="&bull; &bull; &bull; &bull; &bull; &bull;" autocomplete="one-time-code">
+                            </div>
+                        </div>
+
+                        <!-- Remember Me -->
+                        <div class="form-meta-row mb-2">
+                            <label class="checkbox-container">
+                                <input type="checkbox" name="remember" id="empRemember" checked>
+                                <span class="custom-check">
+                                    <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+                                        <path d="M1 4L3.8 7L9 1" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </span>
+                                <span>Remember me</span>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn-submit mb-2" id="btnEmpVerify">
+                            <span class="btn-text">Verify & Sign In</span>
+                            <svg class="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                            <span class="btn-spinner"></span>
+                        </button>
+
+                        <button type="button" class="btn-back-step" id="btnEmpBack">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>Use a different Employee ID</span>
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- ================= ADMIN ROLE FIELDS (Email + Password) ================= -->
+                <div id="adminRoleSection" style="display: {% if selected_role == 'admin' %}block{% else %}none{% endif %};">
+                    
+                    <div class="alert-box alert-info py-1 mb-2" style="font-size: 0.72rem;">
+                        <i class="fas fa-info-circle" style="margin-top: 2px;"></i>
+                        <span>Admin login is reserved for HR, IT, Finance, BD & CEO profiles.</span>
+                    </div>
+
+                    <!-- Work Email -->
+                    <div class="form-group">
+                        <label for="adminEmail" class="form-label">Department / Admin Email</label>
+                        <div class="input-box">
+                            <span class="input-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            </span>
+                            <input type="text" class="form-control" id="adminEmail" name="email" placeholder="e.g. hr@ecometrix.co.in" autocomplete="username">
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-group">
+                        <div class="form-label">
+                            <span>Password</span>
+                        </div>
+                        <div class="input-box">
+                            <span class="input-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </span>
+                            <input type="password" class="form-control" id="adminPassword" name="password" placeholder="•••••••••" autocomplete="current-password">
+                            <button type="button" class="btn-toggle-pw" id="togglePasswordBtn" aria-label="Toggle password visibility">
+                                <svg id="eyeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                        <!-- Caps Lock alert -->
+                        <div class="caps-notice" id="capsNotice">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            <span>Caps Lock is ON</span>
+                        </div>
+                    </div>
+
+                    <!-- Remember Me & Forgot Password -->
+                    <div class="form-meta-row">
+                        <label class="checkbox-container">
+                            <input type="checkbox" name="remember" id="adminRemember" checked>
+                            <span class="custom-check">
+                                <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+                                    <path d="M1 4L3.8 7L9 1" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                            <span>Remember me</span>
+                        </label>
+
+                        <a href="javascript:void(0)" class="forgot-link" id="forgotBtn">Forgot password?</a>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn-submit" id="adminSubmitBtn">
+                        <span class="btn-text">Sign In as Admin</span>
+                        <svg class="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                        <span class="btn-spinner"></span>
+                    </button>
+                </div>
+
+            </form>
+
+            <!-- Facing issues? Contact IT Admin Link (Replacing SSO buttons) -->
+            <div class="support-ticket-row">
+                <button type="button" class="btn-facing-issues" id="btnFacingIssues">
+                    <i class="fas fa-headset"></i>
+                    <span>Facing issues? Contact IT Admin</span>
                 </button>
             </div>
 
@@ -904,98 +1135,417 @@
         <!-- Centered Legal Footer -->
         <div class="footer-wrap">
             <div class="footer-note">
-                <span>&copy; <span id="copyrightYear">{{ current_year if current_year is defined else '2026' }}</span> Ecometrix Consultants Pvt. Ltd. All rights reserved.</span>
+                <span>&copy; <span id="copyrightYear">2026</span> Ecometrix Consultants Pvt. Ltd. All rights reserved.</span>
             </div>
         </div>
     </main>
 
-    <!-- Support / Assistance Modal -->
-    <div class="modal-backdrop" id="supportModal" role="dialog" aria-modal="true">
+    <!-- Support Assistance Ticket Modal -->
+    <div class="modal-backdrop" id="ticketModal" role="dialog" aria-modal="true">
         <div class="modal-panel">
-            <div class="modal-icon-wrap" id="modalIcon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M12 16v-4"></path>
-                    <path d="M12 8h.01"></path>
-                </svg>
+            <div class="modal-header-line">
+                <div class="modal-header-title">
+                    <i class="fas fa-headset text-success"></i>
+                    <span>Contact IT Admin Support</span>
+                </div>
+                <button type="button" class="modal-close-icon" id="closeTicketModal" aria-label="Close dialog">&times;</button>
             </div>
-            <h3 class="modal-title" id="modalHeading">Account Assistance</h3>
-            <p class="modal-body" id="modalContent">
-                Please contact your PMS Administrator or IT support team at <strong>admin@ecometrix.co.in</strong> for assistance.
+
+            <div id="ticketFormWrap">
+                <p class="small text-muted mb-3" style="font-size: 0.77rem; line-height: 1.4;">
+                    If your mobile device is formatted, lost/stolen, or Zoho Auth credentials need re-enrollment, submit an authentication reset ticket below.
+                </p>
+
+                <!-- Employee ID lookup -->
+                <div class="form-group mb-2">
+                    <label for="ticketEmpIdInput" class="form-label">Employee ID <span class="text-danger">*</span></label>
+                    <div class="input-box">
+                        <span class="input-icon"><i class="fas fa-id-card"></i></span>
+                        <input type="text" class="form-control" id="ticketEmpIdInput" placeholder="Enter your Employee ID (e.g. 150405)">
+                    </div>
+                </div>
+
+                <!-- Auto-populated Info Card -->
+                <div id="ticketEmployeeCard" class="ticket-info-card" style="display: none;">
+                    <div class="row g-1">
+                        <div class="col-6"><strong>Employee:</strong> <span id="ticketCardName">--</span></div>
+                        <div class="col-6"><strong>Department:</strong> <span id="ticketCardDept">--</span></div>
+                        <div class="col-6"><strong>Employee ID:</strong> <span id="ticketCardId">--</span></div>
+                        <div class="col-6"><strong>Last Logged In:</strong> <span id="ticketCardLastLogin">--</span></div>
+                        <div class="col-12 mt-1">
+                            <strong>Ticket Request:</strong> 
+                            <span class="ticket-info-badge">Request to enable / reset QR Authentication</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Optional Remarks -->
+                <div class="form-group mb-3">
+                    <label for="ticketRemarksInput" class="form-label">Issue Details / Remarks <span class="text-muted small">(Optional)</span></label>
+                    <textarea class="form-control" id="ticketRemarksInput" rows="2" style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: 6px; padding: 6px 8px; font-size: 0.80rem;" placeholder="e.g. Mobile formatted / device changed / authenticator app uninstalled"></textarea>
+                </div>
+
+                <div id="ticketErrorAlert" class="alert-box alert-danger" style="display: none;"></div>
+
+                <button type="button" class="btn-submit" id="btnSubmitTicket">
+                    <span class="btn-text">Submit Request</span>
+                    <i class="fas fa-paper-plane btn-arrow"></i>
+                    <span class="btn-spinner"></span>
+                </button>
+            </div>
+
+            <!-- Success State -->
+            <div id="ticketSuccessWrap" style="display: none; text-align: center; padding: 10px 0;">
+                <div style="width: 48px; height: 48px; border-radius: 50%; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 22px;">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">Ticket Submitted Successfully</h5>
+                <p class="small text-muted mb-3" id="ticketSuccessMessage" style="line-height: 1.5; font-size: 0.80rem;"></p>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 0.77rem; text-align: left; margin-bottom: 14px;">
+                    <strong>Next Steps:</strong>
+                    <ol style="padding-left: 18px; margin: 4px 0 0; color: #475569;">
+                        <li>IT Admin will review your request and re-enable QR Authentication.</li>
+                        <li>You will receive an email confirmation with instructions.</li>
+                        <li>Return here, enter your Employee ID, and scan your new QR code in Zoho Auth.</li>
+                    </ol>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnCloseTicketSuccess" style="width: 100%; height: 36px; border: 1px solid #cbd5e1; background: #ffffff; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">Understood</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legacy / Notice Modal (Blocked / Resigned) -->
+    <div class="modal-backdrop" id="supportModal" role="dialog" aria-modal="true">
+        <div class="modal-panel" style="text-align: center;">
+            <div class="modal-icon-wrap" id="modalIcon" style="width: 42px; height: 42px; border-radius: 50%; background: var(--brand-green-light); color: var(--brand-green); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                <i class="fas fa-info-circle fs-5"></i>
+            </div>
+            <h3 class="modal-title" id="modalHeading" style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Account Assistance</h3>
+            <p class="modal-body" id="modalContent" style="font-size: 0.80rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 16px;">
+                Please contact IT Support at <strong>itsupport@ecometrix.co.in</strong> for assistance.
             </p>
-            <button type="button" class="modal-close-btn" id="closeModal">Understood</button>
+            <button type="button" class="modal-close-btn" id="closeModal" style="width: 100%; height: 34px; border: 1px solid var(--border-light); background: #f8fafc; color: var(--text-main); font-weight: 600; font-size: 0.82rem; border-radius: 6px; cursor: pointer;">Understood</button>
         </div>
     </div>
 
     <script>
-        // Password Visibility Toggle
+        // DOM Elements
+        const roleBtnEmployee = document.getElementById('roleBtnEmployee');
+        const roleBtnAdmin = document.getElementById('roleBtnAdmin');
+        const hiddenLoginRole = document.getElementById('hiddenLoginRole');
+        const employeeRoleSection = document.getElementById('employeeRoleSection');
+        const adminRoleSection = document.getElementById('adminRoleSection');
+        const clientAlert = document.getElementById('clientAlert');
+        const clientAlertText = document.getElementById('clientAlertText');
+
+        // Role Switcher
+        function switchRole(role) {
+            clientAlert.style.display = 'none';
+            if (role === 'admin') {
+                roleBtnAdmin.classList.add('active');
+                roleBtnEmployee.classList.remove('active');
+                hiddenLoginRole.value = 'admin';
+                adminRoleSection.style.display = 'block';
+                employeeRoleSection.style.display = 'none';
+            } else {
+                roleBtnEmployee.classList.add('active');
+                roleBtnAdmin.classList.remove('active');
+                hiddenLoginRole.value = 'employee';
+                employeeRoleSection.style.display = 'block';
+                adminRoleSection.style.display = 'none';
+            }
+        }
+
+        roleBtnEmployee.addEventListener('click', () => switchRole('employee'));
+        roleBtnAdmin.addEventListener('click', () => switchRole('admin'));
+
+        // Employee Step 1 -> Step 2 transition
+        const empIdInput = document.getElementById('emp_id_input');
+        const btnEmpContinue = document.getElementById('btnEmpContinue');
+        const empStep1 = document.getElementById('empStep1');
+        const empStep2 = document.getElementById('empStep2');
+        const btnEmpBack = document.getElementById('btnEmpBack');
+        const firstTimeQrCard = document.getElementById('firstTimeQrCard');
+        const totpQrImage = document.getElementById('totpQrImage');
+        const totpSecretKey = document.getElementById('totpSecretKey');
+        const totpTokenInput = document.getElementById('totp_token');
+        const empGreetingName = document.getElementById('empGreetingName');
+        const empBadgeId = document.getElementById('empBadgeId');
+        const totpLabelText = document.getElementById('totpLabelText');
+
+        async function proceedEmployeeStep() {
+            const empId = empIdInput.value.trim();
+            if (!empId) {
+                showClientAlert('Please enter your Employee ID.');
+                empIdInput.focus();
+                return;
+            }
+
+            btnEmpContinue.classList.add('loading');
+            clientAlert.style.display = 'none';
+
+            try {
+                const resp = await fetch('{{ url_for("api_auth_employee_check") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emp_id: empId })
+                });
+                const data = await resp.json();
+
+                if (!resp.ok || !data.success) {
+                    showClientAlert(data.error || 'Employee ID verification failed.');
+                    return;
+                }
+
+                // Populate Step 2
+                empGreetingName.textContent = data.employee_name || empId;
+                empBadgeId.textContent = data.emp_id || empId;
+
+                if (data.first_time) {
+                    firstTimeQrCard.style.display = 'block';
+                    totpQrImage.src = data.qr_data_uri;
+                    totpSecretKey.textContent = data.secret_key;
+                    totpLabelText.textContent = 'Scan QR above and enter 6-Digit Code:';
+                } else {
+                    firstTimeQrCard.style.display = 'none';
+                    totpLabelText.textContent = 'Enter 6-Digit Code from Zoho Auth:';
+                }
+
+                empStep1.style.display = 'none';
+                empStep2.style.display = 'block';
+                totpTokenInput.value = '';
+                totpTokenInput.focus();
+
+            } catch (err) {
+                showClientAlert('Network communication error. Please try again or submit an IT ticket.');
+            } finally {
+                btnEmpContinue.classList.remove('loading');
+            }
+        }
+
+        btnEmpContinue.addEventListener('click', proceedEmployeeStep);
+        empIdInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                proceedEmployeeStep();
+            }
+        });
+
+        btnEmpBack.addEventListener('click', function() {
+            empStep2.style.display = 'none';
+            empStep1.style.display = 'block';
+            totpTokenInput.value = '';
+            empIdInput.focus();
+        });
+
+        // AJAX Employee Verification on Form Submit (if on Step 2)
+        const mainLoginForm = document.getElementById('mainLoginForm');
+        const btnEmpVerify = document.getElementById('btnEmpVerify');
+
+        mainLoginForm.addEventListener('submit', async function(e) {
+            const role = hiddenLoginRole.value;
+
+            // Clear anti-backbutton protection flag
+            try { sessionStorage.removeItem('is_logged_out'); } catch(ex) {}
+
+            if (role === 'employee' && empStep2.style.display !== 'none') {
+                e.preventDefault();
+                const empId = empIdInput.value.trim();
+                const token = totpTokenInput.value.trim();
+                const remember = document.getElementById('empRemember').checked;
+
+                if (!token || token.length !== 6) {
+                    showClientAlert('Please enter the complete 6-digit TOTP verification code.');
+                    totpTokenInput.focus();
+                    return;
+                }
+
+                btnEmpVerify.classList.add('loading');
+                clientAlert.style.display = 'none';
+
+                try {
+                    const resp = await fetch('{{ url_for("api_auth_employee_verify") }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ emp_id: empId, totp_token: token, remember: remember })
+                    });
+                    const data = await resp.json();
+
+                    if (resp.ok && data.success) {
+                        window.location.href = data.redirect_url || '{{ url_for("dashboard") }}';
+                    } else {
+                        showClientAlert(data.error || 'Invalid TOTP code. Please check Zoho Auth.');
+                        totpTokenInput.value = '';
+                        totpTokenInput.focus();
+                    }
+                } catch(err) {
+                    showClientAlert('Server communication error. Please try again.');
+                } finally {
+                    btnEmpVerify.classList.remove('loading');
+                }
+            } else if (role === 'admin') {
+                document.getElementById('adminSubmitBtn').classList.add('loading');
+            }
+        });
+
+        function showClientAlert(msg) {
+            clientAlertText.textContent = msg;
+            clientAlert.style.display = 'flex';
+        }
+
+        // Password Visibility Toggle for Admin
         const toggleBtn = document.getElementById('togglePasswordBtn');
-        const passwordInput = document.getElementById('password');
+        const passwordInput = document.getElementById('adminPassword');
         const eyeIcon = document.getElementById('eyeIcon');
         const capsNotice = document.getElementById('capsNotice');
 
-        const eyeOpen = `
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-        `;
-        const eyeClosed = `
-            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
-            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
-            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
-            <line x1="2" y1="2" x2="22" y2="22"></line>
-        `;
+        const eyeOpen = `<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>`;
+        const eyeClosed = `<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>`;
 
-        toggleBtn.addEventListener('click', function() {
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                eyeIcon.innerHTML = eyeClosed;
-            } else {
-                passwordInput.type = 'password';
-                eyeIcon.innerHTML = eyeOpen;
-            }
-        });
+        if (toggleBtn && passwordInput) {
+            toggleBtn.addEventListener('click', function() {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    eyeIcon.innerHTML = eyeClosed;
+                } else {
+                    passwordInput.type = 'password';
+                    eyeIcon.innerHTML = eyeOpen;
+                }
+            });
 
-        // Caps Lock detection
-        passwordInput.addEventListener('keyup', function(e) {
-            if (e.getModifierState && e.getModifierState('CapsLock')) {
-                capsNotice.style.display = 'flex';
-            } else {
-                capsNotice.style.display = 'none';
-            }
-        });
-
-        // Form Submit Loading Feedback
-        document.getElementById('loginForm').addEventListener('submit', function() {
-            try {
-                // Clear logged_out flag when user is submitting credentials to log in
-                sessionStorage.removeItem('is_logged_out');
-            } catch(e) {}
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.classList.add('loading');
-        });
-
-        // Automatically update copyright year at the close of every year (Dec 31 00:00 PM -> Jan 1)
-        function updateCopyrightYear() {
-            const yearEl = document.getElementById('copyrightYear');
-            if (yearEl) {
-                yearEl.textContent = new Date().getFullYear();
-            }
+            passwordInput.addEventListener('keyup', function(e) {
+                if (e.getModifierState && e.getModifierState('CapsLock')) {
+                    capsNotice.style.display = 'flex';
+                } else {
+                    capsNotice.style.display = 'none';
+                }
+            });
         }
-        updateCopyrightYear();
-        // Check periodically so the year changes seamlessly when crossing midnight on Dec 31
-        setInterval(updateCopyrightYear, 60000);
 
-        // Modal Handlers
-        const modal = document.getElementById('supportModal');
+        // Forgot password notice for Admin
+        document.getElementById('forgotBtn').addEventListener('click', function() {
+            openLegacyModal(
+                'Password Assistance',
+                'For security, master department account credentials are managed by IT Administration. Please contact <strong>itsupport@ecometrix.co.in</strong>.'
+            );
+        });
+
+        // ================= SUPPORT TICKET MODAL =================
+        const ticketModal = document.getElementById('ticketModal');
+        const btnFacingIssues = document.getElementById('btnFacingIssues');
+        const closeTicketModal = document.getElementById('closeTicketModal');
+        const ticketEmpIdInput = document.getElementById('ticketEmpIdInput');
+        const ticketEmployeeCard = document.getElementById('ticketEmployeeCard');
+        const ticketCardName = document.getElementById('ticketCardName');
+        const ticketCardDept = document.getElementById('ticketCardDept');
+        const ticketCardId = document.getElementById('ticketCardId');
+        const ticketCardLastLogin = document.getElementById('ticketCardLastLogin');
+        const ticketRemarksInput = document.getElementById('ticketRemarksInput');
+        const btnSubmitTicket = document.getElementById('btnSubmitTicket');
+        const ticketErrorAlert = document.getElementById('ticketErrorAlert');
+        const ticketFormWrap = document.getElementById('ticketFormWrap');
+        const ticketSuccessWrap = document.getElementById('ticketSuccessWrap');
+        const ticketSuccessMessage = document.getElementById('ticketSuccessMessage');
+        const btnCloseTicketSuccess = document.getElementById('btnCloseTicketSuccess');
+
+        btnFacingIssues.addEventListener('click', function() {
+            // Auto populate with currently entered emp_id if present
+            const currentEmpId = empIdInput.value.trim();
+            if (currentEmpId) {
+                ticketEmpIdInput.value = currentEmpId;
+                lookupEmployeeForTicket(currentEmpId);
+            } else {
+                ticketEmployeeCard.style.display = 'none';
+            }
+            ticketErrorAlert.style.display = 'none';
+            ticketFormWrap.style.display = 'block';
+            ticketSuccessWrap.style.display = 'none';
+            ticketModal.style.display = 'flex';
+        });
+
+        closeTicketModal.addEventListener('click', () => { ticketModal.style.display = 'none'; });
+        btnCloseTicketSuccess.addEventListener('click', () => { ticketModal.style.display = 'none'; });
+
+        ticketModal.addEventListener('click', (e) => {
+            if (e.target === ticketModal) ticketModal.style.display = 'none';
+        });
+
+        async function lookupEmployeeForTicket(empId) {
+            if (!empId) return;
+            try {
+                const resp = await fetch(`{{ url_for("api_auth_employee_info") }}?emp_id=${encodeURIComponent(empId)}`);
+                const data = await resp.json();
+                if (resp.ok && data.success) {
+                    ticketCardName.textContent = data.name;
+                    ticketCardDept.textContent = data.department;
+                    ticketCardId.textContent = data.emp_id;
+                    ticketCardLastLogin.textContent = data.last_login;
+                    ticketEmployeeCard.style.display = 'block';
+                    ticketErrorAlert.style.display = 'none';
+                } else {
+                    ticketEmployeeCard.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        ticketEmpIdInput.addEventListener('blur', function() {
+            lookupEmployeeForTicket(this.value.trim());
+        });
+
+        btnSubmitTicket.addEventListener('click', async function() {
+            const empId = ticketEmpIdInput.value.trim();
+            const remarks = ticketRemarksInput.value.trim();
+
+            if (!empId) {
+                ticketErrorAlert.textContent = 'Please enter your Employee ID.';
+                ticketErrorAlert.style.display = 'block';
+                ticketEmpIdInput.focus();
+                return;
+            }
+
+            btnSubmitTicket.classList.add('loading');
+            ticketErrorAlert.style.display = 'none';
+
+            try {
+                const resp = await fetch('{{ url_for("api_auth_ticket_submit") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emp_id: empId, remarks: remarks })
+                });
+                const data = await resp.json();
+
+                if (resp.ok && data.success) {
+                    ticketFormWrap.style.display = 'none';
+                    ticketSuccessWrap.style.display = 'block';
+                    ticketSuccessMessage.textContent = data.message || `Ticket #${data.ticket_id} submitted to IT Support.`;
+                } else {
+                    ticketErrorAlert.textContent = data.error || 'Failed to submit ticket.';
+                    ticketErrorAlert.style.display = 'block';
+                }
+            } catch(err) {
+                ticketErrorAlert.textContent = 'Server communication error. Please try again.';
+                ticketErrorAlert.style.display = 'block';
+            } finally {
+                btnSubmitTicket.classList.remove('loading');
+            }
+        });
+
+        // ================= LEGACY / BLOCKED MODALS =================
+        const supportModal = document.getElementById('supportModal');
         const modalHeading = document.getElementById('modalHeading');
         const modalContent = document.getElementById('modalContent');
         const closeModal = document.getElementById('closeModal');
 
-        function openModal(heading, contentHtml) {
+        function openLegacyModal(heading, contentHtml) {
             modalHeading.textContent = heading;
             modalContent.innerHTML = contentHtml;
-            modal.style.display = 'flex';
+            supportModal.style.display = 'flex';
         }
+
+        closeModal.addEventListener('click', () => { supportModal.style.display = 'none'; });
+        supportModal.addEventListener('click', (e) => {
+            if (e.target === supportModal) supportModal.style.display = 'none';
+        });
 
         {% if blocked_modal %}
         window.addEventListener('DOMContentLoaded', function() {
@@ -1005,7 +1555,7 @@
                 iconWrap.style.color = '#ef4444';
                 iconWrap.innerHTML = '<i class="fas fa-user-lock" style="font-size: 20px;"></i>';
             }
-            openModal(
+            openLegacyModal(
                 'Access Blocked',
                 '<div style="text-align: center; padding: 4px 0;">' +
                 '<p style="font-size: 0.96rem; font-weight: 700; color: #dc2626; margin-bottom: 12px; line-height: 1.5;">You\'ve been blocked by the HR Admin. To unblock please reach to the HR Department.</p>' +
@@ -1025,7 +1575,7 @@
                 iconWrap.style.color = '#d97706';
                 iconWrap.innerHTML = '<i class="fas fa-user-slash" style="font-size: 20px;"></i>';
             }
-            openModal(
+            openLegacyModal(
                 'Account Archived',
                 '<div style="text-align: center; padding: 4px 0;">' +
                 '<p style="font-size: 0.94rem; font-weight: 600; color: #b45309; margin-bottom: 12px; line-height: 1.5;">This employee account has been marked as Resigned and archived. Access has been suspended.</p>' +
@@ -1035,29 +1585,9 @@
         });
         {% endif %}
 
-        document.getElementById('forgotBtn').addEventListener('click', function() {
-            openModal(
-                'Password Assistance',
-                'For security, password resets are handled centrally. Please contact your IT Helpdesk or Administrator at <strong>admin@ecometrix.co.in</strong> to reset your access.'
-            );
-        });
-
-        const showSSOInfo = (provider) => {
-            openModal(
-                `${provider} Sign-In`,
-                `Single Sign-On with <strong>${provider}</strong> is enabled for corporate accounts. Please use your registered <strong>@ecometrix.co.in</strong> enterprise identity.`
-            );
-        };
-
-        document.getElementById('ssoMsBtn').addEventListener('click', () => showSSOInfo('Microsoft 365'));
-        document.getElementById('ssoGoogleBtn').addEventListener('click', () => showSSOInfo('Google Workspace'));
-        document.getElementById('ssoMailBtn').addEventListener('click', () => showSSOInfo('Corporate Mail'));
-
-        // Desktop Live Clock: updates time, day, and date in real-time
+        // Desktop Live Clock
         function updateLiveDesktopClock() {
             const now = new Date();
-            
-            // 12-hour format with AM/PM
             let hours = now.getHours();
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -1070,12 +1600,10 @@
             if (timeEl) timeEl.textContent = `${hoursFormatted}:${minutes}`;
             if (ampmEl) ampmEl.textContent = ampm;
             
-            // Day of the week
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const dayEl = document.getElementById('liveClockDay');
             if (dayEl) dayEl.textContent = dayNames[now.getDay()];
             
-            // Full Date format: Day Month Year (e.g. 21 October 2026)
             const monthNames = [
                 'January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December'
@@ -1084,19 +1612,12 @@
             if (dateEl) {
                 dateEl.textContent = `${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
             }
+
+            const yearEl = document.getElementById('copyrightYear');
+            if (yearEl) yearEl.textContent = now.getFullYear();
         }
         updateLiveDesktopClock();
         setInterval(updateLiveDesktopClock, 1000);
-
-        closeModal.addEventListener('click', function() {
-            modal.style.display = 'none';
-        });
-
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
     </script>
 </body>
 </html>

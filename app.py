@@ -39,6 +39,12 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
 import json
+import hmac
+import hashlib
+import struct
+import base64
+import secrets
+import qrcode
 from mail import mail, send_email, send_otp_email
 from flask_wtf.csrf import CSRFProtect
 import bleach
@@ -403,6 +409,10 @@ class Employee(UserMixin, db.Model):
     manager_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=True)
     date_of_joining = db.Column(db.Date, nullable=True)
     employment_type = db.Column(db.String(50), default='EMPLOYEE')
+    # Passwordless TOTP authentication fields
+    totp_secret = db.Column(db.String(64), nullable=True)
+    totp_enabled = db.Column(db.Boolean, default=False)
+    last_login_at = db.Column(db.DateTime, nullable=True)
 
     @property
     def grade(self):
@@ -524,6 +534,25 @@ class HRDelegation(db.Model):
             'employee_archive': bool(self.employee_archive),
             'master_management': bool(self.master_management),
         }
+
+class AuthTicket(db.Model):
+    """Authentication Request Support Ticket for passwordless / TOTP assistance"""
+    __tablename__ = 'auth_tickets'
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=True)
+    emp_code = db.Column(db.String(50), nullable=False)
+    employee_name = db.Column(db.String(100), nullable=False)
+    department_name = db.Column(db.String(100), nullable=True)
+    last_login_str = db.Column(db.String(100), nullable=True)
+    request_type = db.Column(db.String(100), default='Request to enable / reset QR Authentication')
+    status = db.Column(db.String(20), default='Pending') # Pending, Resolved, Closed
+    remarks = db.Column(db.Text, nullable=True)
+    admin_notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+    resolved_by = db.Column(db.String(100), nullable=True)
+
+    employee = db.relationship('Employee', backref=db.backref('auth_tickets', lazy='dynamic'))
 
 class GradeSalaryMaster(db.Model):
     """Department-wise Grade & Salary Master"""
@@ -942,6 +971,14 @@ def init_db():
                 'role': 'FINANCE',
                 'password': 'PMS@FIN_2026',
                 'department_id': 17
+            },
+            {
+                'emp_id': 'DEPT_BD',
+                'name': 'BD Department',
+                'email': 'bd@ecometrix.co.in',
+                'role': 'BD',
+                'password': 'PMS@BD_2026',
+                'department_id': 16
             }
         ]
         for da in dept_accounts_init:
@@ -976,6 +1013,69 @@ def init_db():
             pm_user.role = 'PM'
 
         db.session.commit()
+
+# --- RFC 6238 TOTP Passwordless Authentication Helpers ---
+def generate_totp_secret():
+    """Generate RFC 3548 Base32 encoded secret key (160 bits / 20 bytes)"""
+    return base64.b32encode(secrets.token_bytes(20)).decode('utf-8').replace('=', '')
+
+def get_totp_token(secret, t=None, time_step=30, digits=6):
+    """Calculate RFC 6238 TOTP 6-digit token"""
+    if not secret:
+        return ""
+    if t is None:
+        t = time.time()
+    padded_secret = secret + '=' * ((8 - len(secret) % 8) % 8)
+    key = base64.b32decode(padded_secret, casefold=True)
+    counter = int(t // time_step)
+    counter_bytes = struct.pack('>Q', counter)
+    h = hmac.new(key, counter_bytes, hashlib.sha1).digest()
+    offset = h[-1] & 0x0f
+    truncated = struct.unpack('>I', h[offset:offset+4])[0] & 0x7fffffff
+    code = truncated % (10 ** digits)
+    return str(code).zfill(digits)
+
+def verify_totp_token(secret, token, window=1, time_step=30, digits=6):
+    """Verify TOTP token allowing +/- window intervals for clock drift"""
+    if not secret or not token:
+        return False
+    token = str(token).strip()
+    if len(token) != digits or not token.isdigit():
+        return False
+    curr_time = time.time()
+    for w in range(-window, window + 1):
+        if get_totp_token(secret, t=curr_time + (w * time_step), time_step=time_step, digits=digits) == token:
+            return True
+    return False
+
+def generate_totp_qr_data_uri(emp_id, secret, issuer="DayLog"):
+    """Generate QR code base64 data URI for Zoho Auth / OneAuth"""
+    import urllib.parse
+    label = f"{issuer}:{emp_id}"
+    encoded_issuer = urllib.parse.quote(issuer)
+    encoded_label = urllib.parse.quote(label)
+    otp_uri = f"otpauth://totp/{encoded_label}?secret={secret}&issuer={encoded_issuer}&algorithm=SHA1&digits=6&period=30"
+    
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=5,
+        border=2,
+    )
+    qr.add_data(otp_uri)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#0f172a", back_color="#ffffff")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    b64_str = base64.b64encode(buf.getvalue()).decode('utf-8')
+    return f"data:image/png;base64,{b64_str}", otp_uri
+
+# Ensure database tables (e.g. auth_tickets) exist on import
+try:
+    with app.app_context():
+        db.create_all()
+except Exception:
+    pass
 
 # --- Helper Functions ---
 def generate_file_number(financial_year, department, sub_department=None):
@@ -1206,6 +1306,20 @@ def debug_env():
         'headers': {k: str(v) for k, v in request.environ.items() if k.startswith('HTTP_')}
     })
 
+# Allowed Master Admin / Department Accounts strictly restricted to:
+# 1. CEO (chinmay.tripathy@ecometrix.co.in / 15M006)
+# 2. HR (hr@ecometrix.co.in / DEPT_HR)
+# 3. IT (itsupport@ecometrix.co.in / DEPT_IT)
+# 4. Finance (accounts@ecometrix.co.in / DEPT_FIN)
+# 5. BD (bd@ecometrix.co.in / DEPT_BD / 150779)
+ALLOWED_ADMIN_ACCOUNTS = {
+    'chinmay.tripathy@ecometrix.co.in', '15m006', 'admin@ecometrix.co.in', 'superadmin', 'admin',
+    'hr@ecometrix.co.in', 'dept_hr', 'hradmin', 'hr',
+    'itsupport@ecometrix.co.in', 'it@ecometrix.co.in', 'dept_it', 'itadmin', 'it',
+    'accounts@ecometrix.co.in', 'finance@ecometrix.co.in', 'dept_fin', 'financeadmin', 'finance',
+    'bd@ecometrix.co.in', 'dept_bd', 'bdadmin', 'bd', 'kaustubha.panda@ecometrix.co.in', '150779'
+}
+
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
 @app.route('/api/index', methods=['GET', 'POST'])
@@ -1213,126 +1327,418 @@ def debug_env():
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
+
     if request.method == 'POST':
-        identifier = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
+        role = request.form.get('login_role', 'employee').strip().lower()
         remember = 'remember' in request.form
-        
-        if identifier.lower() in ['superadmin', 'admin', 'admin@ecometrix.co.in', 'chinmay.tripathy@ecometrix.co.in', '15m006']:
-            user = Employee.query.filter(
-                (Employee.emp_id == '15M006') | 
-                (Employee.email == 'chinmay.tripathy@ecometrix.co.in') | 
-                (Employee.role == 'MD')
-            ).first()
-        elif identifier.lower() in ['hradmin', 'hr', 'hr@ecometrix.co.in']:
-            user = Employee.query.filter(
-                (Employee.email == 'hr@ecometrix.co.in') | 
-                (Employee.emp_id == 'DEPT_HR')
-            ).first()
-        elif identifier.lower() in ['itadmin', 'it', 'it@ecometrix.co.in', 'itsupport@ecometrix.co.in', 'itsupport']:
-            user = Employee.query.filter(
-                (Employee.email == 'itsupport@ecometrix.co.in') | 
-                (Employee.emp_id == 'DEPT_IT')
-            ).first()
-        elif identifier.lower() in ['financeadmin', 'finance', 'finance@ecometrix.co.in', 'accounts@ecometrix.co.in', 'accounts']:
-            user = Employee.query.filter(
-                (Employee.email == 'accounts@ecometrix.co.in') | 
-                (Employee.emp_id == 'DEPT_FIN')
-            ).first()
-        elif identifier.lower() in ['bdadmin', 'bd', 'bd@ecometrix.co.in']:
-            user = Employee.query.filter(
-                (Employee.emp_id == '150779') | 
-                (Employee.email == 'kaustubha.panda@ecometrix.co.in') | 
-                (Employee.role == 'BD')
-            ).first()
-        elif identifier.lower() in ['pmadmin', 'pm']:
-            user = Employee.query.filter(
-                (Employee.emp_id == '150405') | 
-                (Employee.role == 'PM')
-            ).first()
-        else:
-            user = Employee.query.filter(
-                (Employee.email == identifier) | 
-                (Employee.emp_id == identifier)
-            ).first()
-            
-        pwd_valid = False
-        if user:
-            if user.check_password(password):
-                pwd_valid = True
-            elif user.emp_id == 'DEPT_HR' and password == 'PMS@HR_2026':
-                pwd_valid = True
-            elif user.emp_id == '15M006' and password in ['PMS@CEO_2026', 'admin123', 'pms123']:
-                pwd_valid = True
-            elif user.emp_id == 'DEPT_IT' and password == 'PMS@IT_2026':
-                pwd_valid = True
-            elif user.emp_id == 'DEPT_FIN' and password == 'PMS@FIN_2026':
-                pwd_valid = True
-            elif user.employment_type != 'DEPARTMENT' and password == 'pms123':
-                pwd_valid = True
 
-        if user and pwd_valid:
-            # Check if employee has been blocked by HR Admin
-            if getattr(user, 'status', 'Active') == 'Blocked':
-                log_audit_trail(
-                    action='LOGIN_BLOCKED',
-                    table_name='employee',
-                    record_id=user.id,
-                    old_values={'identifier': identifier, 'status': 'Blocked', 'name': user.name, 'role': user.role},
-                    user_id=user.id
-                )
+        # --- ADMIN LOGIN FLOW (Email + Password, strictly restricted) ---
+        if role == 'admin':
+            identifier = request.form.get('email', '').strip()
+            password = request.form.get('password', '')
+
+            if not identifier or not password:
+                flash('Please enter your work email and password.', 'danger')
+                return render_template('admin_login.html', selected_role='admin')
+
+            ident_lower = identifier.lower()
+            if ident_lower not in ALLOWED_ADMIN_ACCOUNTS:
+                flash('Admin login is strictly reserved for Department Accounts (HR, IT, Finance, BD) and Executive Leadership. Regular employees must select Employee role to sign in.', 'danger')
+                return render_template('admin_login.html', selected_role='admin')
+
+            # Lookup Admin User
+            if ident_lower in ['chinmay.tripathy@ecometrix.co.in', '15m006', 'admin@ecometrix.co.in', 'superadmin', 'admin']:
+                user = Employee.query.filter(
+                    (Employee.emp_id == '15M006') | 
+                    (Employee.email == 'chinmay.tripathy@ecometrix.co.in') | 
+                    (Employee.role == 'MD')
+                ).first()
+            elif ident_lower in ['hr@ecometrix.co.in', 'dept_hr', 'hradmin', 'hr']:
+                user = Employee.query.filter(
+                    (Employee.email == 'hr@ecometrix.co.in') | 
+                    (Employee.emp_id == 'DEPT_HR')
+                ).first()
+            elif ident_lower in ['itsupport@ecometrix.co.in', 'it@ecometrix.co.in', 'dept_it', 'itadmin', 'it']:
+                user = Employee.query.filter(
+                    (Employee.email == 'itsupport@ecometrix.co.in') | 
+                    (Employee.emp_id == 'DEPT_IT')
+                ).first()
+            elif ident_lower in ['accounts@ecometrix.co.in', 'finance@ecometrix.co.in', 'dept_fin', 'financeadmin', 'finance']:
+                user = Employee.query.filter(
+                    (Employee.email == 'accounts@ecometrix.co.in') | 
+                    (Employee.emp_id == 'DEPT_FIN')
+                ).first()
+            elif ident_lower in ['bd@ecometrix.co.in', 'dept_bd', 'bdadmin', 'bd', 'kaustubha.panda@ecometrix.co.in', '150779']:
+                user = Employee.query.filter(
+                    (Employee.email == 'bd@ecometrix.co.in') | 
+                    (Employee.emp_id == 'DEPT_BD') |
+                    (Employee.email == 'kaustubha.panda@ecometrix.co.in') |
+                    (Employee.role == 'BD')
+                ).first()
+            else:
+                user = None
+
+            pwd_valid = False
+            if user:
+                if user.check_password(password):
+                    pwd_valid = True
+                elif user.emp_id == 'DEPT_HR' and password == 'PMS@HR_2026':
+                    pwd_valid = True
+                elif user.emp_id == '15M006' and password in ['PMS@CEO_2026', 'admin123', 'pms123']:
+                    pwd_valid = True
+                elif user.emp_id == 'DEPT_IT' and password == 'PMS@IT_2026':
+                    pwd_valid = True
+                elif user.emp_id == 'DEPT_FIN' and password == 'PMS@FIN_2026':
+                    pwd_valid = True
+                elif (user.emp_id == 'DEPT_BD' or user.role == 'BD') and password in ['PMS@BD_2026', 'pms123']:
+                    pwd_valid = True
+
+            if user and pwd_valid:
+                # Check status
+                if getattr(user, 'status', 'Active') == 'Blocked':
+                    flash("You've been blocked by the HR Admin. To unblock please reach to the HR Department.", 'danger')
+                    return render_template('admin_login.html', blocked_modal=True, blocked_employee_name=user.name, selected_role='admin')
+                if getattr(user, 'status', 'Active') == 'Resigned':
+                    flash("This account is registered as Resigned and archived. Please reach out to HR Administration.", 'warning')
+                    return render_template('admin_login.html', resigned_modal=True, resigned_employee_name=user.name, selected_role='admin')
+                if not user.is_active:
+                    flash("Your account is currently inactive. Please contact the HR Department.", 'danger')
+                    return render_template('admin_login.html', selected_role='admin')
+
+                user.last_login_at = datetime.utcnow()
+                db.session.commit()
+                login_user(user, remember=remember)
+                log_audit_trail('LOGIN_SUCCESS', table_name='employee', record_id=user.id,
+                                new_values={'email': user.email, 'name': user.name, 'role': user.role, 'login_type': 'admin_password'},
+                                user_id=user.id)
+                return redirect(url_for('dashboard'))
+            else:
+                log_audit_trail('LOGIN_FAILED', table_name='employee', record_id=user.id if user else None,
+                                old_values={'identifier': identifier, 'reason': 'Wrong admin password' if user else 'Admin account not found'},
+                                user_id=user.id if user else None)
+                flash('Invalid admin credentials. Please verify your email and password.', 'danger')
+                return render_template('admin_login.html', selected_role='admin')
+
+        # --- EMPLOYEE PASSWORDLESS LOGIN FLOW (Employee ID + Zoho Auth TOTP) ---
+        else:
+            emp_id = request.form.get('emp_id', '').strip()
+            totp_token = request.form.get('totp_token', '').strip()
+
+            if not emp_id:
+                flash('Please enter your Employee ID.', 'danger')
+                return render_template('admin_login.html', selected_role='employee')
+
+            emp = Employee.query.filter(func.lower(Employee.emp_id) == func.lower(emp_id)).first()
+            if not emp:
+                flash(f"Employee ID '{emp_id}' not found. Please verify your Employee ID or contact IT Admin.", 'danger')
+                return render_template('admin_login.html', selected_role='employee', entered_emp_id=emp_id)
+
+            # Check status
+            if getattr(emp, 'status', 'Active') == 'Blocked':
                 flash("You've been blocked by the HR Admin. To unblock please reach to the HR Department.", 'danger')
-                return render_template('admin_login.html', blocked_modal=True, blocked_employee_name=user.name)
-
-            # Check if employee has resigned
-            if getattr(user, 'status', 'Active') == 'Resigned':
-                log_audit_trail(
-                    action='LOGIN_BLOCKED',
-                    table_name='employee',
-                    record_id=user.id,
-                    old_values={'identifier': identifier, 'status': 'Resigned', 'name': user.name, 'role': user.role},
-                    user_id=user.id
-                )
+                return render_template('admin_login.html', blocked_modal=True, blocked_employee_name=emp.name, selected_role='employee')
+            if getattr(emp, 'status', 'Active') == 'Resigned':
                 flash("This account is registered as Resigned and archived. Please reach out to HR Administration.", 'warning')
-                return render_template('admin_login.html', resigned_modal=True, resigned_employee_name=user.name)
-
-            # Check if active
-            if not user.is_active:
-                log_audit_trail(
-                    action='LOGIN_BLOCKED',
-                    table_name='employee',
-                    record_id=user.id,
-                    old_values={'identifier': identifier, 'status': 'Inactive', 'name': user.name, 'role': user.role},
-                    user_id=user.id
-                )
+                return render_template('admin_login.html', resigned_modal=True, resigned_employee_name=emp.name, selected_role='employee')
+            if not emp.is_active:
                 flash("Your account is currently inactive. Please contact the HR Department.", 'danger')
-                return render_template('admin_login.html')
+                return render_template('admin_login.html', selected_role='employee')
 
-            login_user(user, remember=remember)
-            log_audit_trail(
-                action='LOGIN_SUCCESS',
-                table_name='employee',
-                record_id=user.id,
-                new_values={'email': user.email, 'name': user.name, 'role': user.role},
-                user_id=user.id
-            )
-            return redirect(url_for('dashboard'))
-        else:
-            log_audit_trail(
-                action='LOGIN_FAILED',
-                table_name='employee',
-                record_id=user.id if user else None,
-                old_values={
-                    'identifier': identifier,
-                    'reason': 'Wrong password entered' if user else 'Account not found',
-                    'account_name': user.name if user else None,
-                    'role': user.role if user else None
-                },
-                user_id=user.id if user else None
-            )
-            flash('Invalid email or password.', 'danger')
-            return render_template('admin_login.html')
-    return render_template('admin_login.html')
+            # Ensure TOTP secret exists
+            if not emp.totp_secret:
+                emp.totp_secret = generate_totp_secret()
+                db.session.commit()
+
+            qr_uri, _ = generate_totp_qr_data_uri(emp.emp_id, emp.totp_secret)
+            is_first_time = not bool(emp.totp_enabled)
+
+            # If user submitted the 6-digit TOTP token
+            if totp_token:
+                if verify_totp_token(emp.totp_secret, totp_token):
+                    emp.totp_enabled = True
+                    emp.last_login_at = datetime.utcnow()
+                    db.session.commit()
+                    login_user(emp, remember=remember)
+                    log_audit_trail('LOGIN_SUCCESS', table_name='employee', record_id=emp.id,
+                                    new_values={'emp_id': emp.emp_id, 'name': emp.name, 'auth_method': 'TOTP_ZOHO'},
+                                    user_id=emp.id)
+                    return redirect(url_for('dashboard'))
+                else:
+                    flash('Invalid 6-digit verification code. Please check your Zoho Auth app and try again.', 'danger')
+                    return render_template('admin_login.html', selected_role='employee', employee_step='verify',
+                                           emp=emp, qr_data_uri=qr_uri, first_time=is_first_time)
+
+            # Prompt for verification code (and show QR if first time)
+            return render_template('admin_login.html', selected_role='employee', employee_step='verify',
+                                   emp=emp, qr_data_uri=qr_uri, first_time=is_first_time)
+
+    return render_template('admin_login.html', selected_role='employee')
+
+
+# --- AJAX Auth Endpoints for Passwordless TOTP Experience ---
+
+@app.route('/api/auth/employee-check', methods=['POST'])
+@csrf.exempt
+def api_auth_employee_check():
+    """Verify employee ID and return authentication status (first time vs subsequent)"""
+    data = request.get_json(silent=True) or request.form
+    emp_id = (data.get('emp_id') or '').strip()
+    if not emp_id:
+        return jsonify({'success': False, 'error': 'Please enter your Employee ID.'}), 400
+
+    emp = Employee.query.filter(func.lower(Employee.emp_id) == func.lower(emp_id)).first()
+    if not emp:
+        return jsonify({'success': False, 'error': f"Employee ID '{emp_id}' not found. Please verify or contact IT Admin."}), 404
+
+    # Status check
+    if getattr(emp, 'status', 'Active') == 'Blocked':
+        return jsonify({'success': False, 'blocked': True, 'employee_name': emp.name,
+                        'error': "You've been blocked by the HR Admin. To unblock please reach to the HR Department."}), 403
+    if getattr(emp, 'status', 'Active') == 'Resigned':
+        return jsonify({'success': False, 'resigned': True, 'employee_name': emp.name,
+                        'error': "This account is registered as Resigned and archived. Please reach out to HR Administration."}), 403
+    if not emp.is_active:
+        return jsonify({'success': False, 'error': "Your account is currently inactive. Please contact the HR Department."}), 403
+
+    # Generate secret if not present
+    if not emp.totp_secret:
+        emp.totp_secret = generate_totp_secret()
+        db.session.commit()
+
+    is_first_time = not bool(emp.totp_enabled)
+    qr_data_uri, _ = generate_totp_qr_data_uri(emp.emp_id, emp.totp_secret) if is_first_time else ("", "")
+
+    dept_name = emp.department.name if emp.department else "General"
+
+    return jsonify({
+        'success': True,
+        'first_time': is_first_time,
+        'emp_id': emp.emp_id,
+        'employee_name': emp.clean_name,
+        'department': dept_name,
+        'qr_data_uri': qr_data_uri,
+        'secret_key': emp.totp_secret if is_first_time else "",
+        'message': "First-time setup: Scan the QR code using Zoho Auth and enter the 6-digit TOTP code." if is_first_time else "Enter the 6-digit TOTP code from your Zoho Auth app."
+    })
+
+
+@app.route('/api/auth/employee-verify', methods=['POST'])
+@csrf.exempt
+def api_auth_employee_verify():
+    """Verify TOTP token for passwordless employee login"""
+    data = request.get_json(silent=True) or request.form
+    emp_id = (data.get('emp_id') or '').strip()
+    totp_token = (data.get('totp_token') or '').strip()
+    remember = bool(data.get('remember', False))
+
+    if not emp_id or not totp_token:
+        return jsonify({'success': False, 'error': 'Employee ID and 6-digit code are required.'}), 400
+
+    emp = Employee.query.filter(func.lower(Employee.emp_id) == func.lower(emp_id)).first()
+    if not emp:
+        return jsonify({'success': False, 'error': 'Employee account not found.'}), 404
+
+    if getattr(emp, 'status', 'Active') in ['Blocked', 'Resigned'] or not emp.is_active:
+        return jsonify({'success': False, 'error': 'Account access suspended or blocked.'}), 403
+
+    if not emp.totp_secret:
+        return jsonify({'success': False, 'error': 'Authentication secret not initialized. Please re-enter your Employee ID.'}), 400
+
+    if not verify_totp_token(emp.totp_secret, totp_token):
+        return jsonify({'success': False, 'error': 'Invalid 6-digit code. Please check Zoho Auth and enter the current code.'}), 400
+
+    # Successful TOTP verification
+    emp.totp_enabled = True
+    emp.last_login_at = datetime.utcnow()
+    db.session.commit()
+
+    login_user(emp, remember=remember)
+    log_audit_trail('LOGIN_SUCCESS', table_name='employee', record_id=emp.id,
+                    new_values={'emp_id': emp.emp_id, 'name': emp.name, 'auth_method': 'TOTP_ZOHO'},
+                    user_id=emp.id)
+
+    return jsonify({
+        'success': True,
+        'redirect_url': url_for('dashboard'),
+        'employee_name': emp.clean_name
+    })
+
+
+@app.route('/api/auth/employee-info', methods=['GET'])
+@csrf.exempt
+def api_auth_employee_info():
+    """Fetch employee info by emp_id for the support ticket modal"""
+    emp_id = request.args.get('emp_id', '').strip()
+    if not emp_id:
+        return jsonify({'success': False, 'error': 'Employee ID required.'}), 400
+
+    emp = Employee.query.filter(func.lower(Employee.emp_id) == func.lower(emp_id)).first()
+    if not emp:
+        return jsonify({'success': False, 'error': f"Employee ID '{emp_id}' not found."}), 404
+
+    last_login = emp.last_login_at.strftime('%d-%b-%Y %I:%M %p') if emp.last_login_at else 'Never logged in'
+    dept_name = emp.department.name if emp.department else 'General Administration'
+
+    return jsonify({
+        'success': True,
+        'emp_id': emp.emp_id,
+        'name': emp.clean_name,
+        'department': dept_name,
+        'last_login': last_login,
+        'email': emp.email
+    })
+
+
+@app.route('/api/auth/ticket/submit', methods=['POST'])
+@csrf.exempt
+def api_auth_ticket_submit():
+    """Submit an authentication assistance ticket to IT Support"""
+    data = request.get_json(silent=True) or request.form
+    emp_id = (data.get('emp_id') or '').strip()
+    remarks = (data.get('remarks') or '').strip()
+
+    if not emp_id:
+        return jsonify({'success': False, 'error': 'Employee ID is required.'}), 400
+
+    emp = Employee.query.filter(func.lower(Employee.emp_id) == func.lower(emp_id)).first()
+    if not emp:
+        return jsonify({'success': False, 'error': f"Employee ID '{emp_id}' not found."}), 404
+
+    last_login = emp.last_login_at.strftime('%d-%b-%Y %I:%M %p') if emp.last_login_at else 'Never logged in'
+    dept_name = emp.department.name if emp.department else 'General Administration'
+
+    ticket = AuthTicket(
+        employee_id=emp.id,
+        emp_code=emp.emp_id,
+        employee_name=emp.name,
+        department_name=dept_name,
+        last_login_str=last_login,
+        request_type='Request to enable / reset QR Authentication',
+        status='Pending',
+        remarks=bleach.clean(remarks) if remarks else None,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(ticket)
+    db.session.commit()
+
+    # Log audit
+    log_audit_trail('AUTH_TICKET_RAISED', table_name='auth_tickets', record_id=ticket.id,
+                    new_values={'emp_id': emp.emp_id, 'name': emp.name, 'ticket_id': ticket.id},
+                    user_id=emp.id)
+
+    # Send notification email to IT Support (itsupport@ecometrix.co.in) and Employee (emp.email)
+    try:
+        it_subject = f"[PMS DayLog] QR Authentication Reset Request - #{ticket.id} ({emp.name})"
+        it_html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; color: #1e293b;">
+            <h3 style="color: #0f172a; border-bottom: 2px solid #0e8749; padding-bottom: 8px;">Authentication Reset Ticket #{ticket.id}</h3>
+            <p>An employee has reported an issue and requested to reset / re-enable their QR Authentication:</p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 15px 0;">
+                <tr style="background: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; width: 35%;">Employee Name</td><td style="padding: 8px; border: 1px solid #e2e8f0;">{emp.name}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Employee ID</td><td style="padding: 8px; border: 1px solid #e2e8f0;">{emp.emp_id}</td></tr>
+                <tr style="background: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Department</td><td style="padding: 8px; border: 1px solid #e2e8f0;">{dept_name}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Official Email</td><td style="padding: 8px; border: 1px solid #e2e8f0;">{emp.email}</td></tr>
+                <tr style="background: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Last Logged In</td><td style="padding: 8px; border: 1px solid #e2e8f0;">{last_login}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Request Type</td><td style="padding: 8px; border: 1px solid #e2e8f0;">{ticket.request_type}</td></tr>
+                <tr style="background: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Employee Remarks</td><td style="padding: 8px; border: 1px solid #e2e8f0;">{ticket.remarks or 'N/A'}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Submitted At</td><td style="padding: 8px; border: 1px solid #e2e8f0;">{ticket.created_at.strftime('%d-%b-%Y %I:%M %p')}</td></tr>
+            </table>
+            <p>Please log in to the DayLog IT Administration dashboard to review and re-enable QR Authentication for this user.</p>
+        </div>
+        """
+        send_email('itsupport@ecometrix.co.in', it_subject, it_html)
+    except Exception as e:
+        print(f"[MAIL_ERROR] Failed to email IT Support: {e}")
+
+    try:
+        emp_subject = f"[PMS DayLog] Ticket #{ticket.id} Received - QR Authentication Assistance"
+        emp_html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; color: #1e293b;">
+            <h3 style="color: #0e8749;">Dear {emp.clean_name},</h3>
+            <p>Your request to reset QR Authentication has been registered under <strong>Ticket #{ticket.id}</strong>.</p>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px 16px; border-radius: 8px; margin: 15px 0;">
+                <p style="margin: 0; font-size: 14px; color: #166534;">
+                    <strong>Ticket ID:</strong> #{ticket.id}<br>
+                    <strong>Employee ID:</strong> {emp.emp_id}<br>
+                    <strong>Status:</strong> Pending IT Review<br>
+                    <strong>Action:</strong> IT Support will review your ticket, reset your authentication, and notify you with setup instructions.
+                </p>
+            </div>
+            <p>Once IT updates your ticket, you will receive an email confirmation and can scan a newly generated QR code on your next login.</p>
+            <br>
+            <p style="font-size: 13px; color: #64748b;">Best regards,<br>IT Support Helpdesk<br>Ecometrix Consultants Pvt. Ltd.</p>
+        </div>
+        """
+        send_email(emp.email, emp_subject, emp_html)
+    except Exception as e:
+        print(f"[MAIL_ERROR] Failed to email Employee: {e}")
+
+    return jsonify({
+        'success': True,
+        'ticket_id': ticket.id,
+        'message': f"Ticket #{ticket.id} submitted successfully! Notifications sent to itsupport@ecometrix.co.in and {emp.email}."
+    })
+
+
+@app.route('/api/it-admin/ticket/<int:ticket_id>/resolve', methods=['POST'])
+@login_required
+@csrf.exempt
+def api_it_admin_ticket_resolve(ticket_id):
+    """IT Admin action to reset an employee's TOTP authentication and close ticket"""
+    if current_user.role not in ['IT', 'MD'] and current_user.email != 'itsupport@ecometrix.co.in':
+        return jsonify({'success': False, 'error': 'Unauthorized. IT Admin credentials required.'}), 403
+
+    ticket = AuthTicket.query.get_or_404(ticket_id)
+    emp = Employee.query.get(ticket.employee_id) if ticket.employee_id else Employee.query.filter_by(emp_id=ticket.emp_code).first()
+
+    if not emp:
+        return jsonify({'success': False, 'error': 'Associated employee record not found.'}), 404
+
+    # 1. Reset TOTP credentials so fresh QR code is generated on next login
+    emp.totp_secret = None
+    emp.totp_enabled = False
+
+    # 2. Mark ticket as resolved
+    ticket.status = 'Resolved'
+    ticket.resolved_at = datetime.utcnow()
+    ticket.resolved_by = current_user.name
+    db.session.commit()
+
+    # 3. Log audit trail
+    log_audit_trail('PASSWORD_RESET_BY_IT', table_name='employee', record_id=emp.id,
+                    new_values={'action': 'TOTP_RESET_RE_ENABLED', 'ticket_id': ticket.id, 'resolved_by': current_user.name},
+                    user_id=current_user.id)
+
+    # 4. Send email notification to employee with step-by-step instructions
+    try:
+        subject = f"[PMS DayLog] Ticket #{ticket.id} Resolved: QR Authentication Re-enabled"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; color: #1e293b;">
+            <h3 style="color: #0e8749;">Dear {emp.clean_name},</h3>
+            <p>Your authentication assistance ticket (<strong>#{ticket.id}</strong>) has been processed and closed by IT Support.</p>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 8px; margin: 15px 0;">
+                <h4 style="color: #166534; margin-top: 0; margin-bottom: 8px;">Steps to Set Up Authentication:</h4>
+                <ol style="color: #166534; padding-left: 20px; line-height: 1.6; margin: 0;">
+                    <li>Open the DayLog portal: <a href="https://pmstimesheet.vercel.app" style="color: #0e8749; font-weight: bold;">https://pmstimesheet.vercel.app</a></li>
+                    <li>Select <strong>Employee</strong> role and enter your Employee ID: <strong>{emp.emp_id}</strong></li>
+                    <li>A fresh QR code will be displayed specifically for your account.</li>
+                    <li>Open <strong>Zoho Auth</strong> (or Google / Microsoft Authenticator) on your mobile and scan the QR code.</li>
+                    <li>Enter the 6-digit TOTP code shown in Zoho Auth to complete your login.</li>
+                </ol>
+            </div>
+            <p>Your account is now ready. If you encounter any further issues, please contact IT Support at <a href="mailto:itsupport@ecometrix.co.in">itsupport@ecometrix.co.in</a>.</p>
+            <br>
+            <p style="font-size: 13px; color: #64748b;">Best regards,<br>IT Administration<br>Ecometrix Consultants Pvt. Ltd.</p>
+        </div>
+        """
+        send_email(emp.email, subject, html)
+    except Exception as e:
+        print(f"[MAIL_ERROR] Failed to email resolution instructions: {e}")
+
+    return jsonify({
+        'success': True,
+        'message': f"Ticket #{ticket.id} marked as Resolved. QR Authentication has been re-enabled for {emp.name}."
+    })
 
 @app.route('/job-indent/create', methods=['GET', 'POST'])
 @login_required
@@ -3598,8 +4004,8 @@ def add_employee():
             return render_template('employees/add_employee.html', departments=departments, managers=managers)
 
         if not password:
-            flash('Password is required for creating a new employee login.', 'danger')
-            return render_template('employees/add_employee.html', departments=departments, managers=managers)
+            import secrets
+            password = secrets.token_urlsafe(16)
 
         # Parse salary safely (handle empty string, commas, etc.)
         salary_raw = request.form.get('monthly_salary', '').strip().replace(',', '')
@@ -4169,6 +4575,9 @@ def dashboard():
             AuditLog.action.in_(['PASSWORD_RESET_BY_IT', 'CREDENTIAL_UPDATE'])
         ).count()
 
+        auth_tickets = AuthTicket.query.order_by(AuthTicket.id.desc()).all()
+        pending_tickets_count = AuthTicket.query.filter_by(status='Pending').count()
+
         return render_template(
             'dashboards/it_dashboard.html',
             master_accounts=master_accounts,
@@ -4176,7 +4585,9 @@ def dashboard():
             projects=projects,
             logins_today=logins_today,
             failed_attempts_today=failed_attempts_today,
-            resets_count=resets_count
+            resets_count=resets_count,
+            auth_tickets=auth_tickets,
+            pending_tickets_count=pending_tickets_count
         )
 
     elif current_user.role == 'MD':

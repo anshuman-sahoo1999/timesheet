@@ -643,6 +643,13 @@
             <i class="fas fa-user-shield"></i>
             <span>Master Accounts Hub</span>
         </button>
+        <button type="button" class="it-tab-btn" id="tabBtnAuthTickets" onclick="switchItTab('authTickets')">
+            <i class="fas fa-qrcode"></i>
+            <span>Authentication Requests</span>
+            {% if pending_tickets_count and pending_tickets_count > 0 %}
+            <span class="badge bg-danger rounded-pill ms-1" id="pendingTicketsBadge">{{ pending_tickets_count }}</span>
+            {% endif %}
+        </button>
         <button type="button" class="it-tab-btn" id="tabBtnActivity" onclick="switchItTab('activity')">
             <i class="fas fa-history"></i>
             <span>Master Security & Activity Monitor</span>
@@ -872,6 +879,94 @@
                             <i class="fas fa-paper-plane"></i> Inform Finance Over Email
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TAB: AUTHENTICATION REQUESTS (PASSWORDLESS / TOTP) ================= -->
+    <div id="paneAuthTickets" class="it-pane" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="fw-bold mb-1" style="color: #0f172a;">
+                    <i class="fas fa-shield-alt text-teal me-2"></i>QR Authentication Reset & Assistance Requests
+                </h5>
+                <p class="text-muted small mb-0">Manage self-service support tickets submitted by employees facing authenticator issues or device resets. Re-enable QR enrollment with a single click.</p>
+            </div>
+            <div>
+                <span class="badge bg-primary-subtle text-primary border px-3 py-2 rounded-3">
+                    <i class="fas fa-ticket-alt me-1"></i> Total Tickets: {{ auth_tickets|length if auth_tickets else 0 }}
+                </span>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="authTicketsTable" style="font-size: 0.82rem;">
+                        <thead class="table-light text-secondary text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                            <tr>
+                                <th class="ps-3 py-3" style="width: 80px;">Ticket #</th>
+                                <th class="py-3">Employee Details</th>
+                                <th class="py-3">Department</th>
+                                <th class="py-3">Last Logged In</th>
+                                <th class="py-3">Request Type</th>
+                                <th class="py-3">Remarks / Reason</th>
+                                <th class="py-3">Submitted At</th>
+                                <th class="py-3 text-center">Status</th>
+                                <th class="pe-3 py-3 text-end" style="min-width: 170px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if auth_tickets and auth_tickets|length > 0 %}
+                                {% for t in auth_tickets %}
+                                <tr id="ticketRow-{{ t.id }}">
+                                    <td class="ps-3 fw-bold text-dark">#{{ t.id }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="avatar-sm rounded-circle bg-light text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.78rem; border: 1px solid #cbd5e1;">
+                                                {{ t.employee.initials if t.employee else 'EM' }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark">{{ t.employee_name }}</div>
+                                                <div class="small text-muted font-monospace">{{ t.emp_code }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border">{{ t.department_name or 'N/A' }}</span></td>
+                                    <td class="text-secondary small">{{ t.last_login_str or 'Never' }}</td>
+                                    <td><span class="badge bg-info-subtle text-info border border-info-subtle">{{ t.request_type }}</span></td>
+                                    <td class="text-secondary small" style="max-width: 220px;">{{ t.remarks or '<em class="text-muted">None</em>'|safe }}</td>
+                                    <td class="text-secondary small">{{ t.created_at.strftime('%d-%b-%Y %I:%M %p') }}</td>
+                                    <td class="text-center" id="ticketStatusCell-{{ t.id }}">
+                                        {% if t.status == 'Resolved' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Resolved</span>
+                                        {% else %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="fas fa-clock me-1"></i>Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="pe-3 text-end" id="ticketActionCell-{{ t.id }}">
+                                        {% if t.status == 'Pending' %}
+                                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 shadow-sm" onclick="resolveAuthTicket({{ t.id }}, '{{ t.employee_name|escape }}')">
+                                            <i class="fas fa-redo-alt me-1"></i>Re-enable QR
+                                        </button>
+                                        {% else %}
+                                        <span class="small text-muted"><i class="fas fa-user-check me-1"></i>{{ t.resolved_by or 'IT Admin' }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-5 text-muted">
+                                        <i class="fas fa-clipboard-check fs-2 text-secondary mb-2 d-block"></i>
+                                        <strong>No Authentication Assistance Requests</strong>
+                                        <p class="small text-muted mb-0">When employees report authenticator issues from the login screen, their requests will appear here for 1-click resolution.</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1157,6 +1252,10 @@
             document.getElementById('paneMasters').style.display = 'block';
             document.getElementById('tabBtnMasters').classList.add('active');
             window.location.hash = 'masters';
+        } else if (tabName === 'authTickets') {
+            document.getElementById('paneAuthTickets').style.display = 'block';
+            document.getElementById('tabBtnAuthTickets').classList.add('active');
+            window.location.hash = 'authTickets';
         } else if (tabName === 'activity') {
             document.getElementById('paneActivity').style.display = 'block';
             document.getElementById('tabBtnActivity').classList.add('active');
@@ -1545,5 +1644,43 @@
             switchItTab('masters');
         }
     });
+    // Resolve Authentication Assistance Ticket
+    async function resolveAuthTicket(ticketId, empName) {
+        if (!confirm(`Are you sure you want to reset QR Authentication for ${empName}? This will clear their previous secret and allow them to scan a new QR code on their next login.`)) {
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/api/it-admin/ticket/${ticketId}/resolve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await resp.json();
+
+            if (resp.ok && data.success) {
+                alert(data.message || `QR Authentication re-enabled for ${empName}. An email has been sent to them.`);
+                
+                // Dynamically update UI
+                const statusCell = document.getElementById(`ticketStatusCell-${ticketId}`);
+                if (statusCell) {
+                    statusCell.innerHTML = '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Resolved</span>';
+                }
+                const actionCell = document.getElementById(`ticketActionCell-${ticketId}`);
+                if (actionCell) {
+                    actionCell.innerHTML = '<span class="small text-muted"><i class="fas fa-user-check me-1"></i>Resolved</span>';
+                }
+                const badge = document.getElementById('pendingTicketsBadge');
+                if (badge) {
+                    let cur = parseInt(badge.textContent.trim()) || 1;
+                    if (cur <= 1) { badge.style.display = 'none'; }
+                    else { badge.textContent = cur - 1; }
+                }
+            } else {
+                alert(data.error || 'Failed to resolve ticket.');
+            }
+        } catch(e) {
+            alert('Server communication error.');
+        }
+    }
 </script>
 {% endblock %}

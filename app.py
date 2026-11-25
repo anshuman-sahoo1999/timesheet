@@ -7874,46 +7874,116 @@ def trigger_auto_submit():
 @app.route('/api/timesheet/<int:timesheet_id>/details')
 @login_required
 def api_timesheet_details(timesheet_id):
-    """API endpoint to get detailed timesheet information"""
-    if current_user.role not in ['HR', 'MD', 'PM']:
+    """API endpoint to get detailed timesheet information and dual PM/RM verification status"""
+    if current_user.role not in ['HR', 'MD', 'PM'] and not current_user.has_hr_permission('timesheet_review'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     timesheet = WeeklyTimesheet.query.get_or_404(timesheet_id)
+    emp = timesheet.employee
     
-    # Get project and task information
-    project_name = "N/A"
-    task_description = "N/A"
-    if timesheet.task and timesheet.task.job_card and timesheet.task.job_card.indent:
+    # Project and Task details
+    has_project = bool(timesheet.task and timesheet.task.job_card and timesheet.task.job_card.indent)
+    if has_project:
         project_name = timesheet.task.job_card.indent.project_name
-        task_description = timesheet.task.description
+        task_description = timesheet.task.description or timesheet.progress_description
+        pm_employee = timesheet.task.job_card.indent.project_manager
+        pm_name = (pm_employee.clean_name or pm_employee.name) if pm_employee else "Assigned Project Manager"
+    else:
+        project_name = "General / Non-Project"
+        task_description = timesheet.progress_description or "General Work Tasks"
+        pm_employee = None
+        pm_name = "N/A (Non-Project)"
     
-    # Determine status color
-    status_colors = {
-        'Submitted': 'warning',
-        'PM Approved': 'info',
-        'HR Approved': 'success',
-        'Rejected': 'danger'
-    }
-    status_color = status_colors.get(timesheet.status, 'secondary')
+    # PM Verification Evaluation
+    if not has_project:
+        pm_approved = True
+        pm_status = "N/A (Non-Project Task)"
+        pm_approved_at = None
+    else:
+        pm_app = TimesheetApproval.query.filter_by(timesheet_id=timesheet.id, approval_level='PM', status='Approved').first()
+        daily_pm = Timesheet.query.filter(
+            Timesheet.employee_id == emp.id,
+            Timesheet.date >= timesheet.week_start_date,
+            Timesheet.date <= timesheet.week_end_date,
+            Timesheet.status.in_(['Verified', 'PM Approved', 'Approved', 'CEO Approved'])
+        ).first()
+        
+        if pm_app:
+            pm_approved = True
+            pm_status = "Approved by PM"
+            pm_approved_at = pm_app.approved_at.strftime('%d-%b-%Y %H:%M') if pm_app.approved_at else "Approved"
+        elif timesheet.status in ['PM Approved', 'HR Approved', 'Approved', 'CEO Approved'] or daily_pm:
+            pm_approved = True
+            pm_status = "Approved by PM"
+            pm_approved_at = timesheet.created_at.strftime('%d-%b-%Y') if timesheet.created_at else "Approved"
+        else:
+            pm_approved = False
+            pm_status = "Pending PM Approval"
+            pm_approved_at = None
+
+    # RM Verification Evaluation
+    rm_employee = emp.manager
+    rm_name = (rm_employee.clean_name or rm_employee.name) if rm_employee else "Executive Head (CEO)"
     
+    rm_app = TimesheetApproval.query.filter_by(timesheet_id=timesheet.id, approval_level='RM', status='Approved').first()
+    daily_rm = Timesheet.query.filter(
+        Timesheet.employee_id == emp.id,
+        Timesheet.date >= timesheet.week_start_date,
+        Timesheet.date <= timesheet.week_end_date,
+        Timesheet.rm_status.in_(['Verified', 'Approved', 'CEO Approved'])
+    ).first()
+    
+    if rm_app:
+        rm_approved = True
+        rm_status = "Approved by RM"
+        rm_approved_at = rm_app.approved_at.strftime('%d-%b-%Y %H:%M') if rm_app.approved_at else "Approved"
+    elif daily_rm:
+        rm_approved = True
+        rm_status = "Approved by RM"
+        rm_approved_at = daily_rm.created_at.strftime('%d-%b-%Y') if daily_rm.created_at else "Approved"
+    elif timesheet.status in ['HR Approved', 'CEO Approved'] or (rm_employee and rm_employee.role == 'MD' and timesheet.status == 'PM Approved'):
+        rm_approved = True
+        rm_status = "Approved by RM"
+        rm_approved_at = timesheet.created_at.strftime('%d-%b-%Y') if timesheet.created_at else "Approved"
+    else:
+        rm_approved = False
+        rm_status = "Pending RM Approval"
+        rm_approved_at = None
+
     timesheet_data = {
-        'employee_name': timesheet.employee.name,
-        'department': timesheet.employee.department.name if timesheet.employee.department else 'N/A',
-        'designation': timesheet.employee.designation or 'N/A',
+        'id': timesheet.id,
+        'employee_name': emp.clean_name or emp.name,
+        'emp_id': emp.emp_id,
+        'initials': emp.initials,
+        'department': emp.department.name if emp.department else 'N/A',
+        'designation': emp.designation or 'N/A',
+        'email': emp.email,
         'week_start': timesheet.week_start_date.strftime('%d-%b-%Y'),
         'week_end': timesheet.week_end_date.strftime('%d-%b-%Y'),
         'total_hours': timesheet.total_hours,
         'status': timesheet.status,
-        'status_color': status_color,
         'project_name': project_name,
+        'has_project': has_project,
         'task_description': task_description,
-        'progress_description': timesheet.progress_description,
-        'approved_by': timesheet.approved_by.name if timesheet.approved_by else None,
-        'approval_level': timesheet.approval_level or 'N/A',
-        'approved_at': timesheet.approved_by.created_at.strftime('%d-%b-%Y %H:%M') if timesheet.approved_by else 'N/A'
+        'progress_description': timesheet.progress_description or 'No additional progress notes provided.',
+        'pm_name': pm_name,
+        'pm_status': pm_status,
+        'pm_approved': pm_approved,
+        'pm_approved_at': pm_approved_at,
+        'rm_name': rm_name,
+        'rm_status': rm_status,
+        'rm_approved': rm_approved,
+        'rm_approved_at': rm_approved_at,
+        'is_fully_approved': (pm_approved and rm_approved)
     }
     
     return jsonify({'success': True, 'timesheet': timesheet_data})
+
+@app.route('/timesheet/view/<int:timesheet_id>', methods=['GET'])
+@login_required
+def view_timesheet_entry(timesheet_id):
+    """Fallback redirect to dashboard Timesheet Review tab instead of 404"""
+    return redirect(url_for('dashboard', tab='timesheets'))
 
 @app.route('/api/employee/<int:employee_id>/details')
 @login_required

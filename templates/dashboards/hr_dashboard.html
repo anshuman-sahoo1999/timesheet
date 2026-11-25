@@ -12,19 +12,6 @@
             <h2 class="welcome-heading">{{ current_user.name }} 👋</h2>
             <p class="welcome-subtitle mb-0">Here's what's happening across your timesheet portal today.</p>
         </div>
-        
-        <!-- Floating Glassmorphic Period Overview Pill on Top Right -->
-        <div class="hero-period-wrapper position-relative ms-auto" style="z-index: 3;">
-            <div class="period-glass-pill shadow-sm">
-                <div class="d-flex align-items-center justify-content-between gap-2 small text-muted fw-semibold">
-                    <span><i class="far fa-calendar-alt text-success me-1"></i>Period Overview</span>
-                    <i class="fas fa-chevron-down small opacity-75"></i>
-                </div>
-                <div class="period-range-val fw-bold text-dark mt-1" id="bannerPeriodDateRange">
-                    17 Oct 2026 – 16 Nov 2026
-                </div>
-            </div>
-        </div>
 
         <!-- Campus Architectural Backdrop Image with smooth left-to-right gradient overlay -->
         <div class="hero-campus-banner-bg">
@@ -377,6 +364,7 @@
                                 <table class="table table-hover align-middle mb-0" id="employeesTable">
                                     <thead class="bg-white sticky-top" style="position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
                                         <tr>
+                                            <th style="width: 60px;" class="text-center">Sl. No.</th>
                                             <th>Employee</th>
                                             <th>Department</th>
                                             <th>Position</th>
@@ -388,14 +376,24 @@
                                     <tbody>
                                         {% for employee in employees %}
                                         <tr>
+                                            <td class="text-center text-muted fw-semibold">{{ loop.index }}</td>
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 fw-bold" style="width: 40px; height: 40px; min-width: 40px; font-size: 0.92rem; letter-spacing: 0.5px;">
                                                         {{ employee.initials }}
                                                     </div>
                                                     <div>
-                                                        <strong>{{ employee.clean_name or employee.name }}</strong><br>
-                                                        <small class="text-muted">{{ employee.email }}</small>
+                                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                            <strong class="text-dark">{{ employee.clean_name or employee.name }}</strong>
+                                                            {% if employee.emp_id %}
+                                                            <span class="badge bg-light text-primary border border-primary-subtle px-2 py-0" style="font-size: 0.76rem; font-weight: 700; border-radius: 6px;">
+                                                                <i class="fas fa-id-badge me-1"></i>{{ employee.emp_id }}
+                                                            </span>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="text-muted small mt-1">
+                                                            <i class="fas fa-envelope text-secondary me-1" style="font-size: 0.72rem;"></i>{{ employee.email }}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
@@ -459,60 +457,82 @@
                                 </div>
                             </div>
                             
-                            <div class="table-responsive">
-                                <table class="table table-hover" id="timesheetsTable">
-                                    <thead>
+                            <div class="table-responsive employee-table-scroll" style="max-height: 560px; overflow-y: auto; scroll-behavior: smooth; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                                <table class="table table-hover align-middle mb-0" id="timesheetsTable">
+                                    <thead class="bg-white sticky-top" style="position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
                                         <tr>
+                                            <th style="width: 60px;" class="text-center">Sl. No.</th>
                                             <th>Employee</th>
                                             <th>Project</th>
-                                            <th>Task</th>
-                                            <th>Week</th>
+                                            <th>Task Description</th>
+                                            <th>Week Period</th>
                                             <th>Hours</th>
                                             <th>Status</th>
-                                            <th>Actions</th>
+                                            <th class="text-center" style="width: 120px;">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for timesheet in all_timesheets %}
-                                        <tr data-status="{{ timesheet.status }}" data-employee="{{ timesheet.employee.name if timesheet.employee else 'N/A' }}">
-                                            <td>{{ timesheet.employee.name if timesheet.employee else 'N/A' }}</td>
+                                        <tr data-status="{{ timesheet.status }}" data-employee="{{ timesheet.employee.clean_name if timesheet.employee else 'N/A' }}">
+                                            <td class="text-center text-muted fw-semibold">{{ loop.index }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 fw-bold" style="width: 38px; height: 38px; min-width: 38px; font-size: 0.88rem;">
+                                                        {{ timesheet.employee.initials if timesheet.employee else 'EM' }}
+                                                    </div>
+                                                    <div>
+                                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                            <strong class="text-dark">{{ timesheet.employee.clean_name if timesheet.employee else 'N/A' }}</strong>
+                                                            {% if timesheet.employee and timesheet.employee.emp_id %}
+                                                            <span class="badge bg-light text-primary border border-primary-subtle px-2 py-0" style="font-size: 0.74rem; font-weight: 600;">
+                                                                {{ timesheet.employee.emp_id }}
+                                                            </span>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="text-muted small" style="font-size: 0.78rem;">{{ timesheet.employee.email if timesheet.employee else '' }}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
                                             <td>
                                                 {% if timesheet.task and timesheet.task.job_card and timesheet.task.job_card.indent %}
-                                                    {{ timesheet.task.job_card.indent.project_name }}
+                                                    <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.82rem; font-weight: 600;">
+                                                        <i class="fas fa-folder-open text-primary me-1"></i>{{ timesheet.task.job_card.indent.project_name }}
+                                                    </span>
                                                 {% else %}
-                                                    <span class="text-muted">General / Non-Project</span>
+                                                    <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.82rem;">
+                                                        <i class="fas fa-layer-group text-muted me-1"></i>General / Non-Project
+                                                    </span>
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if timesheet.task and timesheet.task.description %}
-                                                    {{ timesheet.task.description[:50] }}{% if timesheet.task.description|length > 50 %}...{% endif %}
-                                                {% elif timesheet.progress_description %}
-                                                    {{ timesheet.progress_description[:50] }}{% if timesheet.progress_description|length > 50 %}...{% endif %}
-                                                {% else %}
-                                                    <span class="text-muted">N/A</span>
-                                                {% endif %}
+                                                <div class="fw-medium text-dark" style="max-width: 260px; line-height: 1.35; font-size: 0.85rem;">
+                                                    {% if timesheet.task and timesheet.task.description %}
+                                                        {{ timesheet.task.description }}
+                                                    {% elif timesheet.progress_description %}
+                                                        {{ timesheet.progress_description }}
+                                                    {% else %}
+                                                        <span class="text-muted">General output notes</span>
+                                                    {% endif %}
+                                                </div>
                                             </td>
-                                            <td>{{ timesheet.week_start_date.strftime('%d-%b') if timesheet.week_start_date else '' }} to {{ timesheet.week_end_date.strftime('%d-%b') if timesheet.week_end_date else '' }}</td>
-                                            <td>{{ timesheet.total_hours }} hrs</td>
                                             <td>
-                                                <span class="badge bg-{{ 'success' if timesheet.status == 'Approved' else 'warning' if timesheet.status == 'Submitted' else 'danger' }}">
-                                                    {{ timesheet.status }}
+                                                <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.8rem;">
+                                                    <i class="far fa-calendar-alt text-muted me-1"></i>{{ timesheet.week_start_date.strftime('%d-%b') if timesheet.week_start_date else '' }} to {{ timesheet.week_end_date.strftime('%d-%b') if timesheet.week_end_date else '' }}
                                                 </span>
                                             </td>
                                             <td>
-                                                <div class="btn-group" role="group">
-                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewTimesheetDetails({{ timesheet.id }})">
-                                                        <i class="fas fa-eye me-1"></i>Review
-                                                    </button>
-                                                    {% if timesheet.status == 'Submitted' %}
-                                                    <button class="btn btn-sm btn-outline-success" onclick="approveTimesheet({{ timesheet.id }})">
-                                                        <i class="fas fa-check me-1"></i>Approve
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectTimesheet({{ timesheet.id }})">
-                                                        <i class="fas fa-times me-1"></i>Reject
-                                                    </button>
-                                                    {% endif %}
-                                                </div>
+                                                <span class="fw-bold text-dark fs-6">{{ timesheet.total_hours }}</span>
+                                                <span class="text-muted small">hrs</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if timesheet.status in ['Approved', 'HR Approved'] else ('info' if timesheet.status == 'PM Approved' else ('warning' if timesheet.status == 'Submitted' else 'danger')) }} px-2 py-1 rounded-pill">
+                                                    {{ timesheet.status }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-sm" onclick="openTimesheetReviewModal({{ timesheet.id }})">
+                                                    <i class="fas fa-eye me-1"></i>Review
+                                                </button>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -1273,7 +1293,196 @@ function viewEmployeeDetails(employeeId) {
 }
 
 function viewTimesheetDetails(timesheetId) {
-    window.location.href = `/timesheet/view/${timesheetId}`;
+    openTimesheetReviewModal(timesheetId);
+}
+
+function openTimesheetReviewModal(timesheetId) {
+    let modalEl = document.getElementById('timesheetReviewModal');
+    if (!modalEl) return;
+    let modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    let body = document.getElementById('modalTsBody');
+    let subtitle = document.getElementById('modalTsSubtitle');
+    
+    body.innerHTML = `
+        <div class="text-center py-5 text-muted">
+            <div class="spinner-border text-primary" role="status"></div>
+            <div class="mt-2 small fw-semibold">Loading verification and dual approval status...</div>
+        </div>
+    `;
+    modal.show();
+    
+    fetch(`/api/timesheet/${timesheetId}/details`)
+        .then(res => res.json())
+        .then(res => {
+            if (!res.success || !res.timesheet) {
+                body.innerHTML = `<div class="alert alert-danger mb-0">${res.error || 'Failed to load timesheet details.'}</div>`;
+                return;
+            }
+            const ts = res.timesheet;
+            subtitle.textContent = `Week Period: ${ts.week_start} to ${ts.week_end} • ${ts.total_hours} hrs logged`;
+            
+            // Build PM status box
+            let pmStatusHtml = '';
+            if (!ts.has_project) {
+                pmStatusHtml = `
+                    <div class="p-3 bg-light border rounded-3 d-flex align-items-center gap-3">
+                        <div class="text-secondary fs-4"><i class="fas fa-info-circle"></i></div>
+                        <div>
+                            <div class="fw-bold text-dark">N/A (Non-Project Task)</div>
+                            <div class="small text-muted">Direct functional task — PM approval not applicable</div>
+                        </div>
+                    </div>
+                `;
+            } else if (ts.pm_approved) {
+                pmStatusHtml = `
+                    <div class="p-3 bg-success-subtle border border-success-subtle rounded-3 text-success d-flex align-items-center gap-3">
+                        <div class="fs-4"><i class="fas fa-check-circle"></i></div>
+                        <div>
+                            <div class="fw-bold text-success">Approved by Project Manager</div>
+                            <div class="small text-muted">${ts.pm_name} &bull; ${ts.pm_approved_at || 'Verified'}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                pmStatusHtml = `
+                    <div class="p-3 bg-warning-subtle border border-warning-subtle rounded-3 text-warning-emphasis d-flex align-items-center gap-3">
+                        <div class="fs-4"><i class="fas fa-clock"></i></div>
+                        <div>
+                            <div class="fw-bold text-dark">Pending PM Approval</div>
+                            <div class="small text-muted">Assigned PM: ${ts.pm_name} (Awaiting Review)</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Build RM status box
+            let rmStatusHtml = '';
+            if (ts.rm_approved) {
+                rmStatusHtml = `
+                    <div class="p-3 bg-success-subtle border border-success-subtle rounded-3 text-success d-flex align-items-center gap-3">
+                        <div class="fs-4"><i class="fas fa-check-circle"></i></div>
+                        <div>
+                            <div class="fw-bold text-success">Approved by Reporting Manager</div>
+                            <div class="small text-muted">${ts.rm_name} &bull; ${ts.rm_approved_at || 'Verified'}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                rmStatusHtml = `
+                    <div class="p-3 bg-warning-subtle border border-warning-subtle rounded-3 text-warning-emphasis d-flex align-items-center gap-3">
+                        <div class="fs-4"><i class="fas fa-clock"></i></div>
+                        <div>
+                            <div class="fw-bold text-dark">Pending RM Approval</div>
+                            <div class="small text-muted">Reporting Manager: ${ts.rm_name} (Awaiting Review)</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Overall dual approval verdict
+            let verdictHtml = '';
+            if (ts.is_fully_approved) {
+                verdictHtml = `
+                    <div class="alert alert-success border border-success-subtle rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-0">
+                        <i class="fas fa-shield-alt text-success fs-4"></i>
+                        <div>
+                            <strong class="text-success">Dual Approval Completed:</strong>
+                            <span class="small text-dark d-block">Both Project Manager (PM) and Reporting Manager (RM) have verified and approved this timesheet.</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                let pendingPart = [];
+                if (ts.has_project && !ts.pm_approved) pendingPart.push('Project Manager (PM)');
+                if (!ts.rm_approved) pendingPart.push('Reporting Manager (RM)');
+                verdictHtml = `
+                    <div class="alert alert-warning border border-warning-subtle rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-0">
+                        <i class="fas fa-exclamation-triangle text-warning-emphasis fs-4"></i>
+                        <div>
+                            <strong class="text-dark">Dual Approval Pending:</strong>
+                            <span class="small text-dark d-block">Awaiting verification from <strong>${pendingPart.join(' & ')}</strong> before final HR sign-off.</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            body.innerHTML = `
+                <!-- Employee Summary Header -->
+                <div class="card border border-slate-200 rounded-3 p-3 mb-3 bg-light bg-opacity-50">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 48px; height: 48px; min-width: 48px; font-size: 1.1rem;">
+                                ${ts.initials || 'EM'}
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <h6 class="fw-bold mb-0 text-dark fs-6">${ts.employee_name}</h6>
+                                    <span class="badge bg-white text-primary border small fw-bold">ID: ${ts.emp_id || 'N/A'}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary small">${ts.department}</span>
+                                </div>
+                                <div class="text-muted small mt-1">
+                                    <i class="fas fa-briefcase me-1"></i>${ts.designation} &bull; <i class="fas fa-envelope me-1"></i>${ts.email}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary text-white px-3 py-2 rounded-pill fs-7">
+                                <i class="fas fa-clock me-1"></i>Total: <strong>${ts.total_hours} hrs</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dual Approval Verification Status Grid -->
+                <div class="mb-3">
+                    <h6 class="fw-bold text-dark small text-uppercase mb-2 tracking-wide">
+                        <i class="fas fa-tasks text-primary me-2"></i>Dual Approval Verification (PM & RM)
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card h-100 border border-slate-200 rounded-3 p-3 shadow-none">
+                                <div class="small text-muted fw-semibold mb-1">
+                                    <i class="fas fa-project-diagram text-primary me-1"></i>1. Project Manager (PM)
+                                </div>
+                                <div class="small text-dark mb-2">
+                                    Project: <strong>${ts.project_name}</strong>
+                                </div>
+                                ${pmStatusHtml}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100 border border-slate-200 rounded-3 p-3 shadow-none">
+                                <div class="small text-muted fw-semibold mb-1">
+                                    <i class="fas fa-user-tie text-success me-1"></i>2. Reporting Manager (RM)
+                                </div>
+                                <div class="small text-dark mb-2">
+                                    Manager: <strong>${ts.rm_name}</strong>
+                                </div>
+                                ${rmStatusHtml}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Task & Progress Notes -->
+                <div class="card border border-slate-200 rounded-3 p-3 mb-3">
+                    <div class="small text-muted fw-semibold mb-1">
+                        <i class="fas fa-clipboard-list text-secondary me-1"></i>Submitted Task & Progress Description
+                    </div>
+                    <div class="fw-semibold text-dark small mb-2">
+                        Task: ${ts.task_description}
+                    </div>
+                    <div class="p-2 bg-light rounded-2 text-dark small" style="white-space: pre-wrap; font-size: 0.84rem;">${ts.progress_description}</div>
+                </div>
+
+                <!-- Overall Verdict Banner -->
+                ${verdictHtml}
+            `;
+        })
+        .catch(err => {
+            console.error(err);
+            body.innerHTML = `<div class="alert alert-danger mb-0">Error communicating with server.</div>`;
+        });
 }
 
 function approveTimesheet(timesheetId) {
@@ -1989,4 +2198,33 @@ function showToastSuccess(msg) {
     }
 }
 </style>
+
+<!-- Timesheet Review & Dual Approval Status Modal -->
+<div class="modal fade" id="timesheetReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-bold text-dark mb-0">Timesheet Entry Verification</h6>
+                        <small class="text-muted" id="modalTsSubtitle">Review dual approvals (PM & RM) and submitted progress</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="modalTsBody">
+                <div class="text-center py-4 text-muted">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2 small">Loading timesheet verification details...</div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2 px-4 border-top">
+                <button type="button" class="btn btn-secondary btn-sm px-4 rounded-pill" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

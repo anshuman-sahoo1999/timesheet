@@ -18,7 +18,7 @@
         --ts-border: #e2e8f0;
         --ts-card-bg: #ffffff;
         --ts-radius-lg: 16px;
-        --ts-radius-md: 10px;
+        --ts-radius-md: 12px;
 
         /* User-specified 4 Color Tokens */
         --ts-status-submitted-bg: #ecfdf5;
@@ -64,6 +64,7 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        transition: all 0.2s ease;
     }
 
     .time-rule-pill.active {
@@ -77,7 +78,7 @@
         background: #ffffff;
         border: 1px solid var(--ts-border);
         border-radius: var(--ts-radius-md);
-        padding: 1rem;
+        padding: 1.1rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     }
 
@@ -85,7 +86,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.85rem;
     }
 
     .calendar-nav-btn {
@@ -116,22 +117,29 @@
         cursor: pointer;
     }
 
+    /* CSS Grid Protection: minmax(0, 1fr) ensures columns never blow out */
     .calendar-grid {
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 5px;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
         text-align: center;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .calendar-weekday {
-        font-size: 0.75rem;
+        font-size: 0.74rem;
         font-weight: 700;
         color: #94a3b8;
         padding: 6px 0;
         text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
 
+    /* Protected day cell: aspect-ratio 1, overflow hidden, no blowout */
     .calendar-day-cell {
+        min-width: 0;
+        max-width: 100%;
         aspect-ratio: 1;
         display: flex;
         flex-direction: column;
@@ -147,6 +155,9 @@
         user-select: none;
         background: #ffffff;
         border: 1.5px solid transparent;
+        overflow: hidden;
+        padding: 2px;
+        box-sizing: border-box;
     }
 
     .calendar-day-cell:hover:not(.status-holiday):not(.status-weekend) {
@@ -165,12 +176,8 @@
     .calendar-day-cell.selected {
         outline: 2.5px solid #0f172a !important;
         outline-offset: 1px;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25) !important;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.22) !important;
         z-index: 2;
-    }
-
-    .calendar-day-cell.is-today {
-        position: relative;
     }
 
     .calendar-day-cell.is-today::after {
@@ -178,8 +185,8 @@
         position: absolute;
         top: 3px;
         right: 3px;
-        width: 6px;
-        height: 6px;
+        width: 5px;
+        height: 5px;
         border-radius: 50%;
         background-color: #0e8749;
     }
@@ -191,16 +198,6 @@
         color: var(--ts-status-submitted-text) !important;
     }
 
-    .day-dot-green {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background-color: #10b981;
-        position: absolute;
-        bottom: 3px;
-        box-shadow: 0 0 5px rgba(16, 185, 129, 0.8);
-    }
-
     /* 2. RED: Not Submitted (Missed Working Days) */
     .calendar-day-cell.status-missing {
         background-color: var(--ts-status-missing-bg) !important;
@@ -208,34 +205,12 @@
         color: var(--ts-status-missing-text) !important;
     }
 
-    .day-dot-red {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background-color: #ef4444;
-        position: absolute;
-        bottom: 3px;
-        box-shadow: 0 0 5px rgba(239, 68, 68, 0.8);
-    }
-
     /* 3. BLUE: Declared Company Holidays (Disabled) */
     .calendar-day-cell.status-holiday {
         background-color: var(--ts-status-holiday-bg) !important;
         border-color: var(--ts-status-holiday-border) !important;
         color: var(--ts-status-holiday-text) !important;
-        cursor: not-allowed;
-    }
-
-    .holiday-subtext {
-        font-size: 0.58rem;
-        font-weight: 700;
-        color: #2563eb;
-        line-height: 1;
-        max-width: 90%;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin-top: 2px;
+        cursor: pointer;
     }
 
     /* 4. GREY: Sundays & Second Saturdays (Disabled) */
@@ -243,32 +218,56 @@
         background-color: var(--ts-status-weekend-bg) !important;
         border-color: var(--ts-status-weekend-border) !important;
         color: var(--ts-status-weekend-text) !important;
-        cursor: not-allowed;
-        opacity: 0.85;
+        cursor: pointer;
+        opacity: 0.9;
     }
 
-    .weekend-subtext {
-        font-size: 0.58rem;
-        font-weight: 600;
-        color: #94a3b8;
-        line-height: 1;
-        margin-top: 2px;
+    /* Subtle bottom dots */
+    .calendar-status-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        position: absolute;
+        bottom: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .day-dot-green {
+        background-color: #10b981;
+        box-shadow: 0 0 4px rgba(16, 185, 129, 0.8);
+    }
+
+    .day-dot-red {
+        background-color: #ef4444;
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.8);
+    }
+
+    .day-dot-blue {
+        background-color: #3b82f6;
+        box-shadow: 0 0 4px rgba(59, 130, 246, 0.8);
+    }
+
+    .day-dot-grey {
+        background-color: #94a3b8;
     }
 
     /* Legend Box Pill */
     .legend-item {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        font-size: 0.78rem;
+        gap: 5px;
+        font-size: 0.76rem;
         font-weight: 600;
+        white-space: nowrap;
     }
 
     .legend-indicator-box {
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
         display: inline-block;
+        flex-shrink: 0;
     }
 
     /* Right Dossier Table */
@@ -277,7 +276,7 @@
         border: 1px solid var(--ts-border);
         border-radius: var(--ts-radius-md);
         overflow: hidden;
-        min-height: 380px;
+        min-height: 420px;
         display: flex;
         flex-direction: column;
     }
@@ -374,6 +373,21 @@
         justify-content: center;
         border-radius: 6px;
     }
+
+    @media (max-width: 576px) {
+        .calendar-grid {
+            gap: 4px;
+        }
+        .calendar-day-cell {
+            font-size: 0.80rem;
+            border-radius: 6px;
+        }
+        .calendar-status-dot {
+            width: 4px;
+            height: 4px;
+            bottom: 2px;
+        }
+    }
 </style>
 
 <!-- MAIN CONTAINER CARD -->
@@ -394,9 +408,15 @@
         </div>
 
         <div class="d-flex flex-wrap align-items-center gap-2">
-            <!-- 4:30 PM Rule Status Pill -->
+            {% if request.endpoint == 'log_timesheet' %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary px-3 py-2 rounded-3 shadow-sm d-inline-flex align-items-center gap-1">
+                <i class="fas fa-arrow-left me-1"></i> Dashboard
+            </a>
+            {% endif %}
+
+            <!-- 4:30 PM Rule Status Pill (Single Icon) -->
             <div class="time-rule-pill" id="dailyTimeRulePill" title="Daily submission window rule">
-                <i class="fas fa-clock text-warning"></i>
+                <i class="fas fa-clock text-warning" id="dailyTimeRuleIcon"></i>
                 <span id="dailyTimeRuleText">Daily Window: After 4:30 PM</span>
             </div>
 
@@ -424,8 +444,8 @@
     ========================================================================== -->
     <div class="p-3 p-md-4" id="calendarViewSection" style="display: {{ 'none' if mode == 'add' else 'block' }};">
         <div class="row g-4">
-            <!-- Left Side: Interactive Calendar with 4-Color Status -->
-            <div class="col-12 col-lg-4 col-xl-4">
+            <!-- Left Side: Interactive Calendar with 4-Color Status (col-lg-5 ensures generous room) -->
+            <div class="col-12 col-lg-5 col-xl-5">
                 <div class="calendar-card">
                     <!-- Month Selector Header -->
                     <div class="calendar-nav-bar">
@@ -463,7 +483,7 @@
                         </div>
                     </div>
 
-                    <!-- Days Grid -->
+                    <!-- Days Header Grid -->
                     <div class="calendar-grid mb-2">
                         <div class="calendar-weekday text-danger">Sun</div>
                         <div class="calendar-weekday">Mon</div>
@@ -481,38 +501,30 @@
 
                     <!-- 4-Color Legend matching user requirement -->
                     <div class="mt-3 pt-3 border-top">
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <div class="legend-item text-dark">
-                                    <span class="legend-indicator-box" style="background: var(--ts-status-submitted-bg); border: 1.5px solid var(--ts-status-submitted-border);"></span>
-                                    <span>Submitted (Green)</span>
-                                </div>
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div class="legend-item text-dark">
+                                <span class="legend-indicator-box" style="background: var(--ts-status-submitted-bg); border: 1.5px solid var(--ts-status-submitted-border);"></span>
+                                <span>Submitted (Green)</span>
                             </div>
-                            <div class="col-6">
-                                <div class="legend-item text-danger">
-                                    <span class="legend-indicator-box" style="background: var(--ts-status-missing-bg); border: 1.5px solid var(--ts-status-missing-border);"></span>
-                                    <span>Not Submitted (Red)</span>
-                                </div>
+                            <div class="legend-item text-danger">
+                                <span class="legend-indicator-box" style="background: var(--ts-status-missing-bg); border: 1.5px solid var(--ts-status-missing-border);"></span>
+                                <span>Not Submitted (Red)</span>
                             </div>
-                            <div class="col-6">
-                                <div class="legend-item text-primary">
-                                    <span class="legend-indicator-box" style="background: var(--ts-status-holiday-bg); border: 1.5px solid var(--ts-status-holiday-border);"></span>
-                                    <span>Holiday (Blue)</span>
-                                </div>
+                            <div class="legend-item text-primary">
+                                <span class="legend-indicator-box" style="background: var(--ts-status-holiday-bg); border: 1.5px solid var(--ts-status-holiday-border);"></span>
+                                <span>Holiday (Blue)</span>
                             </div>
-                            <div class="col-6">
-                                <div class="legend-item text-secondary">
-                                    <span class="legend-indicator-box" style="background: var(--ts-status-weekend-bg); border: 1.5px solid var(--ts-status-weekend-border);"></span>
-                                    <span>Sun & 2nd Sat (Grey)</span>
-                                </div>
+                            <div class="legend-item text-secondary">
+                                <span class="legend-indicator-box" style="background: var(--ts-status-weekend-bg); border: 1.5px solid var(--ts-status-weekend-border);"></span>
+                                <span>Sun & 2nd Sat (Grey)</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side: Selected Day's Dossier Table -->
-            <div class="col-12 col-lg-8 col-xl-8">
+            <!-- Right Side: Selected Day's Dossier Table (col-lg-7) -->
+            <div class="col-12 col-lg-7 col-xl-7">
                 <div class="dossier-card">
                     <!-- Date Dossier Header -->
                     <div class="dossier-header d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -521,7 +533,7 @@
                             <h5 class="fw-bold mb-0 text-dark" id="dossierDateLabel">
                                 {{ selected_date_formatted }}
                             </h5>
-                            <span id="dossierDayStatusBadge" class="badge bg-light text-dark border px-2 py-1 ms-2 small">
+                            <span id="dossierDayStatusBadge" class="badge bg-light text-dark border px-2 py-1 ms-1 small">
                                 Selected
                             </span>
                         </div>
@@ -531,17 +543,12 @@
                                 <i class="far fa-clock me-1 text-primary"></i> Total Hours: <span id="dossierTotalHoursText">{{ formatted_total_hours }}</span>
                             </span>
                             <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 fw-medium" id="quickLogForDateBtn">
-                                <i class="fas fa-plus me-1"></i> Log For This Date
+                                <i class="fas fa-plus me-1" id="quickLogBtnIcon"></i> <span id="quickLogBtnText">Log For This Date</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Non-working Day Notice Banner (Holidays / Sundays / 2nd Saturdays) -->
-                    <div id="dossierDayOffNotice" class="p-3" style="display: none;">
-                        <!-- Injected by JS -->
-                    </div>
-
-                    <!-- Submissions Table -->
+                    <!-- Submissions Table (Shown when entries exist) -->
                     <div class="table-responsive flex-grow-1" id="dossierTableContainer" style="display: {{ 'none' if not day_entries else 'block' }};">
                         <table class="table table-modern align-middle mb-0">
                             <thead>
@@ -593,16 +600,18 @@
                         </table>
                     </div>
 
-                    <!-- Empty State (When no timesheets exist for date) -->
-                    <div class="text-center py-5 my-auto px-4" id="dossierEmptyState" style="display: {{ 'block' if not day_entries else 'none' }};">
-                        <div class="p-3 bg-light rounded-circle d-inline-flex mb-3" style="width: 60px; height: 60px; align-items: center; justify-content: center;">
-                            <i class="far fa-calendar-times text-muted fs-3"></i>
+                    <!-- Centered Dedicated State Container (Empty, Holiday, Weekend, Locked, Missing) -->
+                    <div class="text-center py-5 my-auto px-4 flex-grow-1 d-flex flex-column justify-content-center align-items-center" id="dossierMessageState" style="display: {{ 'none' if day_entries else 'flex' }};">
+                        <div class="p-3 rounded-circle d-inline-flex mb-3 shadow-sm" id="stateIconBox" style="width: 64px; height: 64px; align-items: center; justify-content: center; background: #f8fafc;">
+                            <i class="far fa-calendar-times text-muted fs-3" id="stateIcon"></i>
                         </div>
-                        <h6 class="fw-bold text-dark mb-1" id="dossierEmptyTitle">No Timesheet Logged for this Day</h6>
-                        <p class="text-muted small mb-3" id="dossierEmptyDesc">No work hours or project activities were recorded for this date.</p>
-                        <button type="button" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold" id="emptyStateLogBtn">
-                            <i class="fas fa-plus me-1"></i> Log Timesheet for <span id="emptyStateDateSpan">{{ selected_date_formatted }}</span>
-                        </button>
+                        <h5 class="fw-bold text-dark mb-1" id="stateTitle">No Timesheet Logged for this Day</h5>
+                        <p class="text-muted small mb-3" style="max-width: 440px;" id="stateDescription">No work hours or project activities were recorded for this date.</p>
+                        <div id="stateCtaContainer">
+                            <button type="button" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold" id="emptyStateLogBtn">
+                                <i class="fas fa-plus me-1"></i> Log Timesheet for <span id="emptyStateDateSpan">{{ selected_date_formatted }}</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Dossier Footer Summary -->
@@ -764,10 +773,6 @@
             "JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
             "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
         ];
-        const fullMonthNames = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-        ];
 
         // Elements
         const calendarGrid = document.getElementById('calendarDaysGrid');
@@ -783,22 +788,30 @@
         const dossierDayStatusBadge = document.getElementById('dossierDayStatusBadge');
         const dossierTotalHoursText = document.getElementById('dossierTotalHoursText');
         const dossierTableContainer = document.getElementById('dossierTableContainer');
-        const dossierEmptyState = document.getElementById('dossierEmptyState');
-        const dossierEmptyTitle = document.getElementById('dossierEmptyTitle');
-        const dossierEmptyDesc = document.getElementById('dossierEmptyDesc');
-        const dossierDayOffNotice = document.getElementById('dossierDayOffNotice');
         const dossierTableBody = document.getElementById('dossierTableBody');
         const dossierItemCountText = document.getElementById('dossierItemCountText');
         const dossierFooterStatusText = document.getElementById('dossierFooterStatusText');
+        
+        // Centered state elements
+        const dossierMessageState = document.getElementById('dossierMessageState');
+        const stateIconBox = document.getElementById('stateIconBox');
+        const stateIcon = document.getElementById('stateIcon');
+        const stateTitle = document.getElementById('stateTitle');
+        const stateDescription = document.getElementById('stateDescription');
+        const stateCtaContainer = document.getElementById('stateCtaContainer');
+        const emptyStateLogBtn = document.getElementById('emptyStateLogBtn');
         const emptyStateDateSpan = document.getElementById('emptyStateDateSpan');
+
         const timesheetEntryDate = document.getElementById('timesheetEntryDate');
         const quickLogForDateBtn = document.getElementById('quickLogForDateBtn');
-        const emptyStateLogBtn = document.getElementById('emptyStateLogBtn');
+        const quickLogBtnIcon = document.getElementById('quickLogBtnIcon');
+        const quickLogBtnText = document.getElementById('quickLogBtnText');
         const cancelAddTimesheetBtn = document.getElementById('cancelAddTimesheetBtn');
         const formDateValidationAlert = document.getElementById('formDateValidationAlert');
         const submitTimesheetFormBtn = document.getElementById('submitTimesheetFormBtn');
         const entryDateBadge = document.getElementById('entryDateBadge');
         const dailyTimeRulePill = document.getElementById('dailyTimeRulePill');
+        const dailyTimeRuleIcon = document.getElementById('dailyTimeRuleIcon');
         const dailyTimeRuleText = document.getElementById('dailyTimeRuleText');
         const submissionTimeNoticeBar = document.getElementById('submissionTimeNoticeBar');
 
@@ -887,7 +900,7 @@
             }
         }
 
-        // Render Calendar Grid with 4-Color Indicators
+        // Render Calendar Grid with 4-Color Indicators (Grid-safe, no blowout)
         function renderCalendar(year, monthIndex) {
             monthYearLabel.textContent = `${monthNames[monthIndex]} ${year}`;
             calendarGrid.innerHTML = '';
@@ -929,44 +942,41 @@
                     cell.classList.add('is-today');
                 }
 
-                // 4 Distinct Visual Classes matching instructions:
+                // 4 Distinct Visual Classes matching user requirements:
                 if (isSub) {
                     // 1. GREEN: Submitted
                     cell.classList.add('status-submitted');
-                    cell.title = "Submitted";
+                    cell.title = `${formatDisplayDate(dateKey)}: Submitted`;
                     const dot = document.createElement('span');
-                    dot.className = 'day-dot-green';
+                    dot.className = 'calendar-status-dot day-dot-green';
                     cell.appendChild(dot);
                 } else if (isHol) {
                     // 3. BLUE: Declared Company Holiday (Disabled)
                     cell.classList.add('status-holiday');
                     cell.title = `Holiday: ${holidaysMap[dateKey]}`;
-                    const holSub = document.createElement('span');
-                    holSub.className = 'holiday-subtext';
-                    holSub.textContent = holidaysMap[dateKey];
-                    cell.appendChild(holSub);
+                    const dot = document.createElement('span');
+                    dot.className = 'calendar-status-dot day-dot-blue';
+                    cell.appendChild(dot);
                 } else if (isSun) {
                     // 4. GREY: Sunday (Disabled)
                     cell.classList.add('status-weekend');
                     cell.title = "Weekly Off (Sunday)";
-                    const wkSub = document.createElement('span');
-                    wkSub.className = 'weekend-subtext';
-                    wkSub.textContent = 'Sun';
-                    cell.appendChild(wkSub);
+                    const dot = document.createElement('span');
+                    dot.className = 'calendar-status-dot day-dot-grey';
+                    cell.appendChild(dot);
                 } else if (isSecSat) {
                     // 4. GREY: Second Saturday (Disabled)
                     cell.classList.add('status-weekend');
                     cell.title = "Company Off (Second Saturday)";
-                    const wkSub = document.createElement('span');
-                    wkSub.className = 'weekend-subtext';
-                    wkSub.textContent = '2nd Sat';
-                    cell.appendChild(wkSub);
+                    const dot = document.createElement('span');
+                    dot.className = 'calendar-status-dot day-dot-grey';
+                    cell.appendChild(dot);
                 } else if (isMiss) {
                     // 2. RED: Not Submitted (Missed Working Day)
                     cell.classList.add('status-missing');
-                    cell.title = "Not Submitted (Missing Timesheet)";
+                    cell.title = `${formatDisplayDate(dateKey)}: Not Submitted (Missed)`;
                     const dot = document.createElement('span');
-                    dot.className = 'day-dot-red';
+                    dot.className = 'calendar-status-dot day-dot-red';
                     cell.appendChild(dot);
                 }
 
@@ -997,7 +1007,7 @@
             }
         }
 
-        // Load Submissions via AJAX for selected day
+        // Load Submissions via AJAX for selected day and update Dossier Card
         function loadDaySubmissions(dateKey) {
             dossierDateLabel.textContent = formatDisplayDate(dateKey);
             emptyStateDateSpan.textContent = formatDisplayDate(dateKey);
@@ -1012,61 +1022,61 @@
                     const isSubAllowed = data.is_submission_allowed;
                     const restrictionReason = data.restriction_reason;
 
-                    // Update Day Badge & Off Notice
-                    dossierDayOffNotice.style.display = 'none';
-                    quickLogForDateBtn.style.display = 'inline-block';
-                    quickLogForDateBtn.disabled = false;
-                    quickLogForDateBtn.classList.remove('opacity-50');
+                    // Update Quick Log Button in header
+                    if (isHol || isSun || isSecSat || dateKey > todayStr) {
+                        quickLogForDateBtn.style.display = 'none';
+                    } else if (dateKey === todayStr && !nowIsAfter430) {
+                        quickLogForDateBtn.style.display = 'inline-block';
+                        quickLogForDateBtn.disabled = true;
+                        quickLogForDateBtn.className = 'btn btn-sm btn-outline-secondary rounded-pill px-3 fw-medium opacity-75';
+                        quickLogBtnIcon.className = 'fas fa-lock me-1';
+                        quickLogBtnText.textContent = 'Locked until 4:30 PM';
+                        quickLogForDateBtn.title = 'Today submission window opens at 4:30 PM onwards';
+                    } else {
+                        quickLogForDateBtn.style.display = 'inline-block';
+                        quickLogForDateBtn.disabled = false;
+                        quickLogForDateBtn.className = 'btn btn-sm btn-outline-success rounded-pill px-3 fw-medium';
+                        quickLogBtnIcon.className = 'fas fa-plus me-1';
+                        quickLogBtnText.textContent = 'Log For This Date';
+                        quickLogForDateBtn.title = 'Click to log timesheet for this date';
+                    }
 
+                    // Update Status Badge
                     if (isHol) {
-                        dossierDayStatusBadge.className = 'badge bg-primary text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.className = 'badge bg-primary text-white px-2 py-1 ms-1';
                         dossierDayStatusBadge.textContent = 'Company Holiday';
-                        dossierDayOffNotice.className = 'alert alert-primary border-primary-subtle rounded-3 p-3 mb-0';
-                        dossierDayOffNotice.innerHTML = `<i class="fas fa-umbrella-beach me-2 fs-5"></i><b>${escapeHtml(holName)}</b> &bull; Declared Company Holiday. Timesheet submission is not required.`;
-                        dossierDayOffNotice.style.display = 'block';
-                        quickLogForDateBtn.style.display = 'none';
                     } else if (isSun) {
-                        dossierDayStatusBadge.className = 'badge bg-secondary text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.className = 'badge bg-secondary text-white px-2 py-1 ms-1';
                         dossierDayStatusBadge.textContent = 'Weekly Off (Sunday)';
-                        dossierDayOffNotice.className = 'alert alert-secondary border-secondary-subtle rounded-3 p-3 mb-0';
-                        dossierDayOffNotice.innerHTML = `<i class="fas fa-bed me-2 fs-5"></i><b>Weekly Off:</b> Sundays are company non-working days.`;
-                        dossierDayOffNotice.style.display = 'block';
-                        quickLogForDateBtn.style.display = 'none';
                     } else if (isSecSat) {
-                        dossierDayStatusBadge.className = 'badge bg-secondary text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.className = 'badge bg-secondary text-white px-2 py-1 ms-1';
                         dossierDayStatusBadge.textContent = 'Company Off (2nd Sat)';
-                        dossierDayOffNotice.className = 'alert alert-secondary border-secondary-subtle rounded-3 p-3 mb-0';
-                        dossierDayOffNotice.innerHTML = `<i class="fas fa-calendar-times me-2 fs-5"></i><b>Company Off:</b> Second Saturdays are non-working days.`;
-                        dossierDayOffNotice.style.display = 'block';
-                        quickLogForDateBtn.style.display = 'none';
                     } else if (submittedDates.has(dateKey)) {
-                        dossierDayStatusBadge.className = 'badge bg-success text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.className = 'badge bg-success text-white px-2 py-1 ms-1';
                         dossierDayStatusBadge.textContent = 'Submitted';
                     } else if (missingDatesSet.has(dateKey)) {
-                        dossierDayStatusBadge.className = 'badge bg-danger text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.className = 'badge bg-danger text-white px-2 py-1 ms-1';
                         dossierDayStatusBadge.textContent = 'Not Submitted (Missed)';
                     } else if (dateKey === todayStr) {
                         if (nowIsAfter430) {
-                            dossierDayStatusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1 ms-2';
+                            dossierDayStatusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1 ms-1';
                             dossierDayStatusBadge.textContent = 'Today (Open)';
                         } else {
-                            dossierDayStatusBadge.className = 'badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 ms-2';
+                            dossierDayStatusBadge.className = 'badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 ms-1';
                             dossierDayStatusBadge.textContent = 'Opens at 4:30 PM';
-                            quickLogForDateBtn.disabled = true;
-                            quickLogForDateBtn.classList.add('opacity-50');
-                            quickLogForDateBtn.title = 'Today submission opens at 4:30 PM onwards';
                         }
                     } else {
-                        dossierDayStatusBadge.className = 'badge bg-light text-secondary border px-2 py-1 ms-2';
+                        dossierDayStatusBadge.className = 'badge bg-light text-secondary border px-2 py-1 ms-1';
                         dossierDayStatusBadge.textContent = 'No Submissions';
                     }
 
+                    // Render Submissions Table or Dedicated Centered State Card
                     if (data && data.entries && data.entries.length > 0) {
                         dossierTableContainer.style.display = 'block';
-                        dossierEmptyState.style.display = 'none';
+                        dossierMessageState.style.display = 'none';
                         dossierTotalHoursText.textContent = data.formatted_total_hours || '00:00';
                         dossierItemCountText.textContent = `1 – ${data.entries.length} of ${data.entries.length}`;
-                        dossierFooterStatusText.textContent = 'Entries Verified / Recorded';
+                        dossierFooterStatusText.textContent = `${data.entries.length} Entries Recorded`;
 
                         dossierTableBody.innerHTML = '';
                         data.entries.forEach(item => {
@@ -1092,32 +1102,81 @@
                         });
                     } else {
                         dossierTableContainer.style.display = 'none';
-                        dossierEmptyState.style.display = 'block';
+                        dossierMessageState.style.display = 'flex';
                         dossierTotalHoursText.textContent = '00:00';
                         dossierItemCountText.textContent = '0 of 0';
 
-                        if (isHol || isSun || isSecSat) {
-                            dossierEmptyState.style.display = 'none';
-                        } else if (missingDatesSet.has(dateKey)) {
-                            dossierEmptyTitle.textContent = "Missed Timesheet Entry";
-                            dossierEmptyTitle.className = "fw-bold text-danger mb-1";
-                            dossierEmptyDesc.textContent = "This was a regular working day. Please submit your timesheet to keep project records complete.";
-                            emptyStateLogBtn.style.display = 'inline-block';
-                            emptyStateLogBtn.className = 'btn btn-danger px-4 py-2 rounded-3 shadow-sm fw-semibold';
-                            dossierFooterStatusText.textContent = 'Missing Log';
+                        if (isHol) {
+                            // Dedicated Holiday Card
+                            stateIconBox.style.background = '#eff6ff';
+                            stateIcon.className = 'fas fa-umbrella-beach text-primary fs-3';
+                            stateTitle.textContent = holName || "Declared Company Holiday";
+                            stateTitle.className = 'fw-bold text-primary mb-1 fs-5';
+                            stateDescription.innerHTML = `Official declared company holiday under the <strong>Holiday Master</strong>. Timesheet submission is not required for this date.`;
+                            stateCtaContainer.innerHTML = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold"><i class="fas fa-check-circle me-1"></i>Official Non-Working Day</span>`;
+                            dossierFooterStatusText.textContent = 'Company Holiday (No Log Required)';
+                        } else if (isSun) {
+                            // Dedicated Sunday Card
+                            stateIconBox.style.background = '#f1f5f9';
+                            stateIcon.className = 'fas fa-bed text-secondary fs-3';
+                            stateTitle.textContent = "Sunday (Weekly Off)";
+                            stateTitle.className = 'fw-bold text-dark mb-1 fs-5';
+                            stateDescription.innerHTML = `Sundays are designated company non-working days. Timesheet submission is disabled.`;
+                            stateCtaContainer.innerHTML = `<span class="badge bg-secondary-subtle text-secondary border px-3 py-2 fw-semibold"><i class="fas fa-calendar-minus me-1"></i>Weekly Off</span>`;
+                            dossierFooterStatusText.textContent = 'Weekly Off';
+                        } else if (isSecSat) {
+                            // Dedicated 2nd Saturday Card
+                            stateIconBox.style.background = '#f1f5f9';
+                            stateIcon.className = 'fas fa-calendar-times text-secondary fs-3';
+                            stateTitle.textContent = "Second Saturday (Company Off)";
+                            stateTitle.className = 'fw-bold text-dark mb-1 fs-5';
+                            stateDescription.innerHTML = `Second Saturdays are designated company non-working days. Timesheet submission is disabled.`;
+                            stateCtaContainer.innerHTML = `<span class="badge bg-secondary-subtle text-secondary border px-3 py-2 fw-semibold"><i class="fas fa-calendar-minus me-1"></i>Company Off</span>`;
+                            dossierFooterStatusText.textContent = 'Company Off (2nd Saturday)';
+                        } else if (dateKey > todayStr) {
+                            // Dedicated Future Date Card
+                            stateIconBox.style.background = '#f8fafc';
+                            stateIcon.className = 'fas fa-hourglass-start text-muted fs-3';
+                            stateTitle.textContent = "Future Date";
+                            stateTitle.className = 'fw-bold text-secondary mb-1 fs-5';
+                            stateDescription.innerHTML = `Future working days cannot be logged in advance.`;
+                            stateCtaContainer.innerHTML = `<span class="badge bg-light text-secondary border px-3 py-2 fw-semibold"><i class="fas fa-lock me-1"></i>Not Yet Open</span>`;
+                            dossierFooterStatusText.textContent = 'Future Date (Locked)';
                         } else if (dateKey === todayStr && !nowIsAfter430) {
-                            dossierEmptyTitle.textContent = "Today's Timesheet Opens at 4:30 PM";
-                            dossierEmptyTitle.className = "fw-bold text-warning mb-1";
-                            dossierEmptyDesc.textContent = "In accordance with portal guidelines, timesheet logging for today activates after 4:30 PM (16:30 IST).";
-                            emptyStateLogBtn.style.display = 'none';
+                            // Dedicated Today Locked Card (Before 4:30 PM)
+                            stateIconBox.style.background = '#fffbeb';
+                            stateIcon.className = 'fas fa-lock text-warning fs-3';
+                            stateTitle.textContent = "Today's Timesheet Opens at 4:30 PM";
+                            stateTitle.className = 'fw-bold text-warning mb-1 fs-5';
+                            stateDescription.innerHTML = `In accordance with company policy, timesheet logging for today activates daily <strong>after 4:30 PM (16:30 IST)</strong> onwards. You can submit previous missed working days at any time.`;
+                            stateCtaContainer.innerHTML = `<span class="badge bg-warning-subtle text-dark border border-warning-subtle px-3 py-2 fw-semibold"><i class="fas fa-clock me-1"></i>Submission Opens at 4:30 PM</span>`;
                             dossierFooterStatusText.textContent = 'Locked until 4:30 PM';
+                        } else if (missingDatesSet.has(dateKey)) {
+                            // Dedicated Missed Working Day Card
+                            stateIconBox.style.background = '#fef2f2';
+                            stateIcon.className = 'fas fa-exclamation-circle text-danger fs-3';
+                            stateTitle.textContent = "Missed Timesheet Entry";
+                            stateTitle.className = 'fw-bold text-danger mb-1 fs-5';
+                            stateDescription.innerHTML = `This was a regular active working day without a recorded timesheet. Please log your activities to keep company records complete.`;
+                            stateCtaContainer.innerHTML = `
+                                <button type="button" class="btn btn-danger px-4 py-2 rounded-3 shadow-sm fw-semibold" onclick="document.getElementById('quickLogForDateBtn').click();">
+                                    <i class="fas fa-plus me-1"></i> Log Timesheet for ${formatDisplayDate(dateKey)}
+                                </button>
+                            `;
+                            dossierFooterStatusText.textContent = 'Missing Timesheet (Action Required)';
                         } else {
-                            dossierEmptyTitle.textContent = "No Timesheet Logged for this Day";
-                            dossierEmptyTitle.className = "fw-bold text-dark mb-1";
-                            dossierEmptyDesc.textContent = "No work hours or project activities were recorded for this date.";
-                            emptyStateLogBtn.style.display = 'inline-block';
-                            emptyStateLogBtn.className = 'btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold';
-                            dossierFooterStatusText.textContent = 'Open for Log';
+                            // Standard Empty Working Day Card
+                            stateIconBox.style.background = '#f8fafc';
+                            stateIcon.className = 'far fa-calendar-plus text-primary fs-3';
+                            stateTitle.textContent = "No Timesheet Logged for this Day";
+                            stateTitle.className = 'fw-bold text-dark mb-1 fs-5';
+                            stateDescription.innerHTML = `No work hours or project activities were recorded for this date.`;
+                            stateCtaContainer.innerHTML = `
+                                <button type="button" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold" onclick="document.getElementById('quickLogForDateBtn').click();">
+                                    <i class="fas fa-plus me-1"></i> Log Timesheet for ${formatDisplayDate(dateKey)}
+                                </button>
+                            `;
+                            dossierFooterStatusText.textContent = 'Open for Submission';
                         }
                     }
                 })
@@ -1138,14 +1197,16 @@
                         todayStr = data.today_str || todayStr;
                         nowIsAfter430 = Boolean(data.now_is_after_430);
 
-                        // Update top 4:30 PM rule indicator
+                        // Update top 4:30 PM rule indicator cleanly with a single icon
                         if (nowIsAfter430) {
                             dailyTimeRulePill.className = 'time-rule-pill active';
-                            dailyTimeRuleText.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i>Today is Open (> 4:30 PM)';
+                            dailyTimeRuleIcon.className = 'fas fa-check-circle text-success me-1';
+                            dailyTimeRuleText.textContent = 'Today is Open (> 4:30 PM)';
                             submissionTimeNoticeBar.style.display = 'none';
                         } else {
                             dailyTimeRulePill.className = 'time-rule-pill';
-                            dailyTimeRuleText.innerHTML = '<i class="fas fa-clock text-warning me-1"></i>Today Opens at 4:30 PM';
+                            dailyTimeRuleIcon.className = 'fas fa-clock text-warning me-1';
+                            dailyTimeRuleText.textContent = 'Today Opens at 4:30 PM';
                             submissionTimeNoticeBar.style.display = 'block';
                         }
                     }
@@ -1230,15 +1291,17 @@
             setViewMode('add');
         });
 
-        emptyStateLogBtn.addEventListener('click', function() {
-            const val = validateDateForSubmission(selectedDateStr);
-            if (!val.allowed) {
-                alert(val.reason);
-                return;
-            }
-            timesheetEntryDate.value = selectedDateStr;
-            setViewMode('add');
-        });
+        if (emptyStateLogBtn) {
+            emptyStateLogBtn.addEventListener('click', function() {
+                const val = validateDateForSubmission(selectedDateStr);
+                if (!val.allowed) {
+                    alert(val.reason);
+                    return;
+                }
+                timesheetEntryDate.value = selectedDateStr;
+                setViewMode('add');
+            });
+        }
 
         cancelAddTimesheetBtn.addEventListener('click', function() {
             setViewMode('view');

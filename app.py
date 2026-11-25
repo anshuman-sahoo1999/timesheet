@@ -1143,27 +1143,34 @@ def generate_file_number(financial_year, department, sub_department=None):
     
     if sub_department:
         # For General Administration sub-departments
-        file_prefix = f"{base_code}/GA/{sub_department.short_code}"
+        dept_code = getattr(sub_department, 'short_code', None) or 'GA'
+        file_prefix = f"{base_code}/GA/{dept_code}"
     else:
         # For main departments
-        file_prefix = f"{base_code}/{department.short_code}"
+        dept_code = getattr(department, 'short_code', None) or (department.name[:3].upper() if department else 'GEN')
+        file_prefix = f"{base_code}/{dept_code}"
 
-    print(f"[DEBUG] generate_file_number: FY={financial_year}, DeptID={department.id}, SubDeptID={sub_department.id if sub_department else None}")
     last_indent = JobIndent.query.filter(
         JobIndent.financial_year == financial_year,
-        JobIndent.department_id == department.id,
+        JobIndent.department_id == (department.id if department else None),
         JobIndent.sub_department_id == (sub_department.id if sub_department else None)
     ).order_by(JobIndent.id.desc()).first()
-    print(f"[DEBUG] Last indent found: {last_indent.file_number if last_indent else 'None'} for FY={financial_year}, DeptID={department.id}, SubDeptID={sub_department.id if sub_department else None}")
     
-    if last_indent:
-        # Extract the serial number from the last file number
-        last_serial = int(last_indent.file_number.split('/')[-1])
-        new_serial = last_serial + 1
-    else:
-        new_serial = 1
+    new_serial = 1
+    if last_indent and last_indent.file_number:
+        try:
+            parts = last_indent.file_number.split('/')
+            last_serial = int(parts[-1])
+            new_serial = last_serial + 1
+        except (ValueError, IndexError, TypeError):
+            new_serial = 1
+
+    candidate = f"{file_prefix}/{new_serial:03d}"
+    while JobIndent.query.filter_by(file_number=candidate).first():
+        new_serial += 1
+        candidate = f"{file_prefix}/{new_serial:03d}"
     
-    return f"{file_prefix}/{new_serial:03d}"
+    return candidate
 
 def get_departments_for_selection():
     """Get departments for dropdown selection"""
@@ -1806,46 +1813,138 @@ def create_job_indent():
     
     if request.method == 'POST':
         try:
-            financial_year = bleach.clean(request.form['financial_year'])
-            department_id = int(request.form['department_id'])
-            sub_department_id = int(request.form['sub_department_id']) if request.form.get('sub_department_id') else None
-            project_manager_id = int(request.form['project_manager_id']) if request.form.get('project_manager_id') else None
+            financial_year = bleach.clean(request.form.get('financial_year', '')).strip()
+            if not financial_year:
+                flash('Please select a Financial Year.', 'danger')
+                return redirect(url_for('create_job_indent'))
+
+            dept_id_val = request.form.get('department_id')
+            if not dept_id_val:
+                flash('Please select a Department.', 'danger')
+                return redirect(url_for('create_job_indent'))
+            department_id = int(dept_id_val)
+
+            sub_dept_val = request.form.get('sub_department_id')
+            sub_department_id = int(sub_dept_val) if sub_dept_val and sub_dept_val.isdigit() else None
+
+            pm_val = request.form.get('project_manager_id')
+            project_manager_id = int(pm_val) if pm_val and pm_val.isdigit() else None
             
-            # Optimize department queries
             department = db.session.query(Department).filter(Department.id == department_id).first()
             if not department:
-                flash('Department not found.', 'error')
+                flash('Selected department was not found.', 'danger')
                 return redirect(url_for('create_job_indent'))
             
             sub_department = None
             if sub_department_id:
                 sub_department = db.session.query(Department).filter(Department.id == sub_department_id).first()
             
-            # Use user-specified internal reference code or auto-generate
+            project_name = bleach.clean(request.form.get('project_name', '')).strip()
+            if not project_name:
+                flash('Project Name is required.', 'danger')
+                return redirect(url_for('create_job_indent'))
+
+            client_name = bleach.clean(request.form.get('client_name', '')).strip()
+            if not client_name:
+                flash('Client Name is required.', 'danger')
+                return redirect(url_for('create_job_indent'))
+
+            # Parse and validate dates
+            start_date_str = request.form.get('contract_start_date', '').strip()
+            end_date_str = request.form.get('contract_end_date', '').strip()
+            contract_start_date = None
+            contract_end_date = None
+            if start_date_str:
+                for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
+                    try:
+                        contract_start_date = datetime.strptime(start_date_str, fmt).date()
+                        break
+                    except ValueError:
+                        pass
+            if end_date_str:
+                for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
+                    try:
+                        contract_end_date = datetime.strptime(end_date_str, fmt).date()
+                        break
+                    except ValueError:
+                        pass
+
+            if not contract_start_date or not contract_end_date:
+                flash('Please provide valid Contract Start and End Dates.', 'danger')
+                return redirect(url_for('create_job_indent'))
+
+            # Contract value
+            raw_cv = request.form.get('contract_value', '').replace(',', '').strip()
+            contract_value = float(raw_cv) if raw_cv else None
+
+            # Reference code / file number
             custom_ref = bleach.clean(request.form.get('internal_reference_code', '')).strip()
             if custom_ref:
+                existing_ref = JobIndent.query.filter_by(file_number=custom_ref).first()
+                if existing_ref:
+                    flash(f"Reference Code '{custom_ref}' is already in use by project '{existing_ref.project_name}'. Please specify a unique code.", 'danger')
+                    return redirect(url_for('create_job_indent'))
                 file_number = custom_ref
             else:
                 file_number = generate_file_number(financial_year, department, sub_department)
-            
-            # Helper to save uploaded documents
-            import os
+
+            # Upload directory helper (with serverless /tmp fallback for read-only Vercel environment)
+            import tempfile
             from werkzeug.utils import secure_filename
-            upload_dir = os.path.join(app.root_path, 'uploads', 'job_indents')
-            os.makedirs(upload_dir, exist_ok=True)
+            
+            def get_target_upload_dir():
+                standard_dir = os.path.join(app.root_path, 'uploads', 'job_indents')
+                try:
+                    os.makedirs(standard_dir, exist_ok=True)
+                    # Test write access
+                    test_f = os.path.join(standard_dir, '.write_test')
+                    with open(test_f, 'w') as f:
+                        f.write('1')
+                    os.remove(test_f)
+                    return standard_dir
+                except (OSError, PermissionError):
+                    tmp_dir = os.path.join(tempfile.gettempdir(), 'uploads', 'job_indents')
+                    os.makedirs(tmp_dir, exist_ok=True)
+                    return tmp_dir
 
-            def save_indent_doc(file_field_name):
+            # Document validation & saver (PDFs must be within 2 to 4 MB, max 4 MB)
+            def save_indent_doc(file_field_name, is_required=False, label="Document"):
                 file_obj = request.files.get(file_field_name)
-                if file_obj and file_obj.filename:
-                    safe_name = secure_filename(f"{int(datetime.utcnow().timestamp())}_{file_obj.filename}")
-                    file_obj.save(os.path.join(upload_dir, safe_name))
-                    return safe_name
-                return None
+                if not file_obj or not file_obj.filename:
+                    if is_required:
+                        raise ValueError(f"{label} is required.")
+                    return None
 
-            saved_work_order = save_indent_doc('work_order_pdf') or save_indent_doc('work_order_file')
-            saved_scope = save_indent_doc('scope_of_work_file')
-            saved_rfp = save_indent_doc('rfp_document_file')
-            saved_tech_bid = save_indent_doc('technical_bid_file')
+                filename = secure_filename(file_obj.filename)
+                if not filename:
+                    if is_required:
+                        raise ValueError(f"{label} has an invalid filename.")
+                    return None
+
+                ext = os.path.splitext(filename)[1].lower()
+                allowed_exts = ['.pdf', '.doc', '.docx', '.xls', '.xlsx']
+                if ext not in allowed_exts:
+                    raise ValueError(f"{label} must be a PDF or document file (got '{ext}').")
+
+                # Verify file size (must be within 4 MB)
+                file_obj.seek(0, os.SEEK_END)
+                file_size = file_obj.tell()
+                file_obj.seek(0)
+
+                max_bytes = 4 * 1024 * 1024  # 4 MB
+                if file_size > max_bytes:
+                    size_mb = round(file_size / (1024 * 1024), 2)
+                    raise ValueError(f"{label} '{filename}' ({size_mb} MB) exceeds 4 MB. PDFs must be within 2 to 4 MB.")
+
+                upload_folder = get_target_upload_dir()
+                safe_name = f"{int(datetime.utcnow().timestamp())}_{filename}"
+                file_obj.save(os.path.join(upload_folder, safe_name))
+                return safe_name
+
+            saved_work_order = save_indent_doc('work_order_pdf', is_required=True, label="Work Order") or save_indent_doc('work_order_file', label="Work Order")
+            saved_scope = save_indent_doc('scope_of_work_file', label="Scope of Work Document")
+            saved_rfp = save_indent_doc('rfp_document_file', label="RFP Document")
+            saved_tech_bid = save_indent_doc('technical_bid_file', label="Technical Bid Document")
 
             # Create job indent with full data
             job_indent = JobIndent(
@@ -1853,14 +1952,15 @@ def create_job_indent():
                 department_id=department_id,
                 sub_department_id=sub_department_id,
                 file_number=file_number,
-                project_name=bleach.clean(request.form['project_name']),
-                client_name=bleach.clean(request.form['client_name']),
-                project_type=bleach.clean(request.form.get('project_type', '')),
-                description=bleach.clean(request.form.get('description', '')),
-                contract_value=float(request.form['contract_value']) if request.form.get('contract_value') else None,
-                contract_start_date=datetime.strptime(request.form['contract_start_date'], '%Y-%m-%d').date() if request.form.get('contract_start_date') else None,
-                contract_end_date=datetime.strptime(request.form['contract_end_date'], '%Y-%m-%d').date() if request.form.get('contract_end_date') else None,
+                project_name=project_name,
+                client_name=client_name,
+                project_type=bleach.clean(request.form.get('project_type', '')).strip(),
+                description=bleach.clean(request.form.get('description', '')).strip(),
+                contract_value=contract_value,
+                contract_start_date=contract_start_date,
+                contract_end_date=contract_end_date,
                 project_manager_id=project_manager_id,
+                status='Pending Approval',
                 work_order_pdf=saved_work_order,
                 scope_of_work_file=saved_scope,
                 rfp_document_file=saved_rfp,
@@ -1871,33 +1971,30 @@ def create_job_indent():
             db.session.add(job_indent)
             db.session.commit()
             
-            # Create notifications for BD team and MD
-            bd_team = Employee.query.filter_by(role='BD').first()
-            md_team = Employee.query.filter_by(role='MD').first()
-            
-            if bd_team:
-                create_notification(
-                    bd_team.id,
-                    'New Job Indent Created',
-                    f'Job indent "{job_indent.project_name}" has been created by {current_user.name}',
-                    'info'
-                )
-            
-            if md_team:
-                create_notification(
-                    md_team.id,
-                    'New Job Indent Created',
-                    f'Job indent "{job_indent.project_name}" has been created by {current_user.name}',
-                    'info'
-                )
+            # Send notifications safely
+            try:
+                md_team = Employee.query.filter(or_(Employee.role == 'MD', Employee.emp_id == '15M006')).first()
+                if md_team:
+                    create_notification(
+                        md_team.id,
+                        'New Job Indent Awaiting Approval',
+                        f'Job indent "{job_indent.project_name}" ({job_indent.file_number}) has been created by {current_user.name} and is awaiting executive review.',
+                        'info'
+                    )
+            except Exception as notif_err:
+                print(f"[WARN] Notification delivery failed: {notif_err}")
             
             flash('Job Indent created successfully!', 'success')
             return redirect(url_for('dashboard'))
             
+        except ValueError as ve:
+            db.session.rollback()
+            flash(str(ve), 'danger')
+            return redirect(url_for('create_job_indent'))
         except Exception as e:
             db.session.rollback()
             print(f"[ERROR] Job indent creation error: {e}")
-            flash('An error occurred while creating the job indent.', 'error')
+            flash(f"An error occurred while creating the job indent: {str(e)}", 'danger')
             return redirect(url_for('create_job_indent'))
     
     # Optimize form data loading
@@ -4866,18 +4963,24 @@ def dashboard():
         )
 
     elif current_user.role == 'BD':
-        # Get all job indents for BD dashboard (not just created by current user)
-        indents = JobIndent.query.all()
-        approved_count = len([i for i in indents if i.status == 'Approved'])
-        pending_count = len([i for i in indents if i.status == 'Pending Approval'])
+        # Get all job indents for BD dashboard
+        indents = JobIndent.query.order_by(JobIndent.id.desc()).all()
+        total_projects = len(indents)
+        
+        # Comprehensive status counts
+        approved_count = len([i for i in indents if i.status in ['Approved', 'In Progress', 'Active', 'Completed']])
+        pending_count = len([i for i in indents if i.status in ['Pending Approval', 'Pending', 'Draft', 'Submitted']])
+        in_progress_count = len([i for i in indents if i.status in ['In Progress', 'Active']])
+        approved_only_count = len([i for i in indents if i.status == 'Approved'])
+        completed_count = len([i for i in indents if i.status in ['Completed', 'Closed']])
         rejected_count = len([i for i in indents if i.status == 'Rejected'])
         draft_count = len([i for i in indents if i.status == 'Draft'])
         
-        # Get department-wise project counts
+        # Get department-wise project counts across all indents
         departments = Department.query.all()
         dept_project_counts = {}
         for dept in departments:
-            count = JobIndent.query.filter_by(department_id=dept.id).count()
+            count = len([i for i in indents if i.department_id == dept.id])
             if count > 0:
                 dept_project_counts[dept.name] = count
         
@@ -4885,20 +4988,21 @@ def dashboard():
         total_contract_value = sum(i.contract_value or 0 for i in indents)
         
         # Get recent activities
-        recent_indents = JobIndent.query.order_by(JobIndent.id.desc()).limit(5).all()
-        
-        # Get all indents for the summary table
-        all_indents = JobIndent.query.all()
+        recent_indents = indents[:5]
         
         return render_template('dashboards/bd_dashboard.html', 
+                               total_projects=total_projects,
                                approved_count=approved_count,
                                pending_count=pending_count,
+                               in_progress_count=in_progress_count,
+                               approved_only_count=approved_only_count,
+                               completed_count=completed_count,
                                rejected_count=rejected_count,
                                draft_count=draft_count,
                                recent_activities=recent_indents,
                                dept_project_counts=dept_project_counts,
                                total_contract_value=total_contract_value,
-                               all_indents=all_indents,
+                               all_indents=indents,
                                departments=departments)
 
     elif current_user.role == 'PM':

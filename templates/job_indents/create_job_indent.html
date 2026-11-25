@@ -490,7 +490,7 @@
                             </div>
                             <div class="upload-details-text">
                                 <span class="upload-main-title" id="rfp_name_display">Upload RFP Document</span>
-                                <span class="upload-sub-title">PDF, DOC, XLS (Optional)</span>
+                                <span class="upload-sub-title">PDF document within 2 to 4 MB (Optional)</span>
                             </div>
                         </div>
                     </div>
@@ -559,7 +559,7 @@
                             </div>
                             <div class="upload-details-text">
                                 <span class="upload-main-title" id="wo_name_display">Upload Work Order <span class="text-danger">*</span></span>
-                                <span class="upload-sub-title">PDF, DOCX up to 10MB</span>
+                                <span class="upload-sub-title">PDF document within 2 to 4 MB (Max 4 MB)</span>
                             </div>
                         </div>
                     </div>
@@ -577,7 +577,7 @@
                             </div>
                             <div class="upload-details-text">
                                 <span class="upload-main-title" id="tech_bid_name_display">Upload Technical Bid Document</span>
-                                <span class="upload-sub-title">PDF, DOC, XLS (Optional)</span>
+                                <span class="upload-sub-title">PDF document within 2 to 4 MB (Optional)</span>
                             </div>
                         </div>
                     </div>
@@ -686,7 +686,7 @@
                             </div>
                             <div class="upload-details-text">
                                 <span class="upload-main-title" id="scope_name_display">Upload Scope of Work</span>
-                                <span class="upload-sub-title">PDF, DOCX (Optional)</span>
+                                <span class="upload-sub-title">PDF document within 2 to 4 MB (Optional)</span>
                             </div>
                         </div>
                     </div>
@@ -743,17 +743,51 @@
 
 <!-- ================= FORM BEHAVIOR & REAL-TIME FILE NUMBER ================= -->
 <script>
-    // Handle File Upload Display Label and Visual State
+    // Handle File Upload Display Label, Size Enforcement (Within 2 to 4 MB) and Visual State
     function updateUploadLabel(input, cardId, labelId) {
         const card = document.getElementById(cardId);
         const label = document.getElementById(labelId);
         if (input.files && input.files.length > 0) {
             const file = input.files[0];
             const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
-            label.innerHTML = `<span class="text-success"><i class="fas fa-check me-1"></i> ${file.name}</span> (${sizeInMb} MB)`;
-            if (card) card.classList.add('file-selected');
+            const ext = file.name.split('.').pop().toLowerCase();
+            
+            // Validate allowed extensions
+            if (!['pdf', 'doc', 'docx', 'xls', 'xlsx'].includes(ext)) {
+                label.innerHTML = `<span class="text-danger fw-bold"><i class="fas fa-times-circle me-1"></i> Invalid format (.${ext}). PDF or DOC required.</span>`;
+                if (card) {
+                    card.classList.remove('file-selected');
+                    card.classList.add('border-danger');
+                }
+                input.value = '';
+                alert(`Invalid format for file "${file.name}". Please upload a PDF or DOC document.`);
+                return;
+            }
+            
+            // Validate file size: must not exceed 4 MB (Within 2 to 4 MB target window)
+            const maxBytes = 4 * 1024 * 1024;
+            if (file.size > maxBytes) {
+                label.innerHTML = `<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> File too large (${sizeInMb} MB). PDFs must be within 2 to 4 MB (Max 4 MB).</span>`;
+                if (card) {
+                    card.classList.remove('file-selected');
+                    card.classList.add('border-danger');
+                }
+                input.value = '';
+                alert(`The selected file "${file.name}" is ${sizeInMb} MB, which exceeds the 4 MB limit.\nPlease upload a PDF within 2 to 4 MB (maximum 4 MB).`);
+                return;
+            }
+            
+            // Valid file within size limits
+            if (card) {
+                card.classList.remove('border-danger');
+                card.classList.add('file-selected');
+            }
+            label.innerHTML = `<span class="text-success fw-semibold"><i class="fas fa-check-circle me-1"></i> ${file.name}</span> <span class="badge bg-light text-secondary border ms-1">${sizeInMb} MB</span>`;
         } else {
-            if (card) card.classList.remove('file-selected');
+            if (card) {
+                card.classList.remove('file-selected');
+                card.classList.remove('border-danger');
+            }
         }
     }
 

@@ -522,71 +522,42 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% if indent.work_order_pdf %}
+                                    {% for doc in uploaded_docs %}
                                     <tr>
-                                        <td><i class="fas fa-file-pdf text-danger me-2"></i><strong>Work Order PDF</strong></td>
-                                        <td><code>{{ indent.work_order_pdf }}</code></td>
-                                        <td><span class="badge bg-success">Archived</span></td>
+                                        <td><i class="{{ doc.icon_class }} me-2"></i><strong>{{ doc.label }}</strong></td>
+                                        <td>
+                                            <code>{{ doc.display_name }}</code>
+                                            {% if doc.file_size_label %}
+                                            <span class="badge bg-light text-secondary border ms-1">{{ doc.file_size_label }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if doc.is_viewable %}
+                                            <span class="badge bg-success">Uploaded &amp; Viewable</span>
+                                            {% else %}
+                                            <span class="badge bg-warning text-dark">File Missing (Re-upload Needed)</span>
+                                            {% endif %}
+                                        </td>
                                         <td class="text-end">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.work_order_pdf) }}', 'Work Order: {{ indent.project_name }}', '{{ indent.work_order_pdf }}')">
+                                            {% if doc.is_viewable %}
+                                            <button type="button" class="btn btn-sm btn-primary" onclick='openPdfModal({{ doc.url|tojson }}, {{ (doc.label ~ ": " ~ indent.project_name)|tojson }}, {{ doc.display_name|tojson }})'>
                                                 <i class="fas fa-eye me-1"></i> Preview
                                             </button>
-                                            <a href="{{ url_for('serve_indent_file', filename=indent.work_order_pdf) }}?download=1" download class="btn btn-sm btn-outline-secondary">
+                                            <a href="{{ doc.url }}?download=1" download="{{ doc.display_name }}" class="btn btn-sm btn-outline-secondary">
                                                 <i class="fas fa-download"></i>
                                             </a>
-                                        </td>
-                                    </tr>
-                                    {% endif %}
-                                    {% if indent.scope_of_work_file %}
-                                    <tr>
-                                        <td><i class="fas fa-file-word text-primary me-2"></i><strong>Scope of Work</strong></td>
-                                        <td><code>{{ indent.scope_of_work_file }}</code></td>
-                                        <td><span class="badge bg-success">Archived</span></td>
-                                        <td class="text-end">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.scope_of_work_file) }}', 'Scope of Work: {{ indent.project_name }}', '{{ indent.scope_of_work_file }}')">
-                                                <i class="fas fa-eye me-1"></i> Preview
+                                            {% else %}
+                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick='openUploadDocModal({{ doc.slot|tojson }})'>
+                                                <i class="fas fa-upload me-1"></i> Re-upload
                                             </button>
-                                            <a href="{{ url_for('serve_indent_file', filename=indent.scope_of_work_file) }}?download=1" download class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-download"></i>
-                                            </a>
+                                            {% endif %}
                                         </td>
                                     </tr>
-                                    {% endif %}
-                                    {% if indent.rfp_document_file %}
-                                    <tr>
-                                        <td><i class="fas fa-file-alt text-info me-2"></i><strong>RFP Tender Document</strong></td>
-                                        <td><code>{{ indent.rfp_document_file }}</code></td>
-                                        <td><span class="badge bg-success">Archived</span></td>
-                                        <td class="text-end">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.rfp_document_file) }}', 'RFP Tender: {{ indent.project_name }}', '{{ indent.rfp_document_file }}')">
-                                                <i class="fas fa-eye me-1"></i> Preview
-                                            </button>
-                                            <a href="{{ url_for('serve_indent_file', filename=indent.rfp_document_file) }}?download=1" download class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-download"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    {% endif %}
-                                    {% if indent.technical_bid_file %}
-                                    <tr>
-                                        <td><i class="fas fa-file-invoice text-success me-2"></i><strong>Technical Bid Submission</strong></td>
-                                        <td><code>{{ indent.technical_bid_file }}</code></td>
-                                        <td><span class="badge bg-success">Archived</span></td>
-                                        <td class="text-end">
-                                            <button type="button" class="btn btn-sm btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.technical_bid_file) }}', 'Technical Bid: {{ indent.project_name }}', '{{ indent.technical_bid_file }}')">
-                                                <i class="fas fa-eye me-1"></i> Preview
-                                            </button>
-                                            <a href="{{ url_for('serve_indent_file', filename=indent.technical_bid_file) }}?download=1" download class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-download"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    {% endif %}
-                                    {% if not indent.work_order_pdf and not indent.scope_of_work_file and not indent.rfp_document_file and not indent.technical_bid_file %}
+                                    {% else %}
                                     <tr>
                                         <td colspan="4" class="text-center text-muted py-4">No formal indent files attached yet. You can upload reference documents above.</td>
                                     </tr>
-                                    {% endif %}
+                                    {% endfor %}
                                 </tbody>
                             </table>
                         </div>
@@ -1269,7 +1240,7 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-muted">Select Document Type</label>
-                        <select class="form-select" name="doc_type" required>
+                        <select class="form-select" id="pmUploadDocType" name="doc_type" required>
                             <option value="work_order" {% if not indent.work_order_pdf %}selected{% endif %}>Work Order PDF (Formal Order)</option>
                             <option value="scope_of_work" {% if not indent.scope_of_work_file and indent.work_order_pdf %}selected{% endif %}>Scope of Work Document</option>
                             <option value="rfp">RFP Tender Document</option>
@@ -2162,6 +2133,13 @@
                 printWin.onload = function() { printWin.print(); };
             }
         }
+    }
+
+    function openUploadDocModal(slot) {
+        const modalEl = document.getElementById('uploadDocModal');
+        const selectEl = document.getElementById('pmUploadDocType');
+        if (selectEl && slot) selectEl.value = slot;
+        if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 
     // Initialize everything on load

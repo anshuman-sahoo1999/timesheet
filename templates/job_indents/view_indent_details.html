@@ -226,30 +226,14 @@
                 <i class="fas fa-edit me-1"></i> Edit Job Card
             </a>
             {% endif %}
-            {% if indent.work_order_pdf %}
-            <button type="button" class="btn btn-sm btn-primary shadow-sm" style="border-radius: 8px;"
-                    onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.work_order_pdf) }}', 'Work Order: {{ indent.project_name }}', '{{ indent.work_order_pdf }}')">
-                <i class="fas fa-file-invoice me-1"></i> Work Order PDF
-            </button>
-            {% endif %}
-            {% if indent.scope_of_work_file %}
-            <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" style="border-radius: 8px;"
-                    onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.scope_of_work_file) }}', 'Scope of Work: {{ indent.project_name }}', '{{ indent.scope_of_work_file }}')">
-                <i class="fas fa-file-alt me-1"></i> Scope of Work
-            </button>
-            {% endif %}
-            {% if indent.rfp_document_file %}
-            <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" style="border-radius: 8px;"
-                    onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.rfp_document_file) }}', 'RFP Tender: {{ indent.project_name }}', '{{ indent.rfp_document_file }}')">
-                <i class="fas fa-file-contract me-1"></i> RFP Document
-            </button>
-            {% endif %}
-            {% if indent.technical_bid_file %}
-            <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" style="border-radius: 8px;"
-                    onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.technical_bid_file) }}', 'Technical Bid: {{ indent.project_name }}', '{{ indent.technical_bid_file }}')">
-                <i class="fas fa-file-code me-1"></i> Technical Bid
-            </button>
-            {% endif %}
+            {% for doc in uploaded_docs %}
+                {% if doc.is_viewable %}
+                <button type="button" class="btn btn-sm {% if doc.slot == 'work_order' %}btn-primary{% else %}btn-outline-secondary{% endif %} shadow-sm" style="border-radius: 8px;"
+                        onclick='openPdfModal({{ doc.url|tojson }}, {{ (doc.label ~ ": " ~ indent.project_name)|tojson }}, {{ doc.display_name|tojson }})'>
+                    <i class="{{ doc.btn_icon }} me-1"></i> {{ doc.label }}
+                </button>
+                {% endif %}
+            {% endfor %}
             {% if current_user.role in ['MD', 'Admin', 'BD', 'PM'] or indent.project_manager_id == current_user.id %}
             <button type="button" class="btn btn-sm btn-outline-success shadow-sm" style="border-radius: 8px;" data-bs-toggle="modal" data-bs-target="#uploadProjectDocModal">
                 <i class="fas fa-upload me-1"></i> Attach Doc
@@ -330,90 +314,51 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% if indent.work_order_pdf %}
+                        {% for doc in uploaded_docs %}
                         <tr>
                             <td class="ps-3">
-                                <i class="fas fa-file-pdf text-danger me-2"></i><strong>Work Order PDF</strong>
+                                <i class="{{ doc.icon_class }} me-2"></i><strong>{{ doc.label }}</strong>
                             </td>
-                            <td><code class="text-dark">{{ indent.work_order_pdf }}</code></td>
-                            <td><span class="badge bg-success-subtle text-success border border-success px-2 py-1"><i class="fas fa-check-circle me-1"></i>Archived</span></td>
+                            <td>
+                                <code class="text-dark">{{ doc.display_name }}</code>
+                                {% if doc.file_size_label %}
+                                <span class="badge bg-light text-secondary border ms-1">{{ doc.file_size_label }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if doc.is_viewable %}
+                                <span class="badge bg-success-subtle text-success border border-success px-2 py-1"><i class="fas fa-check-circle me-1"></i>Uploaded &amp; Viewable</span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>File Missing (Re-upload Needed)</span>
+                                {% endif %}
+                            </td>
                             <td class="text-end pe-3">
+                                {% if doc.is_viewable %}
                                 <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.work_order_pdf) }}', 'Work Order: {{ indent.project_name }}', '{{ indent.work_order_pdf }}')">
+                                    <button type="button" class="btn btn-primary" onclick='openPdfModal({{ doc.url|tojson }}, {{ (doc.label ~ ": " ~ indent.project_name)|tojson }}, {{ doc.display_name|tojson }})'>
                                         <i class="fas fa-eye me-1"></i> Preview Pop-Up
                                     </button>
-                                    <a href="{{ url_for('serve_indent_file', filename=indent.work_order_pdf) }}?download=1" download class="btn btn-outline-secondary">
+                                    <a href="{{ doc.url }}?download=1" download="{{ doc.display_name }}" class="btn btn-outline-secondary">
                                         <i class="fas fa-download"></i>
                                     </a>
                                 </div>
+                                {% elif current_user.role in ['MD', 'Admin', 'BD', 'PM'] or indent.project_manager_id == current_user.id %}
+                                <button type="button" class="btn btn-sm btn-outline-warning" onclick='openUploadDocModal({{ doc.slot|tojson }})'>
+                                    <i class="fas fa-upload me-1"></i> Re-upload Original
+                                </button>
+                                {% else %}
+                                <span class="text-muted small">Not Uploaded</span>
+                                {% endif %}
                             </td>
                         </tr>
-                        {% endif %}
-                        {% if indent.scope_of_work_file %}
-                        <tr>
-                            <td class="ps-3">
-                                <i class="fas fa-file-word text-primary me-2"></i><strong>Scope of Work</strong>
-                            </td>
-                            <td><code class="text-dark">{{ indent.scope_of_work_file }}</code></td>
-                            <td><span class="badge bg-success-subtle text-success border border-success px-2 py-1"><i class="fas fa-check-circle me-1"></i>Archived</span></td>
-                            <td class="text-end pe-3">
-                                <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.scope_of_work_file) }}', 'Scope of Work: {{ indent.project_name }}', '{{ indent.scope_of_work_file }}')">
-                                        <i class="fas fa-eye me-1"></i> Preview Pop-Up
-                                    </button>
-                                    <a href="{{ url_for('serve_indent_file', filename=indent.scope_of_work_file) }}?download=1" download class="btn btn-outline-secondary">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endif %}
-                        {% if indent.rfp_document_file %}
-                        <tr>
-                            <td class="ps-3">
-                                <i class="fas fa-file-alt text-info me-2"></i><strong>RFP Tender Document</strong>
-                            </td>
-                            <td><code class="text-dark">{{ indent.rfp_document_file }}</code></td>
-                            <td><span class="badge bg-success-subtle text-success border border-success px-2 py-1"><i class="fas fa-check-circle me-1"></i>Archived</span></td>
-                            <td class="text-end pe-3">
-                                <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.rfp_document_file) }}', 'RFP Tender: {{ indent.project_name }}', '{{ indent.rfp_document_file }}')">
-                                        <i class="fas fa-eye me-1"></i> Preview Pop-Up
-                                    </button>
-                                    <a href="{{ url_for('serve_indent_file', filename=indent.rfp_document_file) }}?download=1" download class="btn btn-outline-secondary">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endif %}
-                        {% if indent.technical_bid_file %}
-                        <tr>
-                            <td class="ps-3">
-                                <i class="fas fa-file-invoice text-success me-2"></i><strong>Technical Bid Document</strong>
-                            </td>
-                            <td><code class="text-dark">{{ indent.technical_bid_file }}</code></td>
-                            <td><span class="badge bg-success-subtle text-success border border-success px-2 py-1"><i class="fas fa-check-circle me-1"></i>Archived</span></td>
-                            <td class="text-end pe-3">
-                                <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-primary" onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.technical_bid_file) }}', 'Technical Bid: {{ indent.project_name }}', '{{ indent.technical_bid_file }}')">
-                                        <i class="fas fa-eye me-1"></i> Preview Pop-Up
-                                    </button>
-                                    <a href="{{ url_for('serve_indent_file', filename=indent.technical_bid_file) }}?download=1" download class="btn btn-outline-secondary">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endif %}
-                        {% if not indent.work_order_pdf and not indent.scope_of_work_file and not indent.rfp_document_file and not indent.technical_bid_file %}
+                        {% else %}
                         <tr>
                             <td colspan="4" class="text-center py-4 text-muted">
                                 <i class="fas fa-file-excel fa-2x mb-2 text-secondary opacity-50 d-block"></i>
-                                <span>No formal documents attached to this project yet. Use "Attach Doc" above to upload contract or work order.</span>
+                                <span>No formal documents uploaded for this project yet. Use "Attach Doc" above to upload contract or work order.</span>
                             </td>
                         </tr>
-                        {% endif %}
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -1084,7 +1029,7 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-muted">Select Document Type</label>
-                        <select class="form-select" name="doc_type" required>
+                        <select class="form-select" id="uploadProjectDocType" name="doc_type" required>
                             <option value="work_order" {% if not indent.work_order_pdf %}selected{% endif %}>Work Order PDF (Formal Order)</option>
                             <option value="scope_of_work" {% if not indent.scope_of_work_file and indent.work_order_pdf %}selected{% endif %}>Scope of Work Document</option>
                             <option value="rfp">RFP Tender Document</option>
@@ -1338,6 +1283,13 @@
                 printWin.onload = function() { printWin.print(); };
             }
         }
+    }
+
+    function openUploadDocModal(slot) {
+        const modalEl = document.getElementById('uploadProjectDocModal');
+        const selectEl = document.getElementById('uploadProjectDocType');
+        if (selectEl && slot) selectEl.value = slot;
+        if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 
     document.addEventListener('DOMContentLoaded', function() {

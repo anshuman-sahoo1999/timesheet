@@ -222,18 +222,14 @@
         </div>
 
         <div class="d-flex align-items-center gap-2 flex-wrap">
-            {% if indent.work_order_pdf %}
-            <button type="button" class="btn btn-primary btn-sm shadow-sm"
-                    onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.work_order_pdf) }}', 'Work Order: {{ indent.project_name }}', '{{ indent.work_order_pdf }}')">
-                <i class="fas fa-file-invoice me-1"></i> Preview Work Order
-            </button>
-            {% endif %}
-            {% if indent.scope_of_work_file %}
-            <button type="button" class="btn btn-outline-secondary btn-sm shadow-sm"
-                    onclick="openPdfModal('{{ url_for('serve_indent_file', filename=indent.scope_of_work_file) }}', 'Scope of Work: {{ indent.project_name }}', '{{ indent.scope_of_work_file }}')">
-                <i class="fas fa-file-alt me-1"></i> Scope of Work
-            </button>
-            {% endif %}
+            {% for doc in uploaded_docs %}
+                {% if doc.is_viewable %}
+                <button type="button" class="btn {% if doc.slot == 'work_order' %}btn-primary{% else %}btn-outline-secondary{% endif %} btn-sm shadow-sm"
+                        onclick='openPdfModal({{ doc.url|tojson }}, {{ (doc.label ~ ": " ~ indent.project_name)|tojson }}, {{ doc.display_name|tojson }})'>
+                    <i class="{{ doc.btn_icon }} me-1"></i> Preview {{ doc.label }}
+                </button>
+                {% endif %}
+            {% endfor %}
             {% if current_user.role == 'MD' %}
             <a href="{{ url_for('download_ceo_project_report', indent_id=indent.id) }}" class="btn btn-danger btn-sm shadow-sm">
                 <i class="fas fa-file-pdf me-1"></i> Download CEO Project PDF

@@ -1903,73 +1903,25 @@ def create_job_indent():
             else:
                 file_number = generate_file_number(financial_year, department, sub_department)
 
-            # Upload directory helper (with serverless /tmp fallback for read-only Vercel environment)
-            import tempfile
-            from werkzeug.utils import secure_filename
-            
-            def get_target_upload_dir():
-                standard_dir = os.path.join(app.root_path, 'uploads', 'job_indents')
-                try:
-                    os.makedirs(standard_dir, exist_ok=True)
-                    # Test write access
-                    test_f = os.path.join(standard_dir, '.write_test')
-                    with open(test_f, 'w') as f:
-                        f.write('1')
-                    os.remove(test_f)
-                    return standard_dir
-                except (OSError, PermissionError):
-                    tmp_dir = os.path.join(tempfile.gettempdir(), 'uploads', 'job_indents')
-                    os.makedirs(tmp_dir, exist_ok=True)
-                    return tmp_dir
+            # Document validation & preparation (PDF/DOC/XLS within 4 MB)
+            pending_docs = []
 
-            # Document validation & saver (PDFs must be within 2 to 4 MB, max 4 MB)
-            pending_docs = []  # List of tuples: (doc_type, safe_name, original_filename, content, mime_type)
-            def save_indent_doc(file_field_name, doc_type='work_order', is_required=False, label="Document"):
-                file_obj = request.files.get(file_field_name)
-                if not file_obj or not file_obj.filename:
-                    if is_required:
-                        raise ValueError(f"{label} is required.")
-                    return None
+            wo_file = request.files.get('work_order_pdf')
+            if not wo_file or not wo_file.filename:
+                wo_file = request.files.get('work_order_file')
 
-                filename = secure_filename(file_obj.filename)
-                if not filename:
-                    if is_required:
-                        raise ValueError(f"{label} has an invalid filename.")
-                    return None
-
-                ext = os.path.splitext(filename)[1].lower()
-                allowed_exts = ['.pdf', '.doc', '.docx', '.xls', '.xlsx']
-                if ext not in allowed_exts:
-                    raise ValueError(f"{label} must be a PDF or document file (got '{ext}').")
-
-                # Verify file size (must be within 4 MB)
-                file_obj.seek(0, os.SEEK_END)
-                file_size = file_obj.tell()
-                file_obj.seek(0)
-
-                max_bytes = 4 * 1024 * 1024  # 4 MB
-                if file_size > max_bytes:
-                    size_mb = round(file_size / (1024 * 1024), 2)
-                    raise ValueError(f"{label} '{filename}' ({size_mb} MB) exceeds 4 MB. PDFs must be within 2 to 4 MB.")
-
-                upload_folder = get_target_upload_dir()
-                safe_name = f"{int(datetime.utcnow().timestamp())}_{filename}"
-                content = file_obj.read()
-                
-                # Write to disk cache
-                try:
-                    with open(os.path.join(upload_folder, safe_name), 'wb') as f:
-                        f.write(content)
-                except Exception:
-                    pass
-
-                pending_docs.append((doc_type, safe_name, filename, content, file_obj.content_type or 'application/pdf'))
-                return safe_name
-
-            saved_work_order = save_indent_doc('work_order_pdf', doc_type='work_order', is_required=True, label="Work Order") or save_indent_doc('work_order_file', doc_type='work_order', label="Work Order")
-            saved_scope = save_indent_doc('scope_of_work_file', doc_type='scope_of_work', label="Scope of Work Document")
-            saved_rfp = save_indent_doc('rfp_document_file', doc_type='rfp', label="RFP Document")
-            saved_tech_bid = save_indent_doc('technical_bid_file', doc_type='technical_bid', label="Technical Bid Document")
+            doc_specs = [
+                (wo_file, 'work_order', True, 'Work Order'),
+                (request.files.get('scope_of_work_file'), 'scope_of_work', False, 'Scope of Work Document'),
+                (request.files.get('rfp_document_file'), 'rfp', False, 'RFP Document'),
+                (request.files.get('technical_bid_file'), 'technical_bid', False, 'Technical Bid Document'),
+            ]
+            saved_names = {}
+            for file_obj, d_type, is_req, label in doc_specs:
+                prepared = _prepare_uploaded_indent_doc(file_obj, doc_type=d_type, is_required=is_req, label=label)
+                if prepared:
+                    pending_docs.append(prepared)
+                    saved_names[d_type] = prepared[1]
 
             # Create job indent with full data
             job_indent = JobIndent(
@@ -1986,31 +1938,28 @@ def create_job_indent():
                 contract_end_date=contract_end_date,
                 project_manager_id=project_manager_id,
                 status='Pending Approval',
-                work_order_pdf=saved_work_order,
-                scope_of_work_file=saved_scope,
-                rfp_document_file=saved_rfp,
-                technical_bid_file=saved_tech_bid,
+                work_order_pdf=saved_names.get('work_order'),
+                scope_of_work_file=saved_names.get('scope_of_work'),
+                rfp_document_file=saved_names.get('rfp'),
+                technical_bid_file=saved_names.get('technical_bid'),
                 created_by_id=current_user.id
             )
             
             db.session.add(job_indent)
             db.session.flush()
 
-            # Persist uploaded files into IndentDocument (BYTEA) for serverless persistence
+            # Atomically persist exact uploaded file bytes in IndentDocument (PostgreSQL BYTEA)
             for d_type, s_name, orig_name, file_bytes, m_type in pending_docs:
-                try:
-                    db_doc = IndentDocument(
-                        indent_id=job_indent.id,
-                        doc_type=d_type,
-                        filename=s_name,
-                        original_filename=orig_name,
-                        file_data=file_bytes,
-                        file_size=len(file_bytes),
-                        mime_type=m_type
-                    )
-                    db.session.add(db_doc)
-                except Exception as doc_err:
-                    print(f"[WARN] IndentDocument persistence failed: {doc_err}")
+                db_doc = IndentDocument(
+                    indent_id=job_indent.id,
+                    doc_type=d_type,
+                    filename=s_name,
+                    original_filename=orig_name,
+                    file_data=file_bytes,
+                    file_size=len(file_bytes),
+                    mime_type=m_type
+                )
+                db.session.add(db_doc)
 
             db.session.commit()
             
@@ -2365,10 +2314,14 @@ def view_indent_details(indent_id):
     # Active employees for CEO assignment dropdown (if pending)
     project_managers = Employee.query.filter_by(is_active=True).order_by(Employee.name).all()
 
+    uploaded_docs, docs_by_slot = build_indent_docs_context(indent)
+
     return render_template(
         'job_indents/view_indent_details.html',
         indent=indent,
         jc=jc,
+        uploaded_docs=uploaded_docs,
+        docs_by_slot=docs_by_slot,
         project_managers=project_managers,
         milestones=milestones,
         milestone_progress_pct=milestone_progress_pct,
@@ -2836,10 +2789,14 @@ def pm_project_details(indent_id):
     # Project Change Requests
     change_requests = ProjectChangeRequest.query.filter_by(job_indent_id=indent.id).order_by(ProjectChangeRequest.created_at.desc()).all()
 
+    uploaded_docs, docs_by_slot = build_indent_docs_context(indent)
+
     return render_template(
         'job_cards/pm_project_details.html',
         indent=indent,
         jc=jc,
+        uploaded_docs=uploaded_docs,
+        docs_by_slot=docs_by_slot,
         categories=categories,
         employees=employees,
         timesheets=timesheets,
@@ -3236,154 +3193,254 @@ def download_ceo_project_report(indent_id):
         download_name=filename
     )
 
+ALLOWED_INDENT_DOC_EXTENSIONS = {'.pdf', '.doc', '.docx', '.xls', '.xlsx'}
+MAX_INDENT_DOC_BYTES = 4 * 1024 * 1024  # 4 MB
+
+INDENT_DOC_SLOTS = [
+    ('work_order', 'work_order_pdf', 'Work Order PDF', 'fas fa-file-pdf text-danger', 'fas fa-file-invoice'),
+    ('scope_of_work', 'scope_of_work_file', 'Scope of Work', 'fas fa-file-word text-primary', 'fas fa-file-alt'),
+    ('rfp', 'rfp_document_file', 'RFP Tender Document', 'fas fa-file-alt text-info', 'fas fa-file-contract'),
+    ('technical_bid', 'technical_bid_file', 'Technical Bid Document', 'fas fa-file-invoice text-success', 'fas fa-file-code'),
+]
+
+
+def _normalize_doc_mimetype(filename, fallback_mime=None):
+    """Map uploaded document extension to an inline-safe MIME type."""
+    ext = os.path.splitext(filename or '')[1].lower()
+    mime_map = {
+        '.pdf': 'application/pdf',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }
+    if ext in mime_map:
+        return mime_map[ext]
+    if fallback_mime and fallback_mime != 'application/octet-stream':
+        return fallback_mime
+    return 'application/octet-stream'
+
+
+def _is_synthetic_fallback_pdf(data_bytes):
+    """Detect legacy generated placeholder notices so only genuine uploads are served."""
+    if not data_bytes or len(data_bytes) >= 16384 or b'ReportLab Generated' not in data_bytes[:1024]:
+        return False
+    if b'OFFICIAL PROJECT' in data_bytes and b'System Notice:' in data_bytes:
+        return True
+    import base64, zlib
+    for m in re.finditer(rb'stream\r?\n(.*?)endstream', data_bytes, flags=re.DOTALL):
+        candidate = m.group(1).strip()
+        for step in (
+            lambda b: zlib.decompress(b),
+            lambda b: zlib.decompress(base64.a85decode(b[:-2])) if b.endswith(b'~>') else b'',
+        ):
+            try:
+                decoded = step(candidate)
+                if b'ECOMETRIX CONSULTANTS PVT. LTD.' in decoded and b'System Notice:' in decoded:
+                    return True
+            except Exception:
+                continue
+    return False
+
+
+def _format_file_size(num_bytes):
+    if not num_bytes or num_bytes <= 0:
+        return ''
+    if num_bytes < 1024:
+        return f"{num_bytes} B"
+    if num_bytes < 1024 * 1024:
+        return f"{round(num_bytes / 1024, 1)} KB"
+    return f"{round(num_bytes / (1024 * 1024), 2)} MB"
+
+
+def _resolve_disk_indent_file(safe_name):
+    """Locate an actual non-empty uploaded document on disk if present."""
+    if not safe_name:
+        return None
+    candidate_dirs = [
+        os.path.join(app.root_path, 'uploads', 'job_indents'),
+        os.path.join(tempfile.gettempdir(), 'uploads', 'job_indents'),
+        os.path.join(app.root_path, 'static', 'uploads'),
+        os.path.join(tempfile.gettempdir(), 'uploads'),
+        os.path.join(app.root_path, 'uploads'),
+    ]
+    for folder in candidate_dirs:
+        p = os.path.join(folder, safe_name)
+        if os.path.isfile(p) and os.path.getsize(p) > 0:
+            return p
+    return None
+
+
+def _find_genuine_indent_doc(safe_name):
+    """Return the newest non-fallback IndentDocument DB record matching safe_name."""
+    if not safe_name:
+        return None
+    docs = (
+        IndentDocument.query
+        .filter_by(filename=safe_name)
+        .order_by(IndentDocument.id.desc())
+        .all()
+    )
+    for d in docs:
+        if d.file_data and not _is_synthetic_fallback_pdf(d.file_data):
+            return d
+    return None
+
+
+def _prepare_uploaded_indent_doc(file_obj, doc_type='work_order', is_required=False, label='Document'):
+    """Validate an uploaded document and return (doc_type, safe_name, orig_name, content, mime_type)."""
+    from werkzeug.utils import secure_filename
+
+    if not file_obj or not file_obj.filename:
+        if is_required:
+            raise ValueError(f"{label} is required.")
+        return None
+
+    filename = secure_filename(file_obj.filename)
+    if not filename:
+        if is_required:
+            raise ValueError(f"{label} has an invalid filename.")
+        return None
+
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_INDENT_DOC_EXTENSIONS:
+        raise ValueError(f"{label} must be a PDF, Word, or Excel file (got '{ext}').")
+
+    content = file_obj.read()
+    file_size = len(content) if content else 0
+    if file_size == 0:
+        raise ValueError(f"{label} '{filename}' is empty (0 bytes).")
+
+    if file_size > MAX_INDENT_DOC_BYTES:
+        size_mb = round(file_size / (1024 * 1024), 2)
+        raise ValueError(f"{label} '{filename}' ({size_mb} MB) exceeds 4 MB. PDFs must be within 2 to 4 MB.")
+
+    safe_name = f"{int(datetime.utcnow().timestamp())}_{doc_type}_{filename}"
+    mime_type = _normalize_doc_mimetype(filename, getattr(file_obj, 'content_type', None))
+
+    for target_dir in (
+        os.path.join(app.root_path, 'uploads', 'job_indents'),
+        os.path.join(tempfile.gettempdir(), 'uploads', 'job_indents'),
+    ):
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+            with open(os.path.join(target_dir, safe_name), 'wb') as f:
+                f.write(content)
+            break
+        except Exception:
+            continue
+
+    return (doc_type, safe_name, filename, content, mime_type)
+
+
+def build_indent_docs_context(indent):
+    """Build verified document metadata list so only genuinely uploaded files are viewable."""
+    if not indent:
+        return [], {}
+
+    slot_filenames = [
+        os.path.basename(getattr(indent, col))
+        for _, col, _, _, _ in INDENT_DOC_SLOTS
+        if getattr(indent, col)
+    ]
+    db_docs = []
+    try:
+        conditions = [IndentDocument.indent_id == indent.id]
+        if slot_filenames:
+            conditions.append(IndentDocument.filename.in_(slot_filenames))
+        db_docs = IndentDocument.query.filter(or_(*conditions)).order_by(IndentDocument.id.desc()).all()
+    except Exception:
+        db_docs = []
+
+    docs_by_filename = {}
+    for d in db_docs:
+        if d.filename not in docs_by_filename and d.file_data and not _is_synthetic_fallback_pdf(d.file_data):
+            docs_by_filename[d.filename] = d
+
+    uploaded_docs = []
+    docs_by_slot = {}
+    for slot, col, label, icon_class, btn_icon in INDENT_DOC_SLOTS:
+        raw_name = getattr(indent, col, None)
+        if not raw_name:
+            continue
+        safe_name = os.path.basename(raw_name)
+        db_doc = docs_by_filename.get(safe_name)
+        disk_path = None if db_doc else _resolve_disk_indent_file(safe_name)
+        is_viewable = bool(db_doc or disk_path)
+
+        file_size = db_doc.file_size if db_doc else (os.path.getsize(disk_path) if disk_path else 0)
+        display_name = (db_doc.original_filename if db_doc and db_doc.original_filename else safe_name)
+        entry = {
+            'slot': slot,
+            'label': label,
+            'icon_class': icon_class,
+            'btn_icon': btn_icon,
+            'filename': safe_name,
+            'display_name': display_name,
+            'file_size': file_size,
+            'file_size_label': _format_file_size(file_size),
+            'is_viewable': is_viewable,
+            'source': 'cloud_db' if db_doc else ('disk' if disk_path else 'missing'),
+            'url': url_for('serve_indent_file', filename=safe_name),
+        }
+        uploaded_docs.append(entry)
+        docs_by_slot[slot] = entry
+
+    return uploaded_docs, docs_by_slot
+
+
 @app.route('/static/uploads/<path:filename>')
 @app.route('/uploads/<path:filename>')
 @app.route('/uploads/job_indents/<path:filename>')
 @app.route('/document/serve/<path:filename>')
 def serve_indent_file(filename):
-    """
-    Serve uploaded project documents and indents with multi-tiered resolution:
-    1. Disk storage: uploads/job_indents, /tmp/uploads/job_indents, static/uploads
-    2. Database: IndentDocument (BYTEA storage in Neon PostgreSQL)
-    3. Graceful on-the-fly generated document for legacy ephemeral records
-    """
+    """Serve strictly genuine uploaded indent documents (DB first, then disk; never synthetic replacements)."""
     safe_name = os.path.basename(filename)
-    
-    # Check if download is requested via query param ?download=1
     as_attachment = request.args.get('download', '0') in ['1', 'true', 'True']
-    
-    # 1. Check local/ephemeral disk locations
-    possible_paths = [
-        os.path.join(app.root_path, 'uploads', 'job_indents', safe_name),
-        os.path.join(tempfile.gettempdir(), 'uploads', 'job_indents', safe_name),
-        os.path.join(app.root_path, 'static', 'uploads', safe_name),
-        os.path.join(tempfile.gettempdir(), 'uploads', safe_name),
-        os.path.join(app.root_path, 'uploads', safe_name),
-    ]
-    for p in possible_paths:
-        if os.path.isfile(p):
-            mtype = 'application/pdf' if safe_name.lower().endswith('.pdf') else None
-            return send_file(p, as_attachment=as_attachment, download_name=safe_name, mimetype=mtype)
 
-    # 2. Check IndentDocument table in database
+    def _with_no_cache(resp):
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+        return resp
+
+    # 1. Check authoritative PostgreSQL IndentDocument table
     try:
-        doc = IndentDocument.query.filter_by(filename=safe_name).first()
+        doc = _find_genuine_indent_doc(safe_name)
         if doc and doc.file_data:
             buf = io.BytesIO(doc.file_data)
             buf.seek(0)
-            return send_file(
+            resp = make_response(send_file(
                 buf,
-                mimetype=doc.mime_type or 'application/pdf',
+                mimetype=_normalize_doc_mimetype(doc.original_filename or safe_name, doc.mime_type),
                 as_attachment=as_attachment,
                 download_name=doc.original_filename or safe_name
-            )
+            ))
+            return _with_no_cache(resp)
     except Exception as db_err:
         print(f"[WARN] Error querying IndentDocument for {safe_name}: {db_err}")
 
-    # 3. Check if filename is linked to an existing JobIndent record
-    try:
-        indent = JobIndent.query.filter(
-            or_(
-                JobIndent.work_order_pdf == safe_name,
-                JobIndent.scope_of_work_file == safe_name,
-                JobIndent.rfp_document_file == safe_name,
-                JobIndent.technical_bid_file == safe_name
-            )
-        ).first()
+    # 2. Check genuine uploaded file on local/ephemeral disk
+    disk_path = _resolve_disk_indent_file(safe_name)
+    if disk_path:
+        resp = make_response(send_file(
+            disk_path,
+            mimetype=_normalize_doc_mimetype(safe_name),
+            as_attachment=as_attachment,
+            download_name=safe_name
+        ))
+        return _with_no_cache(resp)
 
-        doc_label = "Project Document"
-        if indent:
-            if indent.work_order_pdf == safe_name:
-                doc_label = "Work Order / Contract Document"
-            elif indent.scope_of_work_file == safe_name:
-                doc_label = "Scope of Work Document"
-            elif indent.rfp_document_file == safe_name:
-                doc_label = "RFP Tender Document"
-            elif indent.technical_bid_file == safe_name:
-                doc_label = "Technical Bid Document"
+    # 3. Refuse to fabricate or display a separate replacement document
+    return _with_no_cache(make_response(
+        "<div style='font-family:system-ui,-apple-system,sans-serif;padding:32px;text-align:center;color:#334155;'>"
+        "<h3 style='color:#dc2626;margin-bottom:8px;'>Uploaded Document Not Found</h3>"
+        "<p style='margin:0;'>Only the exact file uploaded for this project is viewable. "
+        "This file is unavailable on the server &mdash; please ask BD, PM, or Admin to re-upload the original document.</p>"
+        "</div>",
+        404
+    ))
 
-        # Generate an official PDF notice on the fly
-        from reportlab.lib.pagesizes import letter
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib import colors
-
-        buf = io.BytesIO()
-        doc_pdf = SimpleDocTemplate(buf, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-        styles = getSampleStyleSheet()
-
-        story = []
-        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#059669'), alignment=1)
-        subtitle_style = ParagraphStyle('Sub', parent=styles['Normal'], fontName='Helvetica', fontSize=10, textColor=colors.HexColor('#475569'), alignment=1)
-        normal_style = ParagraphStyle('Norm', parent=styles['Normal'], fontName='Helvetica', fontSize=10, leading=14, textColor=colors.HexColor('#1e293b'))
-        bold_label = ParagraphStyle('BoldL', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#0f172a'))
-        notice_style = ParagraphStyle('Notice', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#0369a1'), leading=13)
-
-        story.append(Paragraph('ECOMETRIX CONSULTANTS PVT. LTD.', title_style))
-        story.append(Paragraph('DayLog - Unified Timesheet & Project Management System', subtitle_style))
-        story.append(Spacer(1, 15))
-        story.append(Paragraph(f'OFFICIAL PROJECT {doc_label.upper()} RECORD', ParagraphStyle('H2', fontName='Helvetica-Bold', fontSize=13, alignment=1, textColor=colors.HexColor('#1e293b'))))
-        story.append(Spacer(1, 15))
-
-        p_name = indent.project_name if indent else "Project Record"
-        f_num = indent.file_number if indent else "N/A"
-        c_name = indent.client_name if indent else "N/A"
-        dept_name = (indent.department.name if indent and indent.department else "General Administration")
-
-        table_data = [
-            [Paragraph('<b>Project Name:</b>', bold_label), Paragraph(p_name, normal_style)],
-            [Paragraph('<b>File Number:</b>', bold_label), Paragraph(f_num, normal_style)],
-            [Paragraph('<b>Client Name:</b>', bold_label), Paragraph(c_name, normal_style)],
-            [Paragraph('<b>Department:</b>', bold_label), Paragraph(dept_name, normal_style)],
-            [Paragraph('<b>Document File:</b>', bold_label), Paragraph(safe_name, normal_style)],
-            [Paragraph('<b>Document Type:</b>', bold_label), Paragraph(doc_label, normal_style)],
-            [Paragraph('<b>Status:</b>', bold_label), Paragraph('ACTIVE - Verified in Enterprise Registry', normal_style)]
-        ]
-
-        t = Table(table_data, colWidths=[150, 380])
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-            ('PADDING', (0,0), (-1,-1), 8),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ]))
-        story.append(t)
-        story.append(Spacer(1, 25))
-
-        notice_p = Paragraph('<b>System Notice:</b> This project document reference is securely cataloged in the Enterprise PMS registry. Authorized personnel (BD, PM, or Admin) can update or upload a refreshed copy of this document via the Project Details management interface.', notice_style)
-        nt = Table([[notice_p]], colWidths=[530])
-        nt.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#e0f2fe')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#38bdf8')),
-            ('PADDING', (0,0), (-1,-1), 10),
-        ]))
-        story.append(nt)
-
-        doc_pdf.build(story)
-        pdf_bytes = buf.getvalue()
-
-        # Cache in IndentDocument for subsequent calls
-        try:
-            if indent:
-                cached_doc = IndentDocument(
-                    indent_id=indent.id,
-                    doc_type='work_order',
-                    filename=safe_name,
-                    original_filename=safe_name,
-                    file_data=pdf_bytes,
-                    file_size=len(pdf_bytes),
-                    mime_type='application/pdf'
-                )
-                db.session.add(cached_doc)
-                db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        buf.seek(0)
-        return send_file(buf, mimetype='application/pdf', as_attachment=as_attachment, download_name=safe_name)
-    except Exception as gen_err:
-        print(f"[ERROR] Error generating document fallback: {gen_err}")
-        return f"Document {safe_name} is being synchronized. Please refresh.", 200
 
 @app.route('/project/upload-document/<int:indent_id>', methods=['POST'])
 @login_required
@@ -3394,43 +3451,40 @@ def upload_indent_document(indent_id):
         return redirect(request.referrer or url_for('view_indent_details', indent_id=indent_id))
 
     doc_type = request.form.get('doc_type', 'work_order')
-    file_obj = request.files.get('document_file')
-    if not file_obj or not file_obj.filename:
-        flash("Please select a valid document file.", "warning")
+    if doc_type not in {'work_order', 'scope_of_work', 'rfp', 'technical_bid'}:
+        doc_type = 'work_order'
+
+    try:
+        prepared = _prepare_uploaded_indent_doc(
+            request.files.get('document_file'),
+            doc_type=doc_type,
+            is_required=True,
+            label='Document'
+        )
+    except ValueError as ve:
+        flash(str(ve), "warning")
         return redirect(request.referrer or url_for('view_indent_details', indent_id=indent_id))
 
-    filename = secure_filename(file_obj.filename)
-    safe_name = f"{int(datetime.utcnow().timestamp())}_{filename}"
-    content = file_obj.read()
+    d_type, safe_name, filename, content, mime_type = prepared
 
-    # Save to disk cache if possible
-    try:
-        folder = os.path.join(tempfile.gettempdir(), 'uploads', 'job_indents')
-        os.makedirs(folder, exist_ok=True)
-        with open(os.path.join(folder, safe_name), 'wb') as f:
-            f.write(content)
-    except Exception:
-        pass
-
-    # Save to IndentDocument
     doc = IndentDocument(
         indent_id=indent.id,
-        doc_type=doc_type,
+        doc_type=d_type,
         filename=safe_name,
         original_filename=filename,
         file_data=content,
         file_size=len(content),
-        mime_type=file_obj.content_type or 'application/pdf'
+        mime_type=mime_type
     )
     db.session.add(doc)
 
-    if doc_type == 'work_order':
+    if d_type == 'work_order':
         indent.work_order_pdf = safe_name
-    elif doc_type == 'scope_of_work':
+    elif d_type == 'scope_of_work':
         indent.scope_of_work_file = safe_name
-    elif doc_type == 'rfp':
+    elif d_type == 'rfp':
         indent.rfp_document_file = safe_name
-    elif doc_type == 'technical_bid':
+    elif d_type == 'technical_bid':
         indent.technical_bid_file = safe_name
 
     db.session.commit()
@@ -3812,10 +3866,14 @@ def view_job_card_details(card_id):
     # Calculate milestone total %
     total_milestone_pct = sum(float(m.get('percentage', 0) or 0) for m in milestones)
     
+    uploaded_docs, docs_by_slot = build_indent_docs_context(indent)
+
     return render_template(
         'job_cards/view_job_card_details.html',
         job_card=job_card,
         indent=indent,
+        uploaded_docs=uploaded_docs,
+        docs_by_slot=docs_by_slot,
         milestones=milestones,
         resources=resources,
         expenditures=expenditures,

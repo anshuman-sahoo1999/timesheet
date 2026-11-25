@@ -1,6 +1,11 @@
 <!-- ==============================================================================
      MODERN EMPLOYEE TIMESHEET PORTAL (CALENDAR & MULTI-ROW SUBMISSION)
-     Design: Emerald & Deep Slate Theme with Glassmorphism, Micro-animations
+     Design: Emerald & Deep Slate Theme with 4-Color Date Status Indicators
+     - Green: Submitted
+     - Red: Not Submitted (Missed Working Days)
+     - Blue: Declared Company Holidays (Disabled)
+     - Grey: Sundays & Second Saturdays (Disabled)
+     - 4:30 PM (16:30 IST) Daily Submission Activation
 ============================================================================== -->
 <style>
     :root {
@@ -14,7 +19,23 @@
         --ts-card-bg: #ffffff;
         --ts-radius-lg: 16px;
         --ts-radius-md: 10px;
-        --ts-dot-green: #10b981;
+
+        /* User-specified 4 Color Tokens */
+        --ts-status-submitted-bg: #ecfdf5;
+        --ts-status-submitted-border: #10b981;
+        --ts-status-submitted-text: #065f46;
+
+        --ts-status-missing-bg: #fef2f2;
+        --ts-status-missing-border: #ef4444;
+        --ts-status-missing-text: #991b1b;
+
+        --ts-status-holiday-bg: #eff6ff;
+        --ts-status-holiday-border: #3b82f6;
+        --ts-status-holiday-text: #1d4ed8;
+
+        --ts-status-weekend-bg: #f1f5f9;
+        --ts-status-weekend-border: #cbd5e1;
+        --ts-status-weekend-text: #64748b;
     }
 
     /* Container Card */
@@ -30,6 +51,25 @@
         background: #ffffff;
         border-bottom: 1px solid var(--ts-border);
         padding: 1.1rem 1.5rem;
+    }
+
+    /* 4:30 PM Notice Pill */
+    .time-rule-pill {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.82rem;
+        color: #334155;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .time-rule-pill.active {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
     }
 
     /* Calendar Styling */
@@ -79,7 +119,7 @@
     .calendar-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        gap: 4px;
+        gap: 5px;
         text-align: center;
     }
 
@@ -105,45 +145,130 @@
         color: var(--ts-slate);
         transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
         user-select: none;
-        background: transparent;
-        border: 1px solid transparent;
+        background: #ffffff;
+        border: 1.5px solid transparent;
     }
 
-    .calendar-day-cell:hover {
-        background: #f8fafc;
-        border-color: #e2e8f0;
+    .calendar-day-cell:hover:not(.status-holiday):not(.status-weekend) {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.06);
     }
 
     .calendar-day-cell.other-month {
-        color: #cbd5e1;
-        cursor: default;
+        color: #cbd5e1 !important;
+        background: transparent !important;
+        border-color: transparent !important;
+        cursor: default !important;
     }
 
+    /* Selection Highlight */
     .calendar-day-cell.selected {
-        background: var(--ts-primary) !important;
-        color: #ffffff !important;
-        box-shadow: 0 4px 10px var(--ts-primary-glow);
+        outline: 2.5px solid #0f172a !important;
+        outline-offset: 1px;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25) !important;
+        z-index: 2;
     }
 
-    .calendar-day-cell.today:not(.selected) {
-        border-color: var(--ts-primary);
-        color: var(--ts-primary);
+    .calendar-day-cell.is-today {
+        position: relative;
     }
 
-    /* Green Dot indicator for submitted timesheets */
-    .submission-dot {
-        width: 5px;
-        height: 5px;
+    .calendar-day-cell.is-today::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
-        background-color: var(--ts-dot-green);
+        background-color: #0e8749;
+    }
+
+    /* 1. GREEN: Submitted Days */
+    .calendar-day-cell.status-submitted {
+        background-color: var(--ts-status-submitted-bg) !important;
+        border-color: var(--ts-status-submitted-border) !important;
+        color: var(--ts-status-submitted-text) !important;
+    }
+
+    .day-dot-green {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #10b981;
         position: absolute;
         bottom: 3px;
-        box-shadow: 0 0 4px rgba(16, 185, 129, 0.8);
+        box-shadow: 0 0 5px rgba(16, 185, 129, 0.8);
     }
 
-    .calendar-day-cell.selected .submission-dot {
-        background-color: #ffffff;
-        box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+    /* 2. RED: Not Submitted (Missed Working Days) */
+    .calendar-day-cell.status-missing {
+        background-color: var(--ts-status-missing-bg) !important;
+        border-color: var(--ts-status-missing-border) !important;
+        color: var(--ts-status-missing-text) !important;
+    }
+
+    .day-dot-red {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #ef4444;
+        position: absolute;
+        bottom: 3px;
+        box-shadow: 0 0 5px rgba(239, 68, 68, 0.8);
+    }
+
+    /* 3. BLUE: Declared Company Holidays (Disabled) */
+    .calendar-day-cell.status-holiday {
+        background-color: var(--ts-status-holiday-bg) !important;
+        border-color: var(--ts-status-holiday-border) !important;
+        color: var(--ts-status-holiday-text) !important;
+        cursor: not-allowed;
+    }
+
+    .holiday-subtext {
+        font-size: 0.58rem;
+        font-weight: 700;
+        color: #2563eb;
+        line-height: 1;
+        max-width: 90%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+    }
+
+    /* 4. GREY: Sundays & Second Saturdays (Disabled) */
+    .calendar-day-cell.status-weekend {
+        background-color: var(--ts-status-weekend-bg) !important;
+        border-color: var(--ts-status-weekend-border) !important;
+        color: var(--ts-status-weekend-text) !important;
+        cursor: not-allowed;
+        opacity: 0.85;
+    }
+
+    .weekend-subtext {
+        font-size: 0.58rem;
+        font-weight: 600;
+        color: #94a3b8;
+        line-height: 1;
+        margin-top: 2px;
+    }
+
+    /* Legend Box Pill */
+    .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .legend-indicator-box {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        display: inline-block;
     }
 
     /* Right Dossier Table */
@@ -256,16 +381,25 @@
     <!-- Portal Banner / Controls -->
     <div class="timesheet-header-banner d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="d-flex align-items-center gap-3">
-            <span class="p-2 bg-success text-white rounded-3 d-inline-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                <i class="fas fa-calendar-check fs-6"></i>
+            <span class="p-2 bg-success text-white rounded-3 d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 42px; height: 42px;">
+                <i class="fas fa-calendar-check fs-5"></i>
             </span>
             <div>
-                <h4 class="fw-bold mb-0 text-dark">Employee Timesheet</h4>
-                <p class="text-muted small mb-0">Record, inspect, and track your daily work output & manager approvals</p>
+                <div class="d-flex align-items-center gap-2">
+                    <h4 class="fw-bold mb-0 text-dark">Employee Timesheet</h4>
+                    <span class="badge bg-light text-secondary border px-2 py-1 small">Unified Portal</span>
+                </div>
+                <p class="text-muted small mb-0">Record daily activities, track manager verification, and inspect monthly calendar</p>
             </div>
         </div>
 
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- 4:30 PM Rule Status Pill -->
+            <div class="time-rule-pill" id="dailyTimeRulePill" title="Daily submission window rule">
+                <i class="fas fa-clock text-warning"></i>
+                <span id="dailyTimeRuleText">Daily Window: After 4:30 PM</span>
+            </div>
+
             <!-- View Toggle Button (switches between Calendar View & Add Form) -->
             <button type="button" class="btn btn-success fw-bold px-4 py-2 rounded-3 shadow-sm" id="togglePortalViewBtn">
                 <i class="fas fa-plus me-1" id="toggleBtnIcon"></i>
@@ -274,20 +408,30 @@
         </div>
     </div>
 
+    <!-- 4:30 PM Time Restriction Notice Bar -->
+    <div class="px-4 pt-3 pb-0" id="submissionTimeNoticeBar" style="display: none;">
+        <div class="alert alert-warning border-warning-subtle shadow-sm rounded-3 py-2 px-3 d-flex align-items-center justify-content-between mb-0">
+            <div class="d-flex align-items-center gap-2 small">
+                <i class="fas fa-info-circle text-warning fs-5"></i>
+                <span><strong>Notice:</strong> Today's timesheet form activates daily <strong>after 4:30 PM (16:30 IST)</strong> onwards. You can submit previous missed working days at any time.</span>
+            </div>
+            <span class="badge bg-warning text-dark fw-bold px-2 py-1 small">Opens at 4:30 PM</span>
+        </div>
+    </div>
+
     <!-- =========================================================================
-         VIEW 1: CALENDAR & DAILY PREVIEW (Default View - Image 1 Style)
+         VIEW 1: CALENDAR & DAILY PREVIEW (Default View)
     ========================================================================== -->
     <div class="p-3 p-md-4" id="calendarViewSection" style="display: {{ 'none' if mode == 'add' else 'block' }};">
         <div class="row g-4">
-            <!-- Left Side: Interactive Calendar -->
+            <!-- Left Side: Interactive Calendar with 4-Color Status -->
             <div class="col-12 col-lg-4 col-xl-4">
                 <div class="calendar-card">
                     <!-- Month Selector Header -->
                     <div class="calendar-nav-bar">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="calendar-month-title text-uppercase" id="currentMonthYearLabel">
-                                <!-- Populated dynamically, e.g. AUG 2026 -->
-                                AUG 2026
+                            <span class="calendar-month-title text-uppercase fw-bold" id="currentMonthYearLabel">
+                                OCT 2026
                             </span>
                             <div class="dropdown d-inline-block">
                                 <button class="btn btn-sm btn-link text-muted p-0 dropdown-toggle" type="button" id="monthPickerDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration: none;">
@@ -321,29 +465,47 @@
 
                     <!-- Days Grid -->
                     <div class="calendar-grid mb-2">
-                        <div class="calendar-weekday">S</div>
-                        <div class="calendar-weekday">M</div>
-                        <div class="calendar-weekday">T</div>
-                        <div class="calendar-weekday">W</div>
-                        <div class="calendar-weekday">T</div>
-                        <div class="calendar-weekday">F</div>
-                        <div class="calendar-weekday">S</div>
+                        <div class="calendar-weekday text-danger">Sun</div>
+                        <div class="calendar-weekday">Mon</div>
+                        <div class="calendar-weekday">Tue</div>
+                        <div class="calendar-weekday">Wed</div>
+                        <div class="calendar-weekday">Thu</div>
+                        <div class="calendar-weekday">Fri</div>
+                        <div class="calendar-weekday">Sat</div>
                     </div>
 
-                    <!-- Dynamic Day Cells -->
+                    <!-- Dynamic Day Cells with 4-Color Status -->
                     <div class="calendar-grid" id="calendarDaysGrid">
-                        <!-- Populated by JavaScript -->
+                        <!-- Populated dynamically via JS -->
                     </div>
 
-                    <!-- Legend -->
-                    <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center small text-muted">
-                        <div class="d-flex align-items-center gap-2">
-                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                            <span>Submitted Day</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0; display: inline-block;"></span>
-                            <span>Not Logged</span>
+                    <!-- 4-Color Legend matching user requirement -->
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="legend-item text-dark">
+                                    <span class="legend-indicator-box" style="background: var(--ts-status-submitted-bg); border: 1.5px solid var(--ts-status-submitted-border);"></span>
+                                    <span>Submitted (Green)</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="legend-item text-danger">
+                                    <span class="legend-indicator-box" style="background: var(--ts-status-missing-bg); border: 1.5px solid var(--ts-status-missing-border);"></span>
+                                    <span>Not Submitted (Red)</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="legend-item text-primary">
+                                    <span class="legend-indicator-box" style="background: var(--ts-status-holiday-bg); border: 1.5px solid var(--ts-status-holiday-border);"></span>
+                                    <span>Holiday (Blue)</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="legend-item text-secondary">
+                                    <span class="legend-indicator-box" style="background: var(--ts-status-weekend-bg); border: 1.5px solid var(--ts-status-weekend-border);"></span>
+                                    <span>Sun & 2nd Sat (Grey)</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -359,6 +521,9 @@
                             <h5 class="fw-bold mb-0 text-dark" id="dossierDateLabel">
                                 {{ selected_date_formatted }}
                             </h5>
+                            <span id="dossierDayStatusBadge" class="badge bg-light text-dark border px-2 py-1 ms-2 small">
+                                Selected
+                            </span>
                         </div>
 
                         <div class="d-flex align-items-center gap-2" id="dossierHeaderControls">
@@ -369,6 +534,11 @@
                                 <i class="fas fa-plus me-1"></i> Log For This Date
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Non-working Day Notice Banner (Holidays / Sundays / 2nd Saturdays) -->
+                    <div id="dossierDayOffNotice" class="p-3" style="display: none;">
+                        <!-- Injected by JS -->
                     </div>
 
                     <!-- Submissions Table -->
@@ -428,27 +598,21 @@
                         <div class="p-3 bg-light rounded-circle d-inline-flex mb-3" style="width: 60px; height: 60px; align-items: center; justify-content: center;">
                             <i class="far fa-calendar-times text-muted fs-3"></i>
                         </div>
-                        <h6 class="fw-bold text-dark mb-1">No Timesheet Logged for this Day</h6>
-                        <p class="text-muted small mb-3">No work hours or project activities were recorded for this date.</p>
+                        <h6 class="fw-bold text-dark mb-1" id="dossierEmptyTitle">No Timesheet Logged for this Day</h6>
+                        <p class="text-muted small mb-3" id="dossierEmptyDesc">No work hours or project activities were recorded for this date.</p>
                         <button type="button" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold" id="emptyStateLogBtn">
                             <i class="fas fa-plus me-1"></i> Log Timesheet for <span id="emptyStateDateSpan">{{ selected_date_formatted }}</span>
                         </button>
                     </div>
 
-                    <!-- Dossier Footer Pagination / Summary -->
+                    <!-- Dossier Footer Summary -->
                     <div class="p-3 bg-white border-top d-flex flex-wrap justify-content-between align-items-center gap-2 small text-muted">
                         <div class="d-flex align-items-center gap-2">
-                            <span>Items per page:</span>
-                            <select class="form-select form-select-sm" style="width: 70px;" disabled>
-                                <option>20</option>
-                            </select>
+                            <span>Status:</span>
+                            <span class="fw-semibold text-dark" id="dossierFooterStatusText">Ready</span>
                         </div>
                         <div class="d-flex align-items-center gap-3">
                             <span id="dossierItemCountText">1 – {{ day_entries|length }} of {{ day_entries|length }}</span>
-                            <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled><i class="fas fa-chevron-left"></i></button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled><i class="fas fa-chevron-right"></i></button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -457,20 +621,26 @@
     </div>
 
     <!-- =========================================================================
-         VIEW 2: ADD TIMESHEET FORM (Multi-row Entry - Image 2 Style)
+         VIEW 2: ADD TIMESHEET FORM (Multi-row Entry)
     ========================================================================== -->
     <div class="p-3 p-md-4" id="addTimesheetSection" style="display: {{ 'block' if mode == 'add' else 'none' }};">
         <form action="{{ url_for('log_timesheet') }}" method="POST" id="addTimesheetForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
+            <!-- Inline Date Validation Alert Banner -->
+            <div id="formDateValidationAlert" class="alert mb-3 rounded-3 shadow-sm" style="display: none;">
+                <!-- Populated dynamically via JS -->
+            </div>
+
             <!-- Form Top Bar: Date Selector & Idle Hr Counter -->
             <div class="card border-0 bg-light rounded-3 p-3 mb-4">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                     <div class="d-flex align-items-center gap-3">
-                        <label for="timesheetEntryDate" class="fw-bold text-secondary mb-0">Date</label>
-                        <div class="input-group" style="width: 200px;">
+                        <label for="timesheetEntryDate" class="fw-bold text-secondary mb-0">Timesheet Date</label>
+                        <div class="input-group" style="width: 220px;">
                             <input type="date" class="form-control fw-semibold" id="timesheetEntryDate" name="date" value="{{ selected_date }}" required>
                         </div>
+                        <span id="entryDateBadge" class="badge bg-white text-secondary border px-2 py-1 small"></span>
                     </div>
 
                     <!-- Dynamic Idle Hr Indicator -->
@@ -547,7 +717,7 @@
                             <tr class="bg-light-subtle">
                                 <td colspan="4" class="p-2">
                                     <button type="button" class="btn btn-outline-primary btn-sm px-3 fw-semibold" id="addMoreRowBtn">
-                                        <i class="fas fa-plus me-1"></i> Add
+                                        <i class="fas fa-plus me-1"></i> Add More Rows
                                     </button>
                                 </td>
                                 <td colspan="2" class="text-end pe-3 py-2">
@@ -562,8 +732,8 @@
             <!-- Submit CTA -->
             <div class="d-flex justify-content-end gap-2 pt-2">
                 <button type="button" class="btn btn-light border px-4 py-2" id="cancelAddTimesheetBtn">Cancel</button>
-                <button type="submit" class="btn btn-warning px-5 py-2 fw-bold text-dark shadow-sm" style="background-color: #f59e0b; border-color: #d97706;">
-                    Submit Timesheet
+                <button type="submit" class="btn btn-warning px-5 py-2 fw-bold text-dark shadow-sm" id="submitTimesheetFormBtn" style="background-color: #f59e0b; border-color: #d97706;">
+                    <i class="fas fa-paper-plane me-1"></i> Submit Timesheet
                 </button>
             </div>
         </form>
@@ -571,15 +741,24 @@
 </div>
 
 <!-- =========================================================================
-     FRONTEND CONTROLLER & INTERACTIVE CALENDAR ENGINE
+     FRONTEND CONTROLLER & 4-COLOR INTERACTIVE CALENDAR ENGINE
 ========================================================================== -->
 <script>
     (function() {
         // State variables
         let submittedDates = new Set({{ submitted_dates|tojson }});
+        let holidaysMap = {}; // { 'YYYY-MM-DD': 'Holiday Name' }
+        let secondSaturdaysSet = new Set();
+        let sundaysSet = new Set();
+        let missingDatesSet = new Set();
+
         let selectedDateStr = "{{ selected_date }}"; // format YYYY-MM-DD
         let currentYear = parseInt(selectedDateStr.split('-')[0]) || 2026;
-        let currentMonth = (parseInt(selectedDateStr.split('-')[1]) - 1) || 9; // 0-indexed (9 = Oct)
+        let currentMonth = (parseInt(selectedDateStr.split('-')[1]) - 1);
+        if (isNaN(currentMonth) || currentMonth < 0) currentMonth = 0;
+
+        let todayStr = "{{ today_date }}";
+        let nowIsAfter430 = true; // Synced with server API
 
         const monthNames = [
             "JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
@@ -601,16 +780,27 @@
         const calendarView = document.getElementById('calendarViewSection');
         const addView = document.getElementById('addTimesheetSection');
         const dossierDateLabel = document.getElementById('dossierDateLabel');
+        const dossierDayStatusBadge = document.getElementById('dossierDayStatusBadge');
         const dossierTotalHoursText = document.getElementById('dossierTotalHoursText');
         const dossierTableContainer = document.getElementById('dossierTableContainer');
         const dossierEmptyState = document.getElementById('dossierEmptyState');
+        const dossierEmptyTitle = document.getElementById('dossierEmptyTitle');
+        const dossierEmptyDesc = document.getElementById('dossierEmptyDesc');
+        const dossierDayOffNotice = document.getElementById('dossierDayOffNotice');
         const dossierTableBody = document.getElementById('dossierTableBody');
         const dossierItemCountText = document.getElementById('dossierItemCountText');
+        const dossierFooterStatusText = document.getElementById('dossierFooterStatusText');
         const emptyStateDateSpan = document.getElementById('emptyStateDateSpan');
         const timesheetEntryDate = document.getElementById('timesheetEntryDate');
         const quickLogForDateBtn = document.getElementById('quickLogForDateBtn');
         const emptyStateLogBtn = document.getElementById('emptyStateLogBtn');
         const cancelAddTimesheetBtn = document.getElementById('cancelAddTimesheetBtn');
+        const formDateValidationAlert = document.getElementById('formDateValidationAlert');
+        const submitTimesheetFormBtn = document.getElementById('submitTimesheetFormBtn');
+        const entryDateBadge = document.getElementById('entryDateBadge');
+        const dailyTimeRulePill = document.getElementById('dailyTimeRulePill');
+        const dailyTimeRuleText = document.getElementById('dailyTimeRuleText');
+        const submissionTimeNoticeBar = document.getElementById('submissionTimeNoticeBar');
 
         // Form elements
         const entryRowsContainer = document.getElementById('entryRowsContainer');
@@ -628,11 +818,76 @@
 
         // Helper: Format DD-MM-YYYY
         function formatDisplayDate(dateKey) {
+            if (!dateKey) return '';
             const parts = dateKey.split('-');
+            if (parts.length !== 3) return dateKey;
             return `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
 
-        // Render Calendar Grid
+        // Helper: Check Second Saturday
+        function isSecondSaturday(year, monthIndex, day) {
+            const dt = new Date(year, monthIndex, day);
+            return dt.getDay() === 6 && day >= 8 && day <= 14;
+        }
+
+        // Helper: Check Sunday
+        function isSunday(year, monthIndex, day) {
+            const dt = new Date(year, monthIndex, day);
+            return dt.getDay() === 0;
+        }
+
+        // Validate Date for Submission (checks 4:30 PM rule, Sundays, 2nd Saturdays, and Holidays)
+        function validateDateForSubmission(dateKey) {
+            if (!dateKey) return { allowed: false, reason: "Please select a date." };
+
+            const parts = dateKey.split('-').map(Number);
+            const y = parts[0], m = parts[1] - 1, d = parts[2];
+            const checkDt = new Date(y, m, d);
+
+            if (dateKey > todayStr) {
+                return { allowed: false, reason: "Future dates cannot be logged." };
+            }
+
+            if (checkDt.getDay() === 0 || sundaysSet.has(dateKey)) {
+                return { allowed: false, reason: "Timesheet submission is disabled for Sundays (Weekly Off)." };
+            }
+
+            if (isSecondSaturday(y, m, d) || secondSaturdaysSet.has(dateKey)) {
+                return { allowed: false, reason: "Timesheet submission is disabled for Second Saturdays (Company Off)." };
+            }
+
+            if (holidaysMap[dateKey]) {
+                return { allowed: false, reason: `Timesheet submission is disabled on "${holidaysMap[dateKey]}" (Company Holiday).` };
+            }
+
+            if (dateKey === todayStr) {
+                if (!nowIsAfter430) {
+                    return { allowed: false, reason: "Today's timesheet submission opens at 4:30 PM onwards. Please submit after 4:30 PM." };
+                }
+            }
+
+            return { allowed: true, reason: "Date is open for timesheet submission." };
+        }
+
+        // Update Form Date Validation UI
+        function updateFormDateValidation(dateKey) {
+            const val = validateDateForSubmission(dateKey);
+            entryDateBadge.textContent = formatDisplayDate(dateKey);
+
+            if (!val.allowed) {
+                formDateValidationAlert.className = 'alert alert-danger border-danger-subtle shadow-sm py-2 px-3 small d-flex align-items-center gap-2 mb-3';
+                formDateValidationAlert.innerHTML = `<i class="fas fa-exclamation-triangle text-danger fs-5"></i><span><strong>Submission Blocked:</strong> ${val.reason}</span>`;
+                formDateValidationAlert.style.display = 'flex';
+                submitTimesheetFormBtn.disabled = true;
+                submitTimesheetFormBtn.classList.add('opacity-50');
+            } else {
+                formDateValidationAlert.style.display = 'none';
+                submitTimesheetFormBtn.disabled = false;
+                submitTimesheetFormBtn.classList.remove('opacity-50');
+            }
+        }
+
+        // Render Calendar Grid with 4-Color Indicators
         function renderCalendar(year, monthIndex) {
             monthYearLabel.textContent = `${monthNames[monthIndex]} ${year}`;
             calendarGrid.innerHTML = '';
@@ -651,28 +906,72 @@
             }
 
             // Current month days
-            const today = new Date();
-            const todayStr = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate());
-
             for (let day = 1; day <= daysInMonth; day++) {
                 const dateKey = formatDateKey(year, monthIndex, day);
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day-cell';
-                cell.textContent = day;
                 cell.dataset.date = dateKey;
+
+                // Day number container
+                const dayNumSpan = document.createElement('span');
+                dayNumSpan.textContent = day;
+                cell.appendChild(dayNumSpan);
+
+                // Date classification
+                const isSun = (new Date(year, monthIndex, day).getDay() === 0);
+                const isSecSat = isSecondSaturday(year, monthIndex, day);
+                const isHol = Boolean(holidaysMap[dateKey]);
+                const isSub = submittedDates.has(dateKey);
+                const isMiss = missingDatesSet.has(dateKey);
+                const isToday = (dateKey === todayStr);
+
+                if (isToday) {
+                    cell.classList.add('is-today');
+                }
+
+                // 4 Distinct Visual Classes matching instructions:
+                if (isSub) {
+                    // 1. GREEN: Submitted
+                    cell.classList.add('status-submitted');
+                    cell.title = "Submitted";
+                    const dot = document.createElement('span');
+                    dot.className = 'day-dot-green';
+                    cell.appendChild(dot);
+                } else if (isHol) {
+                    // 3. BLUE: Declared Company Holiday (Disabled)
+                    cell.classList.add('status-holiday');
+                    cell.title = `Holiday: ${holidaysMap[dateKey]}`;
+                    const holSub = document.createElement('span');
+                    holSub.className = 'holiday-subtext';
+                    holSub.textContent = holidaysMap[dateKey];
+                    cell.appendChild(holSub);
+                } else if (isSun) {
+                    // 4. GREY: Sunday (Disabled)
+                    cell.classList.add('status-weekend');
+                    cell.title = "Weekly Off (Sunday)";
+                    const wkSub = document.createElement('span');
+                    wkSub.className = 'weekend-subtext';
+                    wkSub.textContent = 'Sun';
+                    cell.appendChild(wkSub);
+                } else if (isSecSat) {
+                    // 4. GREY: Second Saturday (Disabled)
+                    cell.classList.add('status-weekend');
+                    cell.title = "Company Off (Second Saturday)";
+                    const wkSub = document.createElement('span');
+                    wkSub.className = 'weekend-subtext';
+                    wkSub.textContent = '2nd Sat';
+                    cell.appendChild(wkSub);
+                } else if (isMiss) {
+                    // 2. RED: Not Submitted (Missed Working Day)
+                    cell.classList.add('status-missing');
+                    cell.title = "Not Submitted (Missing Timesheet)";
+                    const dot = document.createElement('span');
+                    dot.className = 'day-dot-red';
+                    cell.appendChild(dot);
+                }
 
                 if (dateKey === selectedDateStr) {
                     cell.classList.add('selected');
-                }
-                if (dateKey === todayStr) {
-                    cell.classList.add('today');
-                }
-
-                // Green dot if submitted
-                if (submittedDates.has(dateKey)) {
-                    const dot = document.createElement('span');
-                    dot.className = 'submission-dot';
-                    cell.appendChild(dot);
                 }
 
                 // Click event on day
@@ -687,7 +986,7 @@
                 calendarGrid.appendChild(cell);
             }
 
-            // Next month padding days to complete 35 or 42 grid cells
+            // Next month padding days to complete grid
             const totalCells = firstDayIndex + daysInMonth;
             const remaining = (7 - (totalCells % 7)) % 7;
             for (let i = 1; i <= remaining; i++) {
@@ -706,11 +1005,68 @@
             fetch(`/api/timesheet/day-details?date=${dateKey}`)
                 .then(res => res.json())
                 .then(data => {
+                    const isSun = data.is_sunday;
+                    const isSecSat = data.is_second_saturday;
+                    const isHol = data.is_holiday;
+                    const holName = data.holiday_name;
+                    const isSubAllowed = data.is_submission_allowed;
+                    const restrictionReason = data.restriction_reason;
+
+                    // Update Day Badge & Off Notice
+                    dossierDayOffNotice.style.display = 'none';
+                    quickLogForDateBtn.style.display = 'inline-block';
+                    quickLogForDateBtn.disabled = false;
+                    quickLogForDateBtn.classList.remove('opacity-50');
+
+                    if (isHol) {
+                        dossierDayStatusBadge.className = 'badge bg-primary text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.textContent = 'Company Holiday';
+                        dossierDayOffNotice.className = 'alert alert-primary border-primary-subtle rounded-3 p-3 mb-0';
+                        dossierDayOffNotice.innerHTML = `<i class="fas fa-umbrella-beach me-2 fs-5"></i><b>${escapeHtml(holName)}</b> &bull; Declared Company Holiday. Timesheet submission is not required.`;
+                        dossierDayOffNotice.style.display = 'block';
+                        quickLogForDateBtn.style.display = 'none';
+                    } else if (isSun) {
+                        dossierDayStatusBadge.className = 'badge bg-secondary text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.textContent = 'Weekly Off (Sunday)';
+                        dossierDayOffNotice.className = 'alert alert-secondary border-secondary-subtle rounded-3 p-3 mb-0';
+                        dossierDayOffNotice.innerHTML = `<i class="fas fa-bed me-2 fs-5"></i><b>Weekly Off:</b> Sundays are company non-working days.`;
+                        dossierDayOffNotice.style.display = 'block';
+                        quickLogForDateBtn.style.display = 'none';
+                    } else if (isSecSat) {
+                        dossierDayStatusBadge.className = 'badge bg-secondary text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.textContent = 'Company Off (2nd Sat)';
+                        dossierDayOffNotice.className = 'alert alert-secondary border-secondary-subtle rounded-3 p-3 mb-0';
+                        dossierDayOffNotice.innerHTML = `<i class="fas fa-calendar-times me-2 fs-5"></i><b>Company Off:</b> Second Saturdays are non-working days.`;
+                        dossierDayOffNotice.style.display = 'block';
+                        quickLogForDateBtn.style.display = 'none';
+                    } else if (submittedDates.has(dateKey)) {
+                        dossierDayStatusBadge.className = 'badge bg-success text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.textContent = 'Submitted';
+                    } else if (missingDatesSet.has(dateKey)) {
+                        dossierDayStatusBadge.className = 'badge bg-danger text-white px-2 py-1 ms-2';
+                        dossierDayStatusBadge.textContent = 'Not Submitted (Missed)';
+                    } else if (dateKey === todayStr) {
+                        if (nowIsAfter430) {
+                            dossierDayStatusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1 ms-2';
+                            dossierDayStatusBadge.textContent = 'Today (Open)';
+                        } else {
+                            dossierDayStatusBadge.className = 'badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 ms-2';
+                            dossierDayStatusBadge.textContent = 'Opens at 4:30 PM';
+                            quickLogForDateBtn.disabled = true;
+                            quickLogForDateBtn.classList.add('opacity-50');
+                            quickLogForDateBtn.title = 'Today submission opens at 4:30 PM onwards';
+                        }
+                    } else {
+                        dossierDayStatusBadge.className = 'badge bg-light text-secondary border px-2 py-1 ms-2';
+                        dossierDayStatusBadge.textContent = 'No Submissions';
+                    }
+
                     if (data && data.entries && data.entries.length > 0) {
                         dossierTableContainer.style.display = 'block';
                         dossierEmptyState.style.display = 'none';
                         dossierTotalHoursText.textContent = data.formatted_total_hours || '00:00';
                         dossierItemCountText.textContent = `1 – ${data.entries.length} of ${data.entries.length}`;
+                        dossierFooterStatusText.textContent = 'Entries Verified / Recorded';
 
                         dossierTableBody.innerHTML = '';
                         data.entries.forEach(item => {
@@ -739,20 +1095,63 @@
                         dossierEmptyState.style.display = 'block';
                         dossierTotalHoursText.textContent = '00:00';
                         dossierItemCountText.textContent = '0 of 0';
+
+                        if (isHol || isSun || isSecSat) {
+                            dossierEmptyState.style.display = 'none';
+                        } else if (missingDatesSet.has(dateKey)) {
+                            dossierEmptyTitle.textContent = "Missed Timesheet Entry";
+                            dossierEmptyTitle.className = "fw-bold text-danger mb-1";
+                            dossierEmptyDesc.textContent = "This was a regular working day. Please submit your timesheet to keep project records complete.";
+                            emptyStateLogBtn.style.display = 'inline-block';
+                            emptyStateLogBtn.className = 'btn btn-danger px-4 py-2 rounded-3 shadow-sm fw-semibold';
+                            dossierFooterStatusText.textContent = 'Missing Log';
+                        } else if (dateKey === todayStr && !nowIsAfter430) {
+                            dossierEmptyTitle.textContent = "Today's Timesheet Opens at 4:30 PM";
+                            dossierEmptyTitle.className = "fw-bold text-warning mb-1";
+                            dossierEmptyDesc.textContent = "In accordance with portal guidelines, timesheet logging for today activates after 4:30 PM (16:30 IST).";
+                            emptyStateLogBtn.style.display = 'none';
+                            dossierFooterStatusText.textContent = 'Locked until 4:30 PM';
+                        } else {
+                            dossierEmptyTitle.textContent = "No Timesheet Logged for this Day";
+                            dossierEmptyTitle.className = "fw-bold text-dark mb-1";
+                            dossierEmptyDesc.textContent = "No work hours or project activities were recorded for this date.";
+                            emptyStateLogBtn.style.display = 'inline-block';
+                            emptyStateLogBtn.className = 'btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold';
+                            dossierFooterStatusText.textContent = 'Open for Log';
+                        }
                     }
                 })
                 .catch(err => console.error('Error fetching day details:', err));
         }
 
-        // Fetch Month Submissions when navigating months
+        // Fetch Month Submissions & Statuses when navigating months
         function fetchMonthSubmissions(year, monthIndex) {
             fetch(`/api/timesheet/month-submissions?year=${year}&month=${monthIndex + 1}`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data && data.submitted_dates) {
-                        data.submitted_dates.forEach(d => submittedDates.add(d));
+                    if (data) {
+                        submittedDates = new Set(data.submitted_dates || []);
+                        holidaysMap = data.holidays || {};
+                        secondSaturdaysSet = new Set(data.second_saturdays || []);
+                        sundaysSet = new Set(data.sundays || []);
+                        missingDatesSet = new Set(data.missing_dates || []);
+                        todayStr = data.today_str || todayStr;
+                        nowIsAfter430 = Boolean(data.now_is_after_430);
+
+                        // Update top 4:30 PM rule indicator
+                        if (nowIsAfter430) {
+                            dailyTimeRulePill.className = 'time-rule-pill active';
+                            dailyTimeRuleText.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i>Today is Open (> 4:30 PM)';
+                            submissionTimeNoticeBar.style.display = 'none';
+                        } else {
+                            dailyTimeRulePill.className = 'time-rule-pill';
+                            dailyTimeRuleText.innerHTML = '<i class="fas fa-clock text-warning me-1"></i>Today Opens at 4:30 PM';
+                            submissionTimeNoticeBar.style.display = 'block';
+                        }
                     }
                     renderCalendar(year, monthIndex);
+                    loadDaySubmissions(selectedDateStr);
+                    updateFormDateValidation(timesheetEntryDate.value);
                 })
                 .catch(err => {
                     console.error('Error fetching month submissions:', err);
@@ -806,6 +1205,7 @@
                 toggleBtnText.textContent = 'View Calendar';
                 toggleBtnIcon.className = 'fas fa-calendar-alt me-1';
                 toggleBtn.className = 'btn btn-outline-secondary fw-bold px-4 py-2 rounded-3 shadow-sm';
+                updateFormDateValidation(timesheetEntryDate.value);
             } else {
                 calendarView.style.display = 'block';
                 addView.style.display = 'none';
@@ -821,17 +1221,32 @@
         });
 
         quickLogForDateBtn.addEventListener('click', function() {
+            const val = validateDateForSubmission(selectedDateStr);
+            if (!val.allowed) {
+                alert(val.reason);
+                return;
+            }
             timesheetEntryDate.value = selectedDateStr;
             setViewMode('add');
         });
 
         emptyStateLogBtn.addEventListener('click', function() {
+            const val = validateDateForSubmission(selectedDateStr);
+            if (!val.allowed) {
+                alert(val.reason);
+                return;
+            }
             timesheetEntryDate.value = selectedDateStr;
             setViewMode('add');
         });
 
         cancelAddTimesheetBtn.addEventListener('click', function() {
             setViewMode('view');
+        });
+
+        // Listen for changes on date picker
+        timesheetEntryDate.addEventListener('change', function() {
+            updateFormDateValidation(this.value);
         });
 
         // Real-time Row Duration & Idle Hr Calculations
@@ -924,7 +1339,7 @@
             recalculateAllHours();
         });
 
-        // Initialize Calendar
+        // Initialize Calendar and Fetch Statuses
         fetchMonthSubmissions(currentYear, currentMonth);
         recalculateAllHours();
     })();

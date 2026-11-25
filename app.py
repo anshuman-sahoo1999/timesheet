@@ -37,7 +37,7 @@ from flask_login import (LoginManager, UserMixin, current_user, login_required,
                          login_user, logout_user)
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time as dt_time
 import json
 import hmac
 import hashlib
@@ -572,12 +572,64 @@ class GradeSalaryMaster(db.Model):
 class HolidayMaster(db.Model):
     """Holiday Calendar Master"""
     id = db.Column(db.Integer, primary_key=True)
+    calendar_year = db.Column(db.Integer, default=2026, index=True)
     holiday_name = db.Column(db.String(150), nullable=False)
     holiday_date = db.Column(db.Date, nullable=False)
     day_of_week = db.Column(db.String(20))
     holiday_type = db.Column(db.String(50), default='Public Holiday') # Public, Optional, Restricted
     description = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+def is_sunday(d):
+    """Check if date is Sunday (weekday 6)"""
+    return d.weekday() == 6
+
+def is_second_saturday(d):
+    """Check if date is the 2nd Saturday of the month (weekday 5 and day 8..14)"""
+    return d.weekday() == 5 and (8 <= d.day <= 14)
+
+def is_declared_holiday(d):
+    """Check if date is a declared holiday in HolidayMaster"""
+    return HolidayMaster.query.filter_by(holiday_date=d).first() is not None
+
+def get_holiday_details(d):
+    """Return HolidayMaster entry for date, or None"""
+    return HolidayMaster.query.filter_by(holiday_date=d).first()
+
+def is_non_working_day(d):
+    """Check if date is Sunday, 2nd Saturday, or a Holiday"""
+    return is_sunday(d) or is_second_saturday(d) or is_declared_holiday(d)
+
+def is_submission_time_allowed(target_date):
+    """
+    Enforces timesheet submission constraints:
+    - Sundays, 2nd Saturdays, and Declared Holidays are disabled and cannot be submitted.
+    - Future dates cannot be submitted.
+    - Today's timesheet submission opens at 4:30 PM (16:30 IST) onwards.
+    - Past dates can be submitted anytime.
+    Returns (allowed: bool, reason: str)
+    """
+    now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+    today_ist = now_ist.date()
+
+    if target_date > today_ist:
+        return False, "Future dates cannot be logged."
+
+    if is_sunday(target_date):
+        return False, "Timesheet submission is disabled for Sundays (Weekly Off)."
+
+    if is_second_saturday(target_date):
+        return False, "Timesheet submission is disabled for Second Saturdays (Company Off)."
+
+    holiday = get_holiday_details(target_date)
+    if holiday:
+        return False, f"Timesheet submission is disabled on '{holiday.holiday_name}' (Company Holiday)."
+
+    if target_date == today_ist:
+        if now_ist.time() < dt_time(16, 30):
+            return False, "Today's timesheet submission opens at 4:30 PM onwards. Please submit after 4:30 PM."
+
+    return True, "Allowed" 
 
 class Client(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -3563,7 +3615,10 @@ def update_task_status(task_id):
 
 def get_employee_timesheet_context(user, selected_date_str=None, mode='view'):
     """Context helper for Employee Timesheet calendar preview and multi-row logging"""
-    today_obj = datetime.now().date()
+    now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+    today_obj = now_ist.date()
+    now_is_after_430 = (now_ist.time() >= dt_time(16, 30))
+
     if selected_date_str:
         try:
             selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
@@ -3627,7 +3682,7 @@ def get_employee_timesheet_context(user, selected_date_str=None, mode='view'):
             })
             seen_ids.add(p.id)
 
-    now_hour = datetime.now().hour
+    now_hour = now_ist.hour
     if now_hour < 12:
         greeting = "Good Morning"
     elif now_hour < 17:
@@ -3635,10 +3690,15 @@ def get_employee_timesheet_context(user, selected_date_str=None, mode='view'):
     else:
         greeting = "Good Evening"
 
+    allowed, restriction_reason = is_submission_time_allowed(selected_date)
+
     return {
         'greeting': greeting,
         'today_date': today_obj.strftime('%Y-%m-%d'),
         'today_formatted': today_obj.strftime('%d-%m-%Y'),
+        'now_is_after_430': now_is_after_430,
+        'is_submission_allowed': allowed,
+        'restriction_reason': restriction_reason,
         'selected_date': selected_date.strftime('%Y-%m-%d'),
         'selected_date_formatted': selected_date.strftime('%d-%m-%Y'),
         'selected_date_obj': selected_date,
@@ -3675,6 +3735,12 @@ def log_timesheet():
                 pass
         if not timesheet_date:
             timesheet_date = date.today()
+
+        # Enforce timesheet submission constraints (Sundays, 2nd Saturdays, Holidays, and 4:30 PM rule for today)
+        allowed, reason = is_submission_time_allowed(timesheet_date)
+        if not allowed:
+            flash(reason, 'danger')
+            return redirect(url_for('dashboard', mode='add', date=timesheet_date.strftime('%Y-%m-%d')))
 
         projects = request.form.getlist('project[]') or request.form.getlist('project')
         descriptions = request.form.getlist('task_description[]') or request.form.getlist('task_description')
@@ -3798,8 +3864,11 @@ def log_timesheet():
 @login_required
 def api_timesheet_day_details():
     date_str = request.args.get('date')
+    now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+    today_ist = now_ist.date()
+
     if not date_str:
-        target_date = datetime.now().date()
+        target_date = today_ist
     else:
         try:
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -3839,6 +3908,12 @@ def api_timesheet_day_details():
             'rm_status': e.rm_status or e.status or 'Not Verified'
         })
 
+    is_sun = is_sunday(target_date)
+    is_sec_sat = is_second_saturday(target_date)
+    hol = get_holiday_details(target_date)
+    hol_name = hol.holiday_name if hol else None
+    allowed, restriction_reason = is_submission_time_allowed(target_date)
+
     return jsonify({
         'date': target_date.strftime('%Y-%m-%d'),
         'formatted_date': target_date.strftime('%d-%m-%Y'),
@@ -3846,7 +3921,14 @@ def api_timesheet_day_details():
         'formatted_total_hours': formatted_th,
         'idle_hours': formatted_idle,
         'count': len(result_entries),
-        'entries': result_entries
+        'entries': result_entries,
+        'is_sunday': is_sun,
+        'is_second_saturday': is_sec_sat,
+        'is_holiday': hol is not None,
+        'holiday_name': hol_name,
+        'is_submission_allowed': allowed,
+        'restriction_reason': restriction_reason,
+        'is_today': (target_date == today_ist)
     })
 
 @app.route('/api/timesheet/month-submissions')
@@ -3861,11 +3943,55 @@ def api_timesheet_month_submissions():
         db.extract('month', Timesheet.date) == month
     ).distinct().all()
 
-    dates = [e[0].strftime('%Y-%m-%d') for e in entries if e[0]]
+    submitted_dates = [e[0].strftime('%Y-%m-%d') for e in entries if e[0]]
+    submitted_set = set(submitted_dates)
+
+    # Holidays in this month
+    holidays_query = HolidayMaster.query.filter(
+        db.extract('year', HolidayMaster.holiday_date) == year,
+        db.extract('month', HolidayMaster.holiday_date) == month
+    ).all()
+    holidays = {h.holiday_date.strftime('%Y-%m-%d'): h.holiday_name for h in holidays_query}
+
+    # Number of days in month
+    if month == 12:
+        num_days = 31
+    else:
+        num_days = (date(year, month + 1, 1) - timedelta(days=1)).day
+
+    now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+    today_ist = now_ist.date()
+    today_str = today_ist.strftime('%Y-%m-%d')
+    now_is_after_430 = (now_ist.time() >= dt_time(16, 30))
+
+    sundays = []
+    second_saturdays = []
+    missing_dates = []
+
+    for d in range(1, num_days + 1):
+        cur_date = date(year, month, d)
+        cur_str = cur_date.strftime('%Y-%m-%d')
+        if cur_date.weekday() == 6:
+            sundays.append(cur_str)
+        elif cur_date.weekday() == 5 and (8 <= d <= 14):
+            second_saturdays.append(cur_str)
+        elif cur_str in holidays:
+            pass  # holiday
+        else:
+            # Working day
+            if cur_date < today_ist and cur_str not in submitted_set:
+                missing_dates.append(cur_str)
+
     return jsonify({
         'year': year,
         'month': month,
-        'submitted_dates': dates
+        'submitted_dates': submitted_dates,
+        'holidays': holidays,
+        'second_saturdays': second_saturdays,
+        'sundays': sundays,
+        'missing_dates': missing_dates,
+        'today_str': today_str,
+        'now_is_after_430': now_is_after_430
     })
 
 @app.route('/timesheets/verify')
@@ -5994,7 +6120,7 @@ def api_update_manager():
         print(f"[ERROR in api_update_manager]: {e}")
         return jsonify({'success': False, 'error': f'Error updating manager: {str(e)}'}), 500
 
-# ----------------- Holiday Master -----------------
+# ----------------- Holiday Master (Multi-Year Support) -----------------
 @app.route('/masters/holiday', methods=['GET', 'POST'])
 @login_required
 def holiday_master():
@@ -6002,37 +6128,74 @@ def holiday_master():
         flash('Unauthorized access to Master Management.', 'danger')
         return redirect(url_for('dashboard'))
 
+    # Available calendar years in database (ensure at least 2026 and 2027)
+    db_years = {r[0] for r in db.session.query(HolidayMaster.calendar_year).distinct().all() if r[0]}
+    available_years = sorted(list(db_years | {2026, 2027}))
+
+    selected_year = request.args.get('year', type=int) or request.form.get('calendar_year', type=int) or 2026
+
     error_msg = None
     if request.method == 'POST':
-        name = request.form.get('holiday_name', '').strip()
-        date_str = request.form.get('holiday_date', '').strip()
-        h_type = request.form.get('holiday_type', 'Public Holiday')
-        desc = request.form.get('description', '').strip()
+        action = request.form.get('action')
 
-        if not name or not date_str:
-            error_msg = 'Holiday name and date are required!'
+        if action == 'add_year':
+            new_yr = request.form.get('new_year', type=int)
+            if new_yr and 2000 <= new_yr <= 2100:
+                if new_yr not in available_years:
+                    available_years = sorted(list(set(available_years) | {new_yr}))
+                flash(f'Calendar Year {new_yr} opened. You can now add holidays for {new_yr}.', 'info')
+                return redirect(url_for('holiday_master', year=new_yr))
+            else:
+                error_msg = 'Please provide a valid 4-digit calendar year (e.g. 2027).'
+
         else:
-            try:
-                h_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-                day_name = h_date.strftime('%A')
-                h = HolidayMaster(
-                    holiday_name=name,
-                    holiday_date=h_date,
-                    day_of_week=day_name,
-                    holiday_type=h_type,
-                    description=desc if desc else None
-                )
-                db.session.add(h)
-                db.session.commit()
-                flash(f'Holiday "{name}" on {h_date.strftime("%d-%b-%Y")} added successfully!', 'success')
-                return redirect(url_for('holiday_master'))
-            except ValueError:
-                error_msg = 'Invalid date format.'
+            name = request.form.get('holiday_name', '').strip()
+            date_str = request.form.get('holiday_date', '').strip()
+            h_type = request.form.get('holiday_type', 'Public Holiday')
+            desc = request.form.get('description', '').strip()
+            cal_year = request.form.get('calendar_year', type=int) or selected_year
 
-    holidays = HolidayMaster.query.order_by(HolidayMaster.holiday_date).all()
+            if not name or not date_str:
+                error_msg = 'Holiday name and date are required!'
+            else:
+                try:
+                    h_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    day_name = h_date.strftime('%A')
+                    # Synchronize calendar year with holiday date's year
+                    actual_year = h_date.year
+
+                    # Check for duplicate holiday on same date
+                    existing = HolidayMaster.query.filter_by(holiday_date=h_date).first()
+                    if existing:
+                        error_msg = f'A holiday ("{existing.holiday_name}") is already configured for {h_date.strftime("%d-%b-%Y")}.'
+                    else:
+                        h = HolidayMaster(
+                            calendar_year=actual_year,
+                            holiday_name=name,
+                            holiday_date=h_date,
+                            day_of_week=day_name,
+                            holiday_type=h_type,
+                            description=desc if desc else None
+                        )
+                        db.session.add(h)
+                        db.session.commit()
+                        flash(f'Holiday "{name}" on {h_date.strftime("%d-%b-%Y")} added successfully to Calendar Year {actual_year}!', 'success')
+                        return redirect(url_for('holiday_master', year=actual_year))
+                except ValueError:
+                    error_msg = 'Invalid date format.'
+
+    holidays = HolidayMaster.query.filter_by(calendar_year=selected_year).order_by(HolidayMaster.holiday_date).all()
+    # Year holiday counts
+    year_counts = {}
+    for yr in available_years:
+        year_counts[yr] = HolidayMaster.query.filter_by(calendar_year=yr).count()
+
     return render_template(
         'masters/holiday_master.html',
         holidays=holidays,
+        available_years=available_years,
+        selected_year=selected_year,
+        year_counts=year_counts,
         error_msg=error_msg
     )
 
@@ -6044,10 +6207,11 @@ def delete_holiday(id):
         return redirect(url_for('dashboard'))
 
     h = HolidayMaster.query.get_or_404(id)
+    cal_year = h.calendar_year or (h.holiday_date.year if h.holiday_date else 2026)
     db.session.delete(h)
     db.session.commit()
     flash(f'Holiday "{h.holiday_name}" deleted successfully.', 'success')
-    return redirect(url_for('holiday_master'))
+    return redirect(url_for('holiday_master', year=cal_year))
 
 @app.route('/api/next-file-number')
 def api_next_file_number():
@@ -6821,35 +6985,144 @@ def auto_submit_weekly_timesheets():
                     )
         print(f"Auto-submitted {len(drafts)} weekly timesheets")
 
-# Add email alert function for missing logs
+# --- Redesigned Timesheet Email Notification System ---
+def send_weekly_timesheet_reminder():
+    """
+    Weekly email reminder sent to all active employees to fill up their timesheet for the week.
+    Runs every Friday at 17:00 IST.
+    """
+    with app.app_context():
+        now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+        today = now_ist.date()
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=4)  # Mon - Fri
+        week_range_str = f"{week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
+
+        employees = Employee.query.filter(
+            Employee.role.in_(['EMP', 'PM']),
+            Employee.is_active == True,
+            Employee.employment_type != 'DEPARTMENT'
+        ).all()
+
+        for emp in employees:
+            if not emp.email or '@' not in emp.email:
+                continue
+            subject = f"Weekly Timesheet Reminder: Week of {week_range_str}"
+            body = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <h2 style="color: #0e8749; margin-top: 0;">Weekly Timesheet Reminder</h2>
+                <p>Dear <b>{emp.name}</b>,</p>
+                <p>This is a friendly reminder to complete and submit your timesheet entries for the current week: <b>{week_range_str}</b>.</p>
+                <p>Kindly ensure all your project tasks and daily activities are logged accurately before closing your work for the week.</p>
+                <div style="text-align: center; margin: 25px 0;">
+                    <a href="https://pmstimesheet.vercel.app/login" style="background-color: #0e8749; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Log Your Timesheet</a>
+                </div>
+                <p style="color: #64748b; font-size: 13px;">Note: Sundays, Second Saturdays, and declared company holidays are non-working days and do not require timesheet entries.</p>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="color: #94a3b8; font-size: 12px; margin-bottom: 0;">DayLog &bull; Unified Timesheet & Project Management System &bull; Ecometrix Consultants Pvt. Ltd.</p>
+            </div>
+            """
+            try:
+                send_email(emp.email, subject, body)
+            except Exception as e:
+                print(f"[ERROR] Failed to send weekly reminder to {emp.email}: {e}")
+
+def send_monthly_missing_timesheet_reminder():
+    """
+    Sent on the last day of each month.
+    Checks if an employee missed filling their timesheet on any working day in the month.
+    Excludes Sundays, Second Saturdays, and Declared Holidays.
+    If missed days exist, emails only those specific missed dates to the employee.
+    """
+    with app.app_context():
+        now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+        today = now_ist.date()
+
+        # Determine last day of current month
+        if today.month == 12:
+            last_day_num = 31
+        else:
+            next_month = date(today.year, today.month + 1, 1)
+            last_day_num = (next_month - timedelta(days=1)).day
+
+        # Only run on the last date of each month!
+        if today.day != last_day_num:
+            return
+
+        employees = Employee.query.filter(
+            Employee.role.in_(['EMP', 'PM']),
+            Employee.is_active == True,
+            Employee.employment_type != 'DEPARTMENT'
+        ).all()
+
+        # Load holidays for this month
+        holidays_query = HolidayMaster.query.filter(
+            db.extract('year', HolidayMaster.holiday_date) == today.year,
+            db.extract('month', HolidayMaster.holiday_date) == today.month
+        ).all()
+        holiday_dates = {h.holiday_date for h in holidays_query}
+
+        # Calculate all working days in month up to today
+        all_working_days = []
+        for d in range(1, today.day + 1):
+            cur_date = date(today.year, today.month, d)
+            if is_sunday(cur_date):
+                continue
+            if is_second_saturday(cur_date):
+                continue
+            if cur_date in holiday_dates:
+                continue
+            all_working_days.append(cur_date)
+
+        month_name = today.strftime('%B %Y')
+
+        for emp in employees:
+            if not emp.email or '@' not in emp.email:
+                continue
+
+            submitted = db.session.query(Timesheet.date).filter(
+                Timesheet.employee_id == emp.id,
+                db.extract('year', Timesheet.date) == today.year,
+                db.extract('month', Timesheet.date) == today.month
+            ).distinct().all()
+            submitted_set = {s[0] for s in submitted if s[0]}
+
+            missed_dates = [d for d in all_working_days if d not in submitted_set]
+
+            if not missed_dates:
+                continue
+
+            formatted_missed = [d.strftime('%d-%b-%Y (%A)') for d in missed_dates]
+            missed_list_html = "".join([f"<li style='margin-bottom: 4px;'><b>{d_str}</b></li>" for d_str in formatted_missed])
+
+            subject = f"Action Required: Missed Timesheet Entries for {month_name}"
+            body = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #fca5a5; border-radius: 8px; background-color: #fffaf0;">
+                <h2 style="color: #dc2626; margin-top: 0;">Missing Timesheet Notification</h2>
+                <p>Dear <b>{emp.name}</b>,</p>
+                <p>Today is the final day of <b>{month_name}</b>. Our records show that you have <b>{len(missed_dates)}</b> unsubmitted working day(s) for this month:</p>
+                <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 6px; padding: 12px 18px; margin: 15px 0;">
+                    <ul style="margin: 0; padding-left: 20px; color: #9a3412;">
+                        {missed_list_html}
+                    </ul>
+                </div>
+                <p>Please log in to DayLog and submit your timesheets for the dates listed above to ensure accurate payroll and monthly project progress reporting.</p>
+                <div style="text-align: center; margin: 25px 0;">
+                    <a href="https://pmstimesheet.vercel.app/login" style="background-color: #dc2626; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Submit Missed Timesheets</a>
+                </div>
+                <p style="color: #64748b; font-size: 13px;">Note: Sundays, Second Saturdays, and declared company holidays have already been excluded.</p>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="color: #94a3b8; font-size: 12px; margin-bottom: 0;">DayLog &bull; Unified Timesheet & Project Management System &bull; Ecometrix Consultants Pvt. Ltd.</p>
+            </div>
+            """
+            try:
+                send_email(emp.email, subject, body)
+            except Exception as e:
+                print(f"[ERROR] Failed to send monthly missing reminder to {emp.email}: {e}")
+
 def send_missing_log_alerts():
-    """Send email alerts for employees with missing daily timesheets"""
-    today = date.today()
-    yesterday = today - timedelta(days=1)
-    
-    # Skip weekends
-    if yesterday.weekday() >= 5:
-        return
-    
-    employees = Employee.query.filter_by(role='EMP', is_active=True).all()
-    
-    for employee in employees:
-        # Check if employee has timesheet for yesterday
-        yesterday_ts = Timesheet.query.filter_by(
-            employee_id=employee.id,
-            date=yesterday
-        ).first()
-        
-        if not yesterday_ts:
-            # Get employee's assigned tasks
-            assigned_tasks = Task.query.join(Task.assignees).filter(
-                Employee.id == employee.id
-            ).all()
-            
-            if assigned_tasks:
-                subject = f"Missing Timesheet Alert: {yesterday.strftime('%d %b, %Y')}"
-                body = f"Dear {employee.name},<br><br>This is a reminder that you haven't logged your timesheet for {yesterday.strftime('%d %b, %Y')}.<br><br>Please log your hours as soon as possible to avoid delays in project tracking.<br><br>Thanks,<br>System"
-                send_email(employee.email, subject, body)
+    """Legacy wrapper calling send_monthly_missing_timesheet_reminder"""
+    send_monthly_missing_timesheet_reminder()
 
 # System-wide notification functions
 def send_project_deadline_notifications():
@@ -6940,8 +7213,11 @@ def send_weekly_digest():
 
 # Update the scheduler to include new notifications
 def schedule_automatic_tasks():
-    """Schedule automatic tasks to run daily"""
-    schedule.every().day.at("09:00").do(send_missing_log_alerts)
+    """Schedule automatic tasks"""
+    # Weekly reminder every Friday at 17:00 IST
+    schedule.every().friday.at("17:00").do(send_weekly_timesheet_reminder)
+    # Month-end missing timesheet alert: checked daily at 17:30 IST (only triggers on last day of month)
+    schedule.every().day.at("17:30").do(send_monthly_missing_timesheet_reminder)
     schedule.every().day.at("10:00").do(send_project_deadline_notifications)
     schedule.every().friday.at("18:00").do(auto_submit_weekly_timesheets)
     schedule.every().friday.at("17:00").do(send_weekly_digest)

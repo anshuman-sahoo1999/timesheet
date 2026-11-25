@@ -1,39 +1,78 @@
 {% extends "layout.html" %}
 
-{% block title %}Holiday Master - PMS{% endblock %}
+{% block title %}Holiday Master ({{ selected_year }}) - PMS{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-2">
-    <!-- Header -->
-    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-3">
-        <h4 class="fw-bold mb-0 master-page-title">
-            <i class="fas fa-calendar-alt me-2"></i>Holiday Master
-        </h4>
-        <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-light text-secondary border px-3 py-2">
-                <i class="fas fa-calendar-check text-success me-1"></i>Total: {{ holidays|length }} Holidays
+    <!-- Header with Multi-Year Navigation -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <h4 class="fw-bold mb-1 master-page-title">
+                <i class="fas fa-calendar-alt me-2 text-success"></i>Holiday Calendar Master
+            </h4>
+            <p class="text-secondary small mb-0">Configure official company holidays and non-working days for employee timesheets</p>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- Year Selector Pills -->
+            <div class="btn-group shadow-sm" role="group" aria-label="Calendar Year Selector">
+                {% for yr in available_years %}
+                <a href="{{ url_for('holiday_master', year=yr) }}" 
+                   class="btn btn-sm {% if yr == selected_year %}btn-success fw-bold text-white shadow-sm{% else %}btn-outline-secondary bg-white text-dark{% endif %} px-3 py-2">
+                    <i class="fas fa-calendar-day me-1 {% if yr == selected_year %}text-white{% else %}text-success{% endif %}"></i>
+                    Year {{ yr }}
+                    <span class="badge {% if yr == selected_year %}bg-white text-success{% else %}bg-secondary text-white{% endif %} rounded-pill ms-1">
+                        {{ year_counts.get(yr, 0) }}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+
+            <!-- Add New Calendar Year Button -->
+            <button type="button" class="btn btn-sm btn-outline-success fw-semibold px-3 py-2 shadow-sm bg-white" data-bs-toggle="modal" data-bs-target="#addYearModal">
+                <i class="fas fa-plus-circle me-1"></i> Add Calendar Year
+            </button>
+
+            <!-- Total Holidays Badge -->
+            <span class="badge bg-light text-dark border px-3 py-2 rounded-3">
+                <i class="fas fa-calendar-check text-success me-1"></i>{{ holidays|length }} Holidays in {{ selected_year }}
             </span>
         </div>
     </div>
 
-    <!-- Add Holiday Form Card -->
+    <!-- Add Holiday Form Card for Selected Year -->
     <div class="card shadow-sm border-0 rounded-3 mb-4">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold text-dark mb-0">
+                <i class="fas fa-plus-circle text-success me-2"></i>Add Holiday for Calendar Year <span class="text-success">{{ selected_year }}</span>
+            </h6>
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small">
+                Target Year: {{ selected_year }}
+            </span>
+        </div>
         <div class="card-body p-4">
-            <form action="{{ url_for('holiday_master') }}" method="POST" id="holidayForm" novalidate>
+            <form action="{{ url_for('holiday_master', year=selected_year) }}" method="POST" id="holidayForm" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="calendar_year" value="{{ selected_year }}">
+                <input type="hidden" name="action" value="add_holiday">
                 
                 <div class="row g-3 align-items-start">
                     <div class="col-12 col-md-3">
+                        <label for="holidayName" class="form-label small fw-bold text-secondary mb-1">Holiday Name *</label>
                         <input type="text" class="form-control master-input {{ 'is-invalid' if error_msg }}" 
-                               id="holidayName" name="holiday_name" placeholder="Holiday Name *" required>
+                               id="holidayName" name="holiday_name" placeholder="e.g. Independence Day" required>
                     </div>
 
                     <div class="col-12 col-md-3">
+                        <label for="holidayDate" class="form-label small fw-bold text-secondary mb-1">Holiday Date *</label>
                         <input type="date" class="form-control master-input" 
-                               id="holidayDate" name="holiday_date" required>
+                               id="holidayDate" name="holiday_date" 
+                               min="{{ selected_year }}-01-01" max="{{ selected_year }}-12-31" 
+                               value="{{ selected_year }}-01-01" required>
                     </div>
 
                     <div class="col-12 col-md-3">
+                        <label for="holidayType" class="form-label small fw-bold text-secondary mb-1">Holiday Category</label>
                         <select class="form-select master-input" id="holidayType" name="holiday_type">
                             <option value="Public Holiday">Public Holiday</option>
                             <option value="National Holiday">National Holiday</option>
@@ -43,8 +82,9 @@
                     </div>
 
                     <div class="col-12 col-md-3">
+                        <label for="holidayDesc" class="form-label small fw-bold text-secondary mb-1">Description / Note</label>
                         <input type="text" class="form-control master-input" 
-                               id="holidayDesc" name="description" placeholder="Description / Note">
+                               id="holidayDesc" name="description" placeholder="Optional notes">
                     </div>
                 </div>
 
@@ -57,15 +97,21 @@
                 <!-- Submit Button -->
                 <div class="mt-3">
                     <button type="submit" class="btn btn-warning btn-master-submit px-4 py-2 fw-bold text-dark shadow-sm w-100 w-sm-auto">
-                        Submit
+                        <i class="fas fa-save me-1"></i> Add Holiday
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Holidays Data Table Card -->
-    <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+    <!-- Holidays Data Table Card for Selected Year -->
+    <div class="card shadow-sm border-0 rounded-3 overflow-hidden mb-4">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold text-dark mb-0">
+                <i class="fas fa-list text-secondary me-2"></i>Official Holidays List &bull; Year {{ selected_year }}
+            </h6>
+            <span class="text-muted small">Dates listed here are automatically disabled on timesheets</span>
+        </div>
         <div class="table-responsive">
             <table class="table master-table align-middle mb-0">
                 <thead>
@@ -83,7 +129,9 @@
                     {% for h in holidays %}
                     <tr>
                         <td class="text-center fw-semibold text-muted">{{ loop.index }}</td>
-                        <td class="fw-bold text-dark">{{ h.holiday_name }}</td>
+                        <td class="fw-bold text-dark">
+                            <i class="fas fa-star text-warning me-1"></i>{{ h.holiday_name }}
+                        </td>
                         <td class="fw-semibold text-secondary">
                             <i class="fas fa-calendar-day text-success me-1"></i>
                             {{ h.holiday_date.strftime('%d-%b-%Y') }}
@@ -139,9 +187,10 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">
-                            <i class="fas fa-calendar-times fa-2x mb-2 d-block text-secondary opacity-50"></i>
-                            No holidays configured yet. Add one above.
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-calendar-times fa-3x mb-3 d-block text-secondary opacity-50"></i>
+                            <h6 class="fw-bold text-dark">No holidays configured for Calendar Year {{ selected_year }}</h6>
+                            <p class="small text-muted mb-0">Use the form above to add holidays manually for {{ selected_year }}.</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -151,9 +200,42 @@
     </div>
 </div>
 
+<!-- Modal: Add New Calendar Year -->
+<div class="modal fade" id="addYearModal" tabindex="-1" aria-labelledby="addYearModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h6 class="modal-title fw-bold" id="addYearModalLabel">
+                    <i class="fas fa-calendar-plus me-2"></i>Create New Calendar Year
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('holiday_master') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add_year">
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">
+                        Create a new calendar year (e.g. <strong>2027</strong>) to configure its holiday calendar. Once created, holidays will be applicable for that year onwards.
+                    </p>
+                    <div class="mb-3">
+                        <label for="newYearInput" class="form-label fw-bold text-dark small">Enter Calendar Year *</label>
+                        <input type="number" class="form-control" id="newYearInput" name="new_year" 
+                               min="2025" max="2050" value="{{ selected_year + 1 }}" required>
+                        <div class="form-text">Example: 2027. You can then add holidays for that year manually.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success px-3 fw-bold">Create Year</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
 .master-page-title {
-    color: #559132;
+    color: #0e8749;
     font-weight: 700;
 }
 
@@ -168,8 +250,8 @@
 }
 
 .master-input:focus {
-    border-color: #559132;
-    box-shadow: 0 0 0 3px rgba(85, 145, 50, 0.15);
+    border-color: #0e8749;
+    box-shadow: 0 0 0 3px rgba(14, 135, 73, 0.15);
 }
 
 .btn-master-submit {
@@ -191,13 +273,14 @@
 }
 
 .master-table thead th {
-    background-color: #72ab38;
+    background-color: #0e8749;
     color: #ffffff;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     font-weight: 700;
     letter-spacing: 0.5px;
     padding: 14px 16px;
     border: none;
+    text-transform: uppercase;
 }
 
 .master-table tbody td {
@@ -210,8 +293,8 @@
 }
 
 .btn-master-delete {
-    background-color: #cc1f1a;
-    border-color: #cc1f1a;
+    background-color: #ef4444;
+    border-color: #ef4444;
     color: #ffffff;
     width: 32px;
     height: 32px;
@@ -223,7 +306,7 @@
 }
 
 .btn-master-delete:hover {
-    background-color: #a31713;
+    background-color: #dc2626;
     color: #ffffff;
 }
 

@@ -15,15 +15,15 @@
         <div class="card mb-4">
             <div class="card-header">Project Details</div>
             <div class="card-body">
-                <div class="row mb-2">
-                    <div class="col-md-4"><strong>Project Name:</strong> {{ indent.project_name }}</div>
-                    <div class="col-md-4"><strong>Department:</strong> {{ indent.department.name }}</div>
-                    <div class="col-md-4"><strong>Project Code:</strong> {{ indent.file_number }}</div>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-4"><strong>Project Name:</strong> {{ indent.project_name }}</div>
+                    <div class="col-12 col-md-4"><strong>Department:</strong> {{ indent.department.name }}</div>
+                    <div class="col-12 col-md-4"><strong>Project Code:</strong> {{ indent.file_number }}</div>
                 </div>
-                <div class="row mb-2">
-                    <div class="col-md-4"><strong>Client Name:</strong> {{ indent.client_name }}</div>
-                    <div class="col-md-4"><strong>Contract Start Date:</strong> {{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }}</div>
-                    <div class="col-md-4"><strong>Contract End Date:</strong> {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}</div>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-4"><strong>Client Name:</strong> {{ indent.client_name }}</div>
+                    <div class="col-12 col-md-4"><strong>Contract Start Date:</strong> {{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }}</div>
+                    <div class="col-12 col-md-4"><strong>Contract End Date:</strong> {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}</div>
                 </div>
             </div>
         </div>
@@ -45,12 +45,12 @@
         <div class="card mb-4">
             <div class="card-header">Scheduling</div>
             <div class="card-body">
-                <div class="row mb-2">
-                    <div class="col-md-6">
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-6">
                         <label for="project_start_date" class="form-label">Project Start Date <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="project_start_date" name="project_start_date" required>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12 col-md-6">
                         <label for="project_end_date" class="form-label">Project End Date <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="project_end_date" name="project_end_date" required>
                     </div>

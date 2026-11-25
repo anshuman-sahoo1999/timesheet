@@ -109,6 +109,23 @@
         border-color: #fef08a;
         background: #fefce8;
     }
+    @media (max-width: 768px) {
+        .pm-chart-card .card-body {
+            height: auto;
+            min-height: 240px;
+            max-height: none;
+            padding: 12px;
+        }
+        .chart-box-wrapper {
+            height: 220px;
+        }
+        .milestone-pill-card {
+            min-width: min(76vw, 240px);
+        }
+        .roadmap-header-row {
+            padding: 12px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -116,9 +133,9 @@
 <div class="container-fluid">
     <!-- Pending CEO Approval Alert Banner -->
     {% if pending_job_cards and pending_job_cards > 0 %}
-    <div class="alert alert-warning border-warning shadow-sm rounded-3 d-flex align-items-center justify-content-between p-3 mb-4" data-aos="fade-down">
+    <div class="alert alert-warning border-warning shadow-sm rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 mb-4" data-aos="fade-down">
         <div class="d-flex align-items-center">
-            <div class="p-2 bg-warning text-dark rounded-circle me-3 shadow-sm">
+            <div class="p-2 bg-warning text-dark rounded-circle me-3 shadow-sm flex-shrink-0">
                 <i class="fas fa-hourglass-half fa-lg"></i>
             </div>
             <div>
@@ -130,7 +147,7 @@
                 </div>
             </div>
         </div>
-        <a href="{{ url_for('pm_manage_job_cards') }}" class="btn btn-sm btn-warning text-dark fw-bold px-3">
+        <a href="{{ url_for('pm_manage_job_cards') }}" class="btn btn-sm btn-warning text-dark fw-bold px-3 w-mobile-100">
             <i class="fas fa-tasks me-1"></i>Track Job Cards
         </a>
     </div>
@@ -549,8 +566,8 @@
 
                         <!-- Tasks Tab -->
                         <div class="tab-pane fade" id="tasks" role="tabpanel">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
+                            <div class="row g-2 mb-3 align-items-center">
+                                <div class="col-12 col-md-6">
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="taskSearch" placeholder="Search tasks...">
                                         <button class="btn btn-outline-secondary" type="button">
@@ -558,8 +575,8 @@
                                         </button>
                                     </div>
                                 </div>
-                                <div class="col-md-6 text-end">
-                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                                <div class="col-12 col-md-6 text-md-end">
+                                    <button class="btn btn-primary w-mobile-100" data-bs-toggle="modal" data-bs-target="#addTaskModal">
                                         <i class="fas fa-plus me-2"></i>Add Task
                                     </button>
                                 </div>

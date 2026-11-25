@@ -13,9 +13,9 @@
                 </div>
                 <div class="card-body">
                     <!-- Filter Section -->
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="form-group">
+                    <div class="row g-2 mb-4 align-items-end">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="form-group mb-0">
                                 <label for="status_filter" class="form-label">
                                     <i class="fas fa-filter"></i> Status Filter
                                 </label>
@@ -26,16 +26,16 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="form-group mb-0">
                                 <label for="week_filter" class="form-label">
                                     <i class="fas fa-calendar"></i> Week Filter
                                 </label>
                                 <input type="week" class="form-control" id="week_filter">
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="form-group mb-0">
                                 <label for="employee_filter" class="form-label">
                                     <i class="fas fa-user"></i> Employee Filter
                                 </label>
@@ -47,9 +47,8 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label class="form-label">&nbsp;</label>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="form-group mb-0">
                                 <button class="btn btn-primary w-100" onclick="exportTimesheetData()">
                                     <i class="fas fa-download"></i> Export Data
                                 </button>
@@ -58,33 +57,33 @@
                     </div>
 
                     <!-- Statistics Cards -->
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="card bg-primary text-white">
+                    <div class="row g-2 g-md-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="card bg-primary text-white h-100 mb-0">
                                 <div class="card-body text-center">
                                     <h5><i class="fas fa-clock"></i> Total Timesheets</h5>
                                     <h3>{{ timesheets|length }}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-white">
+                        <div class="col-6 col-md-3">
+                            <div class="card bg-warning text-white h-100 mb-0">
                                 <div class="card-body text-center">
                                     <h5><i class="fas fa-hourglass-half"></i> Pending</h5>
                                     <h3>{{ timesheets|selectattr('status', 'equalto', 'Submitted')|list|length }}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
+                        <div class="col-6 col-md-3">
+                            <div class="card bg-success text-white h-100 mb-0">
                                 <div class="card-body text-center">
                                     <h5><i class="fas fa-check-circle"></i> Verified</h5>
                                     <h3>{{ timesheets|selectattr('status', 'equalto', 'Verified')|list|length }}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white">
+                        <div class="col-6 col-md-3">
+                            <div class="card bg-info text-white h-100 mb-0">
                                 <div class="card-body text-center">
                                     <h5><i class="fas fa-users"></i> Employees</h5>
                                     <h3>{{ timesheets|map(attribute='employee_id')|unique|list|length }}</h3>

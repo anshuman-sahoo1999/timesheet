@@ -181,15 +181,32 @@
         gap: 6px;
         border: 1px dashed #cbd5e1;
     }
+    @media (max-width: 768px) {
+        .project-header-card {
+            padding: 18px 16px;
+        }
+        .metric-card {
+            padding: 14px 12px;
+        }
+        .metric-value {
+            font-size: 1.15rem;
+        }
+        .analytics-card .card-header {
+            padding: 12px 14px;
+        }
+        .analytics-card .card-body {
+            padding: 14px;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-3">
+<div class="container-fluid px-2 px-md-4 py-2 py-md-3">
 
     <!-- Top Navigation / Back Breadcrumbs -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div class="d-flex align-items-center gap-2">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="d-flex align-items-center flex-wrap gap-2">
             <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary" style="border-radius: 8px;">
                 <i class="fas fa-arrow-left me-1"></i> Back
             </a>

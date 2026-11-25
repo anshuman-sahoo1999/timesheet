@@ -19,11 +19,11 @@
             </h3>
             <p class="text-muted small mb-0 mt-1">Update employee information, organizational assignments, or password.</p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('employee_history', emp_id=emp.id) }}" class="btn btn-outline-info px-3 py-2 rounded-3 shadow-sm">
+        <div class="d-flex flex-wrap gap-2 w-mobile-100">
+            <a href="{{ url_for('employee_history', emp_id=emp.id) }}" class="btn btn-outline-info px-3 py-2 rounded-3 shadow-sm w-mobile-100">
                 <i class="fas fa-history me-1"></i> View Dossier / History
             </a>
-            <a href="{{ url_for('manage_employees') }}" class="btn btn-outline-secondary px-3 py-2 rounded-3 shadow-sm">
+            <a href="{{ url_for('manage_employees') }}" class="btn btn-outline-secondary px-3 py-2 rounded-3 shadow-sm w-mobile-100">
                 <i class="fas fa-arrow-left me-1"></i> Back to Directory
             </a>
         </div>
@@ -33,7 +33,7 @@
     <div class="row justify-content-center">
         <div class="col-12 col-xl-10">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <div class="d-flex align-items-center gap-2">
                         <span class="p-2 bg-primary text-white rounded-3 d-inline-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
                             <i class="fas fa-user-cog fs-6"></i>
@@ -53,7 +53,7 @@
                     </div>
                 </div>
 
-                <div class="card-body p-4 p-md-5">
+                <div class="card-body p-3 p-md-5">
                     <form action="{{ url_for('edit_employee', emp_id=emp.id) }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
@@ -239,11 +239,11 @@
                         </div>
 
                         <!-- Submit Buttons -->
-                        <div class="pt-3 border-top d-flex flex-wrap gap-2">
-                            <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold rounded-3 shadow-sm">
+                        <div class="pt-3 border-top d-flex flex-column flex-sm-row gap-2">
+                            <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold rounded-3 shadow-sm w-mobile-100">
                                 <i class="fas fa-save me-1"></i> Save Changes
                             </button>
-                            <a href="{{ url_for('manage_employees') }}" class="btn btn-light px-4 py-2 border rounded-3 text-secondary">
+                            <a href="{{ url_for('manage_employees') }}" class="btn btn-light px-4 py-2 border rounded-3 text-secondary w-mobile-100">
                                 Cancel
                             </a>
                         </div>

@@ -123,16 +123,18 @@
             font-size: 1rem;
         }
         @media (max-width: 900px) {
-            .split-container { flex-direction: column; height: auto; }
+            html, body { height: auto !important; overflow-x: clip; }
+            .split-container { flex-direction: column; height: auto !important; min-height: 100dvh; }
             .split-left, .split-right { flex: none; width: 100%; min-width: 0; }
-            .split-left { padding: 32px 8px 0 8px; }
-            .split-right { padding: 32px 0; }
-            .illustration { max-width: 220px; margin-top: 18px; }
+            .split-left { padding: 24px 16px 12px; }
+            .split-right { padding: 24px 12px 32px; flex: 1; }
+            .illustration, lottie-player { max-width: 200px !important; margin-top: 12px !important; }
         }
         @media (max-width: 600px) {
-            .login-card { padding: 24px 6px; }
-            .main-title { font-size: 1.3rem; }
-            .subtitle { font-size: 1rem; }
+            .login-card { padding: 24px 18px; width: 100%; max-width: 100%; }
+            .main-title { font-size: 1.35rem; text-align: center; }
+            .subtitle { font-size: 1rem; margin-bottom: 16px; text-align: center; }
+            .form-control { font-size: 16px !important; }
         }
         .alert-info { color: #fff !important; background: #4f8cff !important; border-left: 4px solid #fff !important; }
     </style>

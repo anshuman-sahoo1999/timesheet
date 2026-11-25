@@ -49,7 +49,7 @@
 {% block content %}
 <div class="container-fluid py-3">
     <!-- Breadcrumb & Header -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
             <h3 class="fw-bold mb-1 text-dark">
                 <i class="fas fa-folder-open text-primary me-2"></i>Job Indents Directory
@@ -57,8 +57,8 @@
             <p class="text-muted small mb-0">Track all job indents, client assignments, approval states, and live project execution statuses.</p>
         </div>
         {% if current_user.role in ['Admin', 'BD', 'MD'] %}
-        <div>
-            <a href="{{ url_for('create_job_indent') }}" class="btn btn-primary shadow-sm px-3">
+        <div class="w-mobile-100">
+            <a href="{{ url_for('create_job_indent') }}" class="btn btn-primary shadow-sm px-3 w-mobile-100">
                 <i class="fas fa-plus-circle me-1"></i>+ Create New Indent
             </a>
         </div>
@@ -84,12 +84,12 @@
 
     <!-- Job Indents Table Card -->
     <div class="card indent-card">
-        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h6 class="mb-0 fw-bold text-dark">
                 <i class="fas fa-list me-2 text-primary"></i>All Indents & Project Statuses
             </h6>
-            <div class="d-flex align-items-center gap-2">
-                <input type="text" id="indentSearchInput" class="form-control form-control-sm" placeholder="Quick search..." style="width: 220px;" onkeyup="filterIndentsTable()">
+            <div class="d-flex align-items-center gap-2 w-mobile-100">
+                <input type="text" id="indentSearchInput" class="form-control form-control-sm" placeholder="Quick search..." style="width: 220px; max-width: 100%;" onkeyup="filterIndentsTable()">
             </div>
         </div>
         <div class="card-body p-0">

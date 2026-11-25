@@ -374,7 +374,131 @@
         border-radius: 6px;
     }
 
+    @media (max-width: 768px) {
+        .timesheet-header-banner {
+            padding: 1rem !important;
+        }
+        #togglePortalViewBtn {
+            width: 100%;
+            justify-content: center;
+        }
+        #submissionTimeNoticeBar {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+        }
+        #submissionTimeNoticeBar .alert {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 8px;
+        }
+        .dossier-header {
+            padding: 0.75rem 1rem !important;
+        }
+        #dossierHeaderControls {
+            width: 100%;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .timesheet-date-wrap {
+            width: 100% !important;
+        }
+
+        /* Transform wide 6-col entry form table into clean stacked mobile cards */
+        #timesheetEntryTable.mobile-stack-table {
+            border: none;
+        }
+        #timesheetEntryTable.mobile-stack-table thead {
+            display: none;
+        }
+        #timesheetEntryTable.mobile-stack-table tbody {
+            display: block;
+            width: 100%;
+        }
+        #timesheetEntryTable.mobile-stack-table tbody tr.entry-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        #timesheetEntryTable.mobile-stack-table tbody tr.entry-row td {
+            display: block;
+            width: 100% !important;
+            border: none !important;
+            padding: 0 !important;
+            white-space: normal !important;
+        }
+        #timesheetEntryTable.mobile-stack-table tbody tr.entry-row td::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 0.70rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        #timesheetEntryTable.mobile-stack-table tbody tr.entry-row td:nth-child(1),
+        #timesheetEntryTable.mobile-stack-table tbody tr.entry-row td:nth-child(2) {
+            grid-column: 1 / -1;
+        }
+        #timesheetEntryTable.mobile-stack-table tbody tr.entry-row td:nth-child(6) {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-end;
+            text-align: left !important;
+        }
+        #timesheetEntryTable.mobile-stack-table tbody tr.entry-row td:nth-child(6) .remove-row-btn {
+            width: 100%;
+            height: 44px;
+            border-radius: 8px;
+        }
+        #timesheetEntryTable.mobile-stack-table tbody tr.entry-row td:nth-child(6) .remove-row-btn::after {
+            content: ' Remove Row';
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        #timesheetEntryTable.mobile-stack-table tfoot {
+            display: block;
+            width: 100%;
+        }
+        #timesheetEntryTable.mobile-stack-table tfoot tr {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+        }
+        #timesheetEntryTable.mobile-stack-table tfoot td {
+            display: block;
+            width: 100%;
+            border: none !important;
+            padding: 0 !important;
+            text-align: left !important;
+        }
+        #timesheetEntryTable.mobile-stack-table #addMoreRowBtn {
+            width: 100%;
+            justify-content: center;
+        }
+        .timesheet-form-actions {
+            flex-direction: column-reverse;
+        }
+        .timesheet-form-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
     @media (max-width: 576px) {
+        .calendar-card {
+            padding: 0.75rem;
+        }
         .calendar-grid {
             gap: 4px;
         }
@@ -644,9 +768,9 @@
             <!-- Form Top Bar: Date Selector & Idle Hr Counter -->
             <div class="card border-0 bg-light rounded-3 p-3 mb-4">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3 w-mobile-100">
                         <label for="timesheetEntryDate" class="fw-bold text-secondary mb-0">Timesheet Date</label>
-                        <div class="input-group" style="width: 220px;">
+                        <div class="input-group timesheet-date-wrap" style="width: 220px;">
                             <input type="date" class="form-control fw-semibold" id="timesheetEntryDate" name="date" value="{{ selected_date }}" required>
                         </div>
                         <span id="entryDateBadge" class="badge bg-white text-secondary border px-2 py-1 small"></span>
@@ -664,8 +788,8 @@
 
             <!-- Multi-Row Dynamic Entry Table -->
             <div class="card border rounded-3 overflow-hidden shadow-sm mb-3">
-                <div class="table-responsive">
-                    <table class="table table-bordered mb-0 align-middle" id="timesheetEntryTable">
+                <div class="table-responsive no-swipe-cue">
+                    <table class="table table-bordered mb-0 align-middle mobile-stack-table" id="timesheetEntryTable">
                         <thead class="add-table-head">
                             <tr>
                                 <th style="width: 220px;">PROJECT</th>
@@ -679,7 +803,7 @@
                         <tbody id="entryRowsContainer">
                             <!-- Default Row 1 -->
                             <tr class="entry-row">
-                                <td>
+                                <td data-label="Project">
                                     <select class="form-select project-dropdown" name="project[]" required>
                                         <option value="Others" selected>Others</option>
                                         {% if assigned_projects %}
@@ -698,23 +822,23 @@
                                         {% endif %}
                                     </select>
                                 </td>
-                                <td>
+                                <td data-label="Task / Output Description">
                                     <input type="text" class="form-control" name="task_description[]" placeholder="Describe the task / deliverable output" required>
                                 </td>
-                                <td>
+                                <td data-label="Start Time">
                                     <div class="input-group">
                                         <input type="time" class="form-control time-start" name="start_time[]" value="10:00" required>
                                     </div>
                                 </td>
-                                <td>
+                                <td data-label="End Time">
                                     <div class="input-group">
                                         <input type="time" class="form-control time-end" name="end_time[]" value="18:00" required>
                                     </div>
                                 </td>
-                                <td>
+                                <td data-label="Total Hours">
                                     <input type="text" class="form-control text-center fw-bold bg-light row-duration" name="total_hours[]" value="08:00" readonly>
                                 </td>
-                                <td class="text-center">
+                                <td data-label="Action" class="text-center">
                                     <button type="button" class="btn btn-danger btn-sm remove-row-btn" title="Remove row">
                                         <i class="fas fa-minus"></i>
                                     </button>
@@ -739,7 +863,7 @@
             </div>
 
             <!-- Submit CTA -->
-            <div class="d-flex justify-content-end gap-2 pt-2">
+            <div class="d-flex justify-content-end gap-2 pt-2 timesheet-form-actions">
                 <button type="button" class="btn btn-light border px-4 py-2" id="cancelAddTimesheetBtn">Cancel</button>
                 <button type="submit" class="btn btn-warning px-5 py-2 fw-bold text-dark shadow-sm" id="submitTimesheetFormBtn" style="background-color: #f59e0b; border-color: #d97706;">
                     <i class="fas fa-paper-plane me-1"></i> Submit Timesheet

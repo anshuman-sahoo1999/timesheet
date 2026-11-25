@@ -100,12 +100,24 @@
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
+        html {
+            overflow-x: clip;
+            max-width: 100%;
+        }
+
         body {
             background-color: var(--body-bg);
             color: var(--text-dark);
             min-height: 100vh;
-            overflow-x: hidden;
+            min-height: 100dvh;
+            overflow-x: clip;
+            max-width: 100%;
             display: flex;
+        }
+
+        body.mobile-drawer-open {
+            overflow: hidden;
+            touch-action: none;
         }
 
         /* ================= SIDEBAR NAVIGATION ================= */
@@ -958,8 +970,37 @@
             }
 
             .app-topbar {
-                padding: 0 16px;
+                padding: 0 12px;
                 height: 58px;
+            }
+
+            .topbar-left {
+                gap: 10px;
+                min-width: 0;
+            }
+
+            .topbar-mobile-brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                text-decoration: none;
+                min-width: 0;
+            }
+
+            .topbar-mobile-brand img {
+                height: 24px;
+                width: auto;
+                object-fit: contain;
+            }
+
+            .topbar-mobile-brand-text {
+                font-size: 0.92rem;
+                font-weight: 800;
+                color: #0f172a;
+                letter-spacing: -0.02em;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
 
             .topbar-search-box {
@@ -967,10 +1008,10 @@
             }
 
             .app-content-body {
-                padding: 16px 12px;
+                padding: 12px 10px;
                 width: 100%;
                 max-width: 100%;
-                overflow-x: hidden;
+                overflow-x: clip;
             }
 
             .executive-welcome-banner {
@@ -994,39 +1035,73 @@
                 justify-content: space-around;
             }
 
+            .topbar-right {
+                gap: 8px;
+            }
+
+            .topbar-icon-btn {
+                width: 34px;
+                height: 34px;
+            }
+
             .app-content-body {
-                padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+                padding: 10px 8px calc(76px + env(safe-area-inset-bottom, 0px)) 8px !important;
+            }
+
+            /* Reclaim inner container padding wasted by desktop px-4 classes on narrow phones */
+            .app-content-body > .container-fluid,
+            .app-content-body > .container {
+                padding-left: 6px !important;
+                padding-right: 6px !important;
+                padding-top: 6px !important;
             }
 
             .floating-help-btn {
-                bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+                bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
                 right: 12px !important;
-                width: 38px !important;
-                height: 38px !important;
-                font-size: 0.9rem !important;
-                opacity: 0.9;
+                width: 40px !important;
+                height: 40px !important;
+                font-size: 0.95rem !important;
+                opacity: 0.92;
             }
 
             /* Prevent iOS Auto-Zoom on form input focus */
             input[type="text"],
             input[type="number"],
             input[type="date"],
+            input[type="time"],
+            input[type="week"],
+            input[type="month"],
             input[type="email"],
             input[type="password"],
             input[type="search"],
             input[type="tel"],
             select,
             textarea,
-            .form-control,
-            .form-select {
+            .form-control:not(.form-control-sm),
+            .form-select:not(.form-select-sm) {
                 font-size: 16px !important;
                 min-height: 44px;
                 border-radius: 8px;
             }
 
-            /* Touch target minimum size for buttons */
-            .btn {
+            .form-control-sm,
+            .form-select-sm {
+                font-size: 15px !important;
+                min-height: 38px;
+            }
+
+            /* Comfortable touch target without inflating compact icon/table buttons */
+            .btn:not(.btn-sm):not(.btn-xs):not(.btn-circle-action):not(.remove-row-btn):not(.calendar-nav-btn):not(.ts-preset-btn):not(.btn-action-view):not(.btn-action-square):not(.btn-square-plus):not(.btn-master-delete):not(.btn-close) {
                 min-height: 42px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .btn-sm {
+                min-height: 34px;
+                padding: 5px 10px;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
@@ -1036,7 +1111,8 @@
             .nav-tabs.card-header-tabs,
             .nav.nav-tabs,
             .nav-pills,
-            .hr-tabs-nav {
+            .hr-tabs-nav,
+            .pm-nav-tabs {
                 display: flex !important;
                 flex-wrap: nowrap !important;
                 overflow-x: auto !important;
@@ -1049,22 +1125,40 @@
             .nav-tabs.card-header-tabs::-webkit-scrollbar,
             .nav.nav-tabs::-webkit-scrollbar,
             .nav-pills::-webkit-scrollbar,
-            .hr-tabs-nav::-webkit-scrollbar {
+            .hr-tabs-nav::-webkit-scrollbar,
+            .pm-nav-tabs::-webkit-scrollbar {
                 display: none !important;
             }
             .nav-tabs.card-header-tabs .nav-item,
             .nav.nav-tabs .nav-item,
             .nav-pills .nav-item,
-            .hr-tabs-nav .nav-item {
+            .hr-tabs-nav .nav-item,
+            .pm-nav-tabs .nav-item {
                 flex: 0 0 auto !important;
             }
             .nav-tabs.card-header-tabs .nav-link,
             .nav.nav-tabs .nav-link,
             .nav-pills .nav-link,
-            .hr-tabs-nav .nav-link {
+            .hr-tabs-nav .nav-link,
+            .pm-nav-tabs .nav-link {
                 white-space: nowrap !important;
                 padding: 8px 14px !important;
                 font-size: 0.82rem !important;
+            }
+
+            /* Card & panel headers wrap cleanly on narrow viewports */
+            .card-header,
+            .fin-card-header,
+            .panel-header-bar {
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+            }
+
+            /* Responsive Pagination */
+            .pagination {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 4px;
             }
 
             /* Universal table touch-scrolling */
@@ -1083,41 +1177,66 @@
             }
             .table th, .table td {
                 white-space: nowrap;
-                padding: 9px 12px !important;
+                padding: 9px 10px !important;
+            }
+            .table td p,
+            .table td .td-wrap,
+            .table td .text-wrap {
+                white-space: normal !important;
+                min-width: 170px;
             }
 
             /* KPI cards on mobile */
             .kpi-card, .stat-kpi-card {
-                padding: 16px 14px !important;
+                padding: 14px 12px !important;
                 border-radius: var(--radius-md) !important;
             }
             .kpi-value {
-                font-size: 1.45rem !important;
+                font-size: 1.38rem !important;
             }
             .kpi-label {
-                font-size: 0.72rem !important;
+                font-size: 0.70rem !important;
             }
 
             /* Responsive charts height */
             canvas {
-                max-height: 260px !important;
+                max-height: 250px !important;
             }
 
-            /* Mobile-friendly Modals */
+            /* Mobile-friendly Modals (overrides large fixed modal max-width like 92vw/1250px) */
             .modal-dialog {
-                margin: 10px auto;
-                max-width: calc(100vw - 20px) !important;
+                margin: 8px auto !important;
+                max-width: calc(100vw - 16px) !important;
+                width: calc(100vw - 16px) !important;
             }
             .modal-content {
                 border-radius: 14px !important;
             }
+            .modal-header {
+                padding: 12px 14px !important;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .modal-body {
+                padding: 14px !important;
+            }
+            .modal-body iframe#docViewerFrame {
+                height: 70dvh !important;
+            }
             .modal-footer {
-                flex-direction: column-reverse;
+                padding: 10px 14px !important;
+                flex-wrap: wrap;
                 gap: 8px;
             }
             .modal-footer .btn {
-                width: 100%;
+                flex: 1 1 auto;
                 margin: 0 !important;
+            }
+
+            /* Select2 / Search controls never exceed viewport */
+            .select2-container {
+                width: 100% !important;
+                max-width: 100% !important;
             }
 
             /* Mobile full-width helper */
@@ -1136,7 +1255,7 @@
             }
 
             .app-content-body {
-                padding: 10px 8px;
+                padding: 10px 6px calc(74px + env(safe-area-inset-bottom, 0px)) 6px !important;
             }
 
             .card-body {
@@ -1144,7 +1263,7 @@
             }
 
             .card-header {
-                padding: 12px 14px !important;
+                padding: 12px 12px !important;
             }
 
             .topbar-avatar {
@@ -1154,8 +1273,8 @@
             }
 
             .btn-toggle-sidebar {
-                width: 38px;
-                height: 38px;
+                width: 36px;
+                height: 36px;
             }
 
             .btn-quick-action span {
@@ -1164,6 +1283,16 @@
 
             .master-page-title {
                 font-size: 1.15rem !important;
+            }
+
+            /* Make inline width search boxes span full width inside headers on small screens */
+            .card-header input[type="text"],
+            .card-header input[type="search"],
+            .fin-card-header input[type="text"],
+            .panel-header-bar input[type="text"],
+            .panel-header-bar select {
+                width: 100% !important;
+                max-width: 100% !important;
             }
         }
     </style>
@@ -1500,11 +1629,16 @@
     <div class="app-main-wrapper" id="appMainWrapper">
         <!-- Sticky Top Navigation Bar -->
         <header class="app-topbar">
-            <!-- Left: Toggle & Search -->
+            <!-- Left: Toggle, Mobile Brand & Desktop Search -->
             <div class="topbar-left">
                 <button type="button" class="btn-toggle-sidebar" id="sidebarToggleBtn" aria-label="Toggle Navigation">
                     <i class="fas fa-bars"></i>
                 </button>
+
+                <a href="{{ url_for('dashboard') }}" class="topbar-mobile-brand d-lg-none">
+                    <img src="{{ url_for('static', filename='daylog_logo.png') }}" alt="DayLog" onerror="this.src='{{ url_for('static', filename='emc-logo.png') }}'">
+                    <span class="topbar-mobile-brand-text">DayLog</span>
+                </a>
 
                 <div class="topbar-search-box">
                     <i class="fas fa-search search-icon-fixed"></i>
@@ -1528,7 +1662,7 @@
                     <span class="notification-indicator"></span>
                 </a>
 
-                <div class="topbar-divider"></div>
+                <div class="topbar-divider d-none d-sm-block"></div>
 
                 <!-- User Dropdown -->
                 <div class="dropdown">
@@ -1540,12 +1674,14 @@
                             <span style="font-size: 0.85rem; font-weight: 700; color: #1e293b;">{{ current_user.clean_name if current_user.clean_name is defined else (current_user.name|strip_title) }}</span>
                             <span style="font-size: 0.72rem; color: #64748b;">{{ current_user.designation or ('CEO' if current_user.role == 'MD' else current_user.role) }}</span>
                         </div>
-                        <i class="fas fa-chevron-down ms-1" style="font-size: 0.7rem; color: #94a3b8;"></i>
+                        <i class="fas fa-chevron-down ms-1 d-none d-sm-inline" style="font-size: 0.7rem; color: #94a3b8;"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" aria-labelledby="userMenuDropdown" style="border-radius: 12px; padding: 8px;">
-                        <li><h6 class="dropdown-header">Signed in as {{ current_user.email }}</h6></li>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" aria-labelledby="userMenuDropdown" style="border-radius: 12px; padding: 8px; max-width: calc(100vw - 24px);">
+                        <li><h6 class="dropdown-header text-truncate" style="max-width: 240px;">Signed in as {{ current_user.email }}</h6></li>
                         <li><a class="dropdown-item py-2" href="{{ url_for('dashboard') }}"><i class="fas fa-home me-2 text-muted"></i>Dashboard</a></li>
+                        {% if current_user.role not in ['MD', 'HR', 'BD', 'Finance', 'FINANCE', 'IT', 'IT_ADMIN'] %}
                         <li><a class="dropdown-item py-2" href="{{ url_for('log_timesheet') }}"><i class="fas fa-clock me-2 text-muted"></i>Log Timesheet</a></li>
+                        {% endif %}
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item py-2 text-danger" href="{{ url_for('logout') }}" onclick="return handleUserLogout(event, this);"><i class="fas fa-sign-out-alt me-2"></i>Sign Out</a></li>
                     </ul>
@@ -1578,46 +1714,100 @@
         <i class="fas fa-question"></i>
     </a>
 
-    <!-- Mobile Bottom App Bar -->
+    <!-- Mobile Bottom App Bar (Role-Aware Navigation) -->
     <nav class="mobile-bottom-nav" aria-label="Mobile Bottom Navigation">
         <a href="{{ url_for('dashboard') }}" class="mobile-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
             <i class="fas fa-th-large"></i>
             <span>Home</span>
         </a>
 
-        {% if current_user.role in ['Admin', 'BD', 'MD'] %}
+        {% if current_user.role in ['IT', 'IT_ADMIN'] %}
+        <a href="{{ url_for('dashboard') }}#authTickets" onclick="if(window.switchItTab){switchItTab('authTickets');return false;}" class="mobile-nav-item">
+            <i class="fas fa-qrcode"></i>
+            <span>Tickets</span>
+        </a>
+        <a href="{{ url_for('dashboard') }}#activity" onclick="if(window.switchItTab){switchItTab('activity');return false;}" class="mobile-nav-item">
+            <i class="fas fa-history"></i>
+            <span>Security</span>
+        </a>
+        <a href="{{ url_for('notifications') }}" class="mobile-nav-item {% if request.endpoint == 'notifications' %}active{% endif %}">
+            <i class="fas fa-bell"></i>
+            <span>Alerts</span>
+        </a>
+        {% elif current_user.role == 'MD' %}
+        <a href="{{ url_for('manage_job_indents') }}" class="mobile-nav-item {% if 'indent' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-folder-open"></i>
+            <span>Indents</span>
+        </a>
+        <a href="{{ url_for('ceo_job_cards') }}" class="mobile-nav-item {% if 'card' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-clipboard-check"></i>
+            <span>Job Cards</span>
+        </a>
+        <a href="{{ url_for('reports_page') }}" class="mobile-nav-item {% if 'report' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-chart-line"></i>
+            <span>Reports</span>
+        </a>
+        {% elif current_user.role == 'BD' %}
         <a href="{{ url_for('create_job_indent') }}" class="mobile-nav-item {% if request.endpoint == 'create_job_indent' %}active{% endif %}">
             <i class="fas fa-plus-circle"></i>
             <span>New Indent</span>
         </a>
-        {% elif current_user.role == 'PM' %}
-        <a href="{{ url_for('pm_projects') }}" class="mobile-nav-item {% if request.endpoint == 'pm_projects' %}active{% endif %}">
-            <i class="fas fa-project-diagram"></i>
-            <span>Projects</span>
+        <a href="{{ url_for('manage_job_indents') }}" class="mobile-nav-item {% if request.endpoint == 'manage_job_indents' %}active{% endif %}">
+            <i class="fas fa-folder-open"></i>
+            <span>Indents</span>
         </a>
-        {% else %}
-        <a href="{{ url_for('my_timesheets') }}" class="mobile-nav-item {% if request.endpoint == 'my_timesheets' %}active{% endif %}">
-            <i class="fas fa-tasks"></i>
-            <span>Tasks</span>
-        </a>
-        {% endif %}
-
-        <a href="{{ url_for('log_timesheet') }}" class="mobile-nav-item {% if request.endpoint == 'log_timesheet' %}active{% endif %}">
-            <i class="fas fa-clock"></i>
-            <span>Timesheet</span>
-        </a>
-
-        {% if current_user.role in ['Admin', 'BD', 'MD'] %}
-        <a href="{{ url_for('manage_clients') }}" class="mobile-nav-item {% if request.endpoint in ['manage_clients', 'create_client', 'edit_client'] %}active{% endif %}">
+        <a href="{{ url_for('manage_clients') }}" class="mobile-nav-item {% if 'client' in request.endpoint %}active{% endif %}">
             <i class="fas fa-building-user"></i>
             <span>Clients</span>
         </a>
         {% elif current_user.role == 'HR' %}
-        <a href="{{ url_for('manage_employees') }}" class="mobile-nav-item {% if request.endpoint == 'manage_employees' %}active{% endif %}">
+        <a href="{{ url_for('manage_employees') }}" class="mobile-nav-item {% if 'employee' in request.endpoint %}active{% endif %}">
             <i class="fas fa-users-cog"></i>
             <span>Staff</span>
         </a>
+        <a href="{{ url_for('verify_timesheets') }}" class="mobile-nav-item {% if request.endpoint == 'verify_timesheets' %}active{% endif %}">
+            <i class="fas fa-clipboard-check"></i>
+            <span>Review</span>
+        </a>
+        <a href="{{ url_for('reports_page') }}" class="mobile-nav-item {% if 'report' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-chart-line"></i>
+            <span>Reports</span>
+        </a>
+        {% elif current_user.role in ['Finance', 'FINANCE'] %}
+        <a href="{{ url_for('expenditure_categories') }}" class="mobile-nav-item {% if request.endpoint == 'expenditure_categories' %}active{% endif %}">
+            <i class="fas fa-tags"></i>
+            <span>Categories</span>
+        </a>
+        <a href="{{ url_for('reports_page') }}" class="mobile-nav-item {% if 'report' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-chart-line"></i>
+            <span>Reports</span>
+        </a>
+        <a href="{{ url_for('notifications') }}" class="mobile-nav-item {% if request.endpoint == 'notifications' %}active{% endif %}">
+            <i class="fas fa-bell"></i>
+            <span>Alerts</span>
+        </a>
+        {% elif current_user.role == 'PM' %}
+        <a href="{{ url_for('pm_manage_job_cards') }}" class="mobile-nav-item {% if 'card' in request.endpoint or 'project' in request.endpoint %}active{% endif %}">
+            <i class="fas fa-project-diagram"></i>
+            <span>Projects</span>
+        </a>
+        <a href="{{ url_for('log_timesheet') }}" class="mobile-nav-item {% if request.endpoint == 'log_timesheet' %}active{% endif %}">
+            <i class="fas fa-clock"></i>
+            <span>Timesheet</span>
+        </a>
+        <a href="{{ url_for('verify_timesheets') }}" class="mobile-nav-item {% if request.endpoint == 'verify_timesheets' %}active{% endif %}">
+            <i class="fas fa-clipboard-check"></i>
+            <span>Approve</span>
+        </a>
         {% else %}
+        <a href="{{ url_for('my_timesheets') }}" class="mobile-nav-item {% if request.endpoint == 'my_timesheets' %}active{% endif %}">
+            <i class="fas fa-history"></i>
+            <span>History</span>
+        </a>
+        <a href="{{ url_for('log_timesheet') }}" class="mobile-nav-item {% if request.endpoint == 'log_timesheet' %}active{% endif %}">
+            <i class="fas fa-clock"></i>
+            <span>Timesheet</span>
+        </a>
         <a href="{{ url_for('notifications') }}" class="mobile-nav-item {% if request.endpoint == 'notifications' %}active{% endif %}">
             <i class="fas fa-bell"></i>
             <span>Alerts</span>
@@ -1649,6 +1839,20 @@
             } catch(e) {}
         }
 
+        function openMobileSidebar() {
+            sidebar.classList.add('show');
+            sidebarBackdrop.classList.add('show');
+            document.body.classList.add('mobile-drawer-open');
+        }
+
+        function closeSidebarDrawer() {
+            if (window.innerWidth <= 992) {
+                sidebar.classList.remove('show');
+                sidebarBackdrop.classList.remove('show');
+                document.body.classList.remove('mobile-drawer-open');
+            }
+        }
+
         function toggleSidebarDrawer() {
             if (window.innerWidth > 992) {
                 // Desktop: collapse / open sidebar
@@ -1658,15 +1862,11 @@
                 } catch(e) {}
             } else {
                 // Mobile: drawer toggle
-                sidebar.classList.toggle('show');
-                sidebarBackdrop.classList.toggle('show');
-            }
-        }
-
-        function closeSidebarDrawer() {
-            if (window.innerWidth <= 992) {
-                sidebar.classList.remove('show');
-                sidebarBackdrop.classList.remove('show');
+                if (sidebar.classList.contains('show')) {
+                    closeSidebarDrawer();
+                } else {
+                    openMobileSidebar();
+                }
             }
         }
 
@@ -1688,6 +1888,16 @@
             mobileBottomMenuBtn.addEventListener('click', toggleSidebarDrawer);
         }
 
+        // Reset mobile drawer state when resizing back to desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 992) {
+                sidebar.classList.remove('show');
+                sidebarBackdrop.classList.remove('show');
+                document.body.classList.remove('mobile-drawer-open');
+            }
+            refreshTableSwipeCues();
+        });
+
         // Auto-close sidebar drawer on link click on mobile viewports
         document.querySelectorAll('.app-sidebar a:not([data-bs-toggle])').forEach(function(link) {
             link.addEventListener('click', function() {
@@ -1697,25 +1907,31 @@
             });
         });
 
-        // Touch Swipe gestures to open / close mobile drawer
+        // Touch Swipe gestures to open / close mobile drawer (guards against accidental table/scroll swipes)
         let touchStartX = 0;
-        let touchEndX = 0;
+        let touchStartY = 0;
+        let touchTargetInScrollable = false;
         document.addEventListener('touchstart', function(e) {
             touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+            touchTargetInScrollable = Boolean(e.target && e.target.closest('.table-responsive, .nav-tabs, .nav-pills, .hr-pill-tabs, .dashboard-landscape-nav, input, select, textarea'));
         }, { passive: true });
 
         document.addEventListener('touchend', function(e) {
-            touchEndX = e.changedTouches[0].screenX;
-            if (window.innerWidth <= 992) {
-                // Swipe right from left screen edge to open
-                if (touchEndX - touchStartX > 80 && touchStartX < 40) {
-                    sidebar.classList.add('show');
-                    sidebarBackdrop.classList.add('show');
-                }
-                // Swipe left on open sidebar to close
-                if (touchStartX - touchEndX > 70 && sidebar.classList.contains('show')) {
-                    closeSidebarDrawer();
-                }
+            if (window.innerWidth > 992) return;
+            const touchEndX = e.changedTouches[0].screenX;
+            const touchEndY = e.changedTouches[0].screenY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = Math.abs(touchEndY - touchStartY);
+            if (deltaY > 55) return; // Vertical scroll gesture
+
+            // Swipe right strictly from left edge (when not inside a horizontal table/scroll strip)
+            if (deltaX > 75 && touchStartX < 28 && !touchTargetInScrollable && !sidebar.classList.contains('show')) {
+                openMobileSidebar();
+            }
+            // Swipe left on open sidebar to close
+            if (touchStartX - touchEndX > 65 && sidebar.classList.contains('show')) {
+                closeSidebarDrawer();
             }
         }, { passive: true });
 
@@ -1729,16 +1945,25 @@
             }
         });
 
-        // Add visual swipe cue for tables on mobile
-        document.querySelectorAll('.table-responsive').forEach(function(wrap) {
-            const table = wrap.querySelector('table');
-            if (table && (!wrap.previousElementSibling || !wrap.previousElementSibling.classList.contains('table-swipe-cue'))) {
-                const cue = document.createElement('div');
-                cue.className = 'table-swipe-cue';
-                cue.innerHTML = '<span><i class="fas fa-arrows-left-right text-success me-1"></i>Swipe table horizontally to see all columns</span><span class="badge bg-secondary-subtle text-secondary small" style="font-size:0.7rem;">Scrollable</span>';
-                wrap.parentNode.insertBefore(cue, wrap);
-            }
-        });
+        // Show visual swipe cue ONLY when a table actually overflows horizontally on mobile
+        function refreshTableSwipeCues() {
+            document.querySelectorAll('.table-responsive').forEach(function(wrap) {
+                const table = wrap.querySelector('table');
+                if (!table || table.classList.contains('mobile-stack-table') || wrap.classList.contains('no-swipe-cue')) return;
+                const existingCue = (wrap.previousElementSibling && wrap.previousElementSibling.classList.contains('table-swipe-cue')) ? wrap.previousElementSibling : null;
+                const needsScroll = window.innerWidth <= 992 && table.scrollWidth > (wrap.clientWidth + 4);
+                if (needsScroll && !existingCue) {
+                    const cue = document.createElement('div');
+                    cue.className = 'table-swipe-cue';
+                    cue.innerHTML = '<span><i class="fas fa-arrows-left-right text-success me-1"></i>Swipe table sideways for more columns</span><span class="badge bg-secondary-subtle text-secondary small" style="font-size:0.7rem;">Scrollable</span>';
+                    wrap.parentNode.insertBefore(cue, wrap);
+                } else if (!needsScroll && existingCue) {
+                    existingCue.remove();
+                }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', refreshTableSwipeCues);
+        setTimeout(refreshTableSwipeCues, 300);
 
         // Global Shortcut: Ctrl+K or Cmd+K focuses search
         document.addEventListener('keydown', function(e) {

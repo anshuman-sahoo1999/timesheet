@@ -1030,7 +1030,7 @@ def init_db():
                 'email': 'bd@ecometrix.co.in',
                 'role': 'BD',
                 'password': 'PMS@BD_2026',
-                'department_id': 16
+                'department_id': 3
             }
         ]
         for da in dept_accounts_init:
@@ -1042,6 +1042,7 @@ def init_db():
                 account.role = da['role']
                 account.department_id = da['department_id']
                 account.employment_type = 'DEPARTMENT'
+                account.is_active = True
                 account.set_password(da['password'])
             else:
                 account = Employee(
@@ -1056,9 +1057,15 @@ def init_db():
                 account.set_password(da['password'])
                 db.session.add(account)
 
-        bd_user = Employee.query.filter((Employee.emp_id == '150779') | (Employee.email == 'kaustubha.panda@ecometrix.co.in')).first()
-        if bd_user:
-            bd_user.role = 'BD'
+        # Ensure Kaustubha Panda is a standard employee in BD Department (not mapped to department account)
+        bd_emp = Employee.query.filter((Employee.emp_id == '150779') | (Employee.email == 'kaustubha.panda@ecometrix.co.in')).first()
+        if bd_emp:
+            bd_emp.role = 'EMP'
+            bd_emp.name = 'Kaustubha Panda'
+            bd_emp.email = 'kaustubha.panda@ecometrix.co.in'
+            bd_emp.department_id = 3
+            bd_emp.employment_type = 'REGULAR'
+            bd_emp.set_password('pms123')
 
         pm_user = Employee.query.filter((Employee.emp_id == '150405') | (Employee.email == 'anshuman.sahoo@ecometrix.co.in')).first()
         if pm_user:
@@ -1363,13 +1370,13 @@ def debug_env():
 # 2. HR (hr@ecometrix.co.in / DEPT_HR)
 # 3. IT (itsupport@ecometrix.co.in / DEPT_IT)
 # 4. Finance (accounts@ecometrix.co.in / DEPT_FIN)
-# 5. BD (bd@ecometrix.co.in / DEPT_BD / 150779)
+# 5. BD (bd@ecometrix.co.in / DEPT_BD)
 ALLOWED_ADMIN_ACCOUNTS = {
     'chinmay.tripathy@ecometrix.co.in', '15m006', 'admin@ecometrix.co.in', 'superadmin', 'admin',
     'hr@ecometrix.co.in', 'dept_hr', 'hradmin', 'hr',
     'itsupport@ecometrix.co.in', 'it@ecometrix.co.in', 'dept_it', 'itadmin', 'it',
     'accounts@ecometrix.co.in', 'finance@ecometrix.co.in', 'dept_fin', 'financeadmin', 'finance',
-    'bd@ecometrix.co.in', 'dept_bd', 'bdadmin', 'bd', 'kaustubha.panda@ecometrix.co.in', '150779'
+    'bd@ecometrix.co.in', 'dept_bd', 'bdadmin', 'bd'
 }
 
 @app.route('/', methods=['GET', 'POST'])
@@ -1420,12 +1427,10 @@ def login():
                     (Employee.email == 'accounts@ecometrix.co.in') | 
                     (Employee.emp_id == 'DEPT_FIN')
                 ).first()
-            elif ident_lower in ['bd@ecometrix.co.in', 'dept_bd', 'bdadmin', 'bd', 'kaustubha.panda@ecometrix.co.in', '150779']:
+            elif ident_lower in ['bd@ecometrix.co.in', 'dept_bd', 'bdadmin', 'bd']:
                 user = Employee.query.filter(
                     (Employee.email == 'bd@ecometrix.co.in') | 
-                    (Employee.emp_id == 'DEPT_BD') |
-                    (Employee.email == 'kaustubha.panda@ecometrix.co.in') |
-                    (Employee.role == 'BD')
+                    (Employee.emp_id == 'DEPT_BD')
                 ).first()
             else:
                 user = None
@@ -1442,7 +1447,7 @@ def login():
                     pwd_valid = True
                 elif user.emp_id == 'DEPT_FIN' and password == 'PMS@FIN_2026':
                     pwd_valid = True
-                elif (user.emp_id == 'DEPT_BD' or user.role == 'BD') and password in ['PMS@BD_2026', 'pms123']:
+                elif user.emp_id == 'DEPT_BD' and password in ['PMS@BD_2026', 'pms123']:
                     pwd_valid = True
 
             if user and pwd_valid:
@@ -4668,10 +4673,10 @@ def dashboard():
     if current_user.role in ['IT', 'IT_ADMIN']:
         # The 4 Master Accounts
         master_accounts = {
-            'CEO': Employee.query.filter(or_(Employee.role == 'MD', Employee.email == 'admin@ecometrix.co.in')).first(),
-            'BD': Employee.query.filter(or_(Employee.role == 'BD', Employee.email == 'bd@ecometrix.co.in')).first(),
-            'HR': Employee.query.filter(or_(Employee.role == 'HR', Employee.email == 'hr@ecometrix.co.in')).first(),
-            'FINANCE': Employee.query.filter(or_(Employee.role == 'FINANCE', Employee.email == 'finance@ecometrix.co.in')).first(),
+            'CEO': Employee.query.filter(or_(Employee.emp_id == '15M006', Employee.email == 'chinmay.tripathy@ecometrix.co.in', Employee.role == 'MD')).first(),
+            'BD': Employee.query.filter(or_(Employee.emp_id == 'DEPT_BD', Employee.email == 'bd@ecometrix.co.in')).first(),
+            'HR': Employee.query.filter(or_(Employee.emp_id == 'DEPT_HR', Employee.email == 'hr@ecometrix.co.in')).first(),
+            'FINANCE': Employee.query.filter(or_(Employee.emp_id == 'DEPT_FIN', Employee.email == 'accounts@ecometrix.co.in', Employee.email == 'finance@ecometrix.co.in')).first(),
         }
 
         # Activity & Security Logs
@@ -9572,13 +9577,13 @@ def api_it_update_master_credentials():
 
     master_user = None
     if master_key == 'CEO':
-        master_user = Employee.query.filter(or_(Employee.role == 'MD', Employee.email == 'admin@ecometrix.co.in')).first()
+        master_user = Employee.query.filter(or_(Employee.emp_id == '15M006', Employee.email == 'chinmay.tripathy@ecometrix.co.in', Employee.role == 'MD')).first()
     elif master_key == 'BD':
-        master_user = Employee.query.filter(or_(Employee.role == 'BD', Employee.email == 'bd@ecometrix.co.in')).first()
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_BD', Employee.email == 'bd@ecometrix.co.in')).first()
     elif master_key == 'HR':
-        master_user = Employee.query.filter(or_(Employee.role == 'HR', Employee.email == 'hr@ecometrix.co.in')).first()
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_HR', Employee.email == 'hr@ecometrix.co.in')).first()
     elif master_key in ['FINANCE', 'ACCOUNTS', 'FIN']:
-        master_user = Employee.query.filter(or_(Employee.role == 'FINANCE', Employee.email == 'finance@ecometrix.co.in')).first()
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_FIN', Employee.email == 'accounts@ecometrix.co.in', Employee.email == 'finance@ecometrix.co.in')).first()
 
     if not master_user:
         return jsonify({'success': False, 'message': f'Master account for {master_key} not found.'}), 404
@@ -9642,16 +9647,16 @@ def api_it_send_credentials_email():
     master_user = None
     title = master_key
     if master_key == 'CEO':
-        master_user = Employee.query.filter(or_(Employee.role == 'MD', Employee.email == 'admin@ecometrix.co.in')).first()
+        master_user = Employee.query.filter(or_(Employee.emp_id == '15M006', Employee.email == 'chinmay.tripathy@ecometrix.co.in', Employee.role == 'MD')).first()
         title = "CEO / Managing Director"
     elif master_key == 'BD':
-        master_user = Employee.query.filter(or_(Employee.role == 'BD', Employee.email == 'bd@ecometrix.co.in')).first()
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_BD', Employee.email == 'bd@ecometrix.co.in')).first()
         title = "Business Development Master"
     elif master_key == 'HR':
-        master_user = Employee.query.filter(or_(Employee.role == 'HR', Employee.email == 'hr@ecometrix.co.in')).first()
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_HR', Employee.email == 'hr@ecometrix.co.in')).first()
         title = "Human Resources Master"
     elif master_key in ['FINANCE', 'ACCOUNTS', 'FIN']:
-        master_user = Employee.query.filter(or_(Employee.role == 'FINANCE', Employee.email == 'finance@ecometrix.co.in')).first()
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_FIN', Employee.email == 'accounts@ecometrix.co.in', Employee.email == 'finance@ecometrix.co.in')).first()
         title = "Finance & Accounts Master"
 
     if not master_user:

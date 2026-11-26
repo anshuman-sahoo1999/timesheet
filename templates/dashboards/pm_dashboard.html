@@ -813,7 +813,7 @@
                         <label for="taskAssignees" class="form-label">Assignees</label>
                         <select class="form-control searchable-emp-select" id="taskAssignees" multiple required>
                             {% for member in team_performance %}
-                            <option value="{{ member.employee.id }}" data-emp-id="{{ member.employee.emp_id or '' }}">{{ member.employee.clean_name or member.employee.name }} ({{ member.employee.emp_id or 'N/A' }})</option>
+                            <option value="{{ member.employee.id }}" data-emp-id="{{ member.employee.emp_id or '' }}" data-dept="{{ member.employee.department.name if member.employee.department else 'General' }}">{{ member.employee.clean_name or member.employee.name }} ({{ member.employee.emp_id or 'N/A' }}) - {{ member.employee.designation or member.employee.role }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -873,7 +873,7 @@
                         <label for="editTaskAssignees" class="form-label">Assignees</label>
                         <select class="form-control searchable-emp-select" id="editTaskAssignees" multiple required>
                             {% for member in team_performance %}
-                            <option value="{{ member.employee.id }}" data-emp-id="{{ member.employee.emp_id or '' }}">{{ member.employee.clean_name or member.employee.name }} ({{ member.employee.emp_id or 'N/A' }})</option>
+                            <option value="{{ member.employee.id }}" data-emp-id="{{ member.employee.emp_id or '' }}" data-dept="{{ member.employee.department.name if member.employee.department else 'General' }}">{{ member.employee.clean_name or member.employee.name }} ({{ member.employee.emp_id or 'N/A' }}) - {{ member.employee.designation or member.employee.role }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -1167,7 +1167,10 @@ function editTask(taskId) {
                     const option = document.createElement('option');
                     option.value = emp.id;
                     option.setAttribute('data-emp-id', emp.emp_id || '');
-                    option.textContent = emp.emp_id ? `${emp.name} (${emp.emp_id})` : emp.name;
+                    option.setAttribute('data-dept', emp.department || 'General');
+                    const idStr = emp.emp_id ? ` (${emp.emp_id})` : '';
+                    const desigStr = emp.designation ? ` - ${emp.designation}` : '';
+                    option.textContent = `${emp.name}${idStr}${desigStr}`;
                     option.selected = task.assignees.some(a => a.id === emp.id);
                     assigneeSelect.appendChild(option);
                 });

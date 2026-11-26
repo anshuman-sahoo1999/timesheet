@@ -39,7 +39,7 @@
                     <select class="form-select searchable-emp-select" id="vtEmployeeFilter" onchange="filterVerifyTable()">
                         <option value="">All Employees</option>
                         {% for emp in employees %}
-                        <option value="{{ emp.clean_name or emp.name }}" data-emp-id="{{ emp.emp_id or '' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }})</option>
+                        <option value="{{ emp.clean_name or emp.name }}" data-emp-id="{{ emp.emp_id or '' }}" data-dept="{{ emp.department.name if emp.department else 'General' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }}) - {{ emp.designation or emp.role }}</option>
                         {% endfor %}
                     </select>
                 </div>

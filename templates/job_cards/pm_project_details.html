@@ -1285,7 +1285,7 @@
     const ALL_EMPLOYEES = [
         {% for emp in employees %}
         {% if emp.employment_type != 'DEPARTMENT' %}
-        { id: {{ emp.id }}, emp_id: {{ (emp.emp_id or '')|tojson }}, name: {{ (emp.clean_name or emp.name)|tojson }}, grade: {{ (emp.grade or 'S-1')|tojson }}, designation: {{ (emp.designation or '')|tojson }} },
+        { id: {{ emp.id }}, emp_id: {{ (emp.emp_id or '')|tojson }}, name: {{ (emp.clean_name or emp.name)|tojson }}, dept: {{ (emp.department.name if emp.department else 'General')|tojson }}, grade: {{ (emp.grade or 'S-1')|tojson }}, designation: {{ (emp.designation or '')|tojson }} },
         {% endif %}
         {% endfor %}
     ];
@@ -1479,8 +1479,8 @@
             let empOptions = `<option value="">Choose Employee...</option>`;
             ALL_EMPLOYEES.forEach(e => {
                 const sel = (res.employee_id && res.employee_id == e.id) ? 'selected' : '';
-                const label = e.emp_id ? `${e.name} (${e.emp_id} - ${e.grade})` : `${e.name} (${e.grade})`;
-                empOptions += `<option value="${e.id}" data-grade="${e.grade}" data-emp-id="${e.emp_id || ''}" ${sel}>${label}</option>`;
+                const label = e.emp_id ? `${e.name} (${e.emp_id}) - ${e.designation || e.grade}` : `${e.name} (${e.grade})`;
+                empOptions += `<option value="${e.id}" data-grade="${escapeHtml(e.grade)}" data-emp-id="${escapeHtml(e.emp_id || '')}" data-dept="${escapeHtml(e.dept || 'General')}" ${sel}>${escapeHtml(label)}</option>`;
             });
 
             // Build task tags

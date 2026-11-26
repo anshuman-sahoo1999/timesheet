@@ -615,6 +615,10 @@
                     <span class="online-dot" style="width: 8px; height: 8px; background: #34d399; border-radius: 50%; box-shadow: 0 0 8px #34d399;"></span>
                     Infrastructure Online
                 </span>
+                <button type="button" class="it-badge-pill border-0" onclick="switchItTab('emailer')" style="cursor: pointer; background: {{ 'rgba(16, 185, 129, 0.22)' if (not email_config or email_config.global_email_enabled) else 'rgba(239, 68, 68, 0.28)' }}; color: #ffffff;">
+                    <i class="fas {{ 'fa-envelope-circle-check text-success-subtle' if (not email_config or email_config.global_email_enabled) else 'fa-envelope-open text-warning' }}"></i>
+                    <span id="headerGlobalEmailPill">Emails: {{ 'ENABLED' if (not email_config or email_config.global_email_enabled) else 'DISABLED' }}</span>
+                </button>
                 <span class="it-badge-pill">
                     <i class="fas fa-user-lock"></i> IT Lead Auth
                 </span>
@@ -677,6 +681,13 @@
         <button type="button" class="it-tab-btn active" id="tabBtnMasters" onclick="switchItTab('masters')">
             <i class="fas fa-user-shield"></i>
             <span>Master Accounts Hub</span>
+        </button>
+        <button type="button" class="it-tab-btn" id="tabBtnEmailer" onclick="switchItTab('emailer')">
+            <i class="fas fa-envelope-open-text"></i>
+            <span>Master Emailer Control</span>
+            <span class="badge rounded-pill ms-1 {{ 'bg-success' if (not email_config or email_config.global_email_enabled) else 'bg-danger' }}" id="emailerGlobalNavBadge">
+                {{ 'ON' if (not email_config or email_config.global_email_enabled) else 'OFF' }}
+            </span>
         </button>
         <button type="button" class="it-tab-btn" id="tabBtnAuthTickets" onclick="switchItTab('authTickets')">
             <i class="fas fa-qrcode"></i>
@@ -1184,6 +1195,178 @@
             </div>
         </div>
     </div>
+
+    <!-- ================= TAB 5: MASTER EMAILER MANAGEMENT ================= -->
+    <div id="paneEmailer" class="it-pane" style="display: none;">
+        <!-- Global Master Email Control Card -->
+        {% set is_global_on = (not email_config or email_config.global_email_enabled) %}
+        <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" id="globalEmailMasterCard" style="border: 2px solid {{ '#bbf7d0' if is_global_on else '#fecaca' }} !important;">
+            <div class="card-body p-3 p-md-4 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3" style="background: {{ '#f0fdf4' if is_global_on else '#fef2f2' }};">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px; background: {{ '#16a34a' if is_global_on else '#dc2626' }}; color: #fff; font-size: 1.25rem;" id="globalEmailIconBox">
+                        <i class="fas {{ 'fa-envelope-circle-check' if is_global_on else 'fa-ban' }}" id="globalEmailIcon"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h5 class="fw-bold mb-0 text-dark">Master System Automated Email Switch</h5>
+                            <span class="badge rounded-pill {{ 'bg-success' if is_global_on else 'bg-danger' }}" id="globalEmailStatusBadge">
+                                {{ 'ALL AUTOMATED EMAILS ENABLED' if is_global_on else 'ALL AUTOMATED EMAILS DISABLED' }}
+                            </span>
+                        </div>
+                        <p class="text-muted small mb-0 mt-1" id="globalEmailDesc">
+                            {% if is_global_on %}
+                            Automated workflow &amp; reminder emails are active. Individual steps below follow their per-step switches.
+                            {% else %}
+                            Master Override Active: NO automated emails will be communicated to anybody at any step until re-enabled.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-3 flex-shrink-0">
+                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="globalEmailMasterSwitch" style="width: 3.4em; height: 1.7em; cursor: pointer;" {{ 'checked' if is_global_on else '' }} onchange="toggleGlobalEmailMaster(this)">
+                        <label class="form-check-label fw-bold {{ 'text-success' if is_global_on else 'text-danger' }}" for="globalEmailMasterSwitch" id="globalEmailSwitchLabel">
+                            {{ 'Enabled' if is_global_on else 'Disabled' }}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per-Step Emailer Controls & Dynamic Template Editor -->
+        <div class="it-table-card">
+            <div class="it-table-header">
+                <div>
+                    <h6 class="fw-bold mb-0" style="color: #0f172a;">
+                        <i class="fas fa-sliders-h text-teal me-2" style="color: #0d9488;"></i>Workflow Step Emailer Master &amp; Content Editor
+                    </h6>
+                    <small class="text-muted">Enable/Disable specific steps and customize subject or message grammar while keeping dynamic placeholders intact.</small>
+                </div>
+                <div class="d-flex flex-wrap gap-2 w-100 w-md-auto mt-2 mt-md-0">
+                    <select class="it-select-filter" id="emailerCategoryFilter" onchange="filterEmailerSteps()">
+                        <option value="">All Categories</option>
+                        <option value="Job Indents">Job Indents</option>
+                        <option value="Job Cards">Job Cards</option>
+                        <option value="Timesheets">Timesheets</option>
+                        <option value="Project & Digest">Project &amp; Digest</option>
+                        <option value="IT & Auth">IT &amp; Auth</option>
+                    </select>
+                    <input type="text" class="it-select-filter" id="emailerStepSearch" placeholder="Search workflow step..." oninput="filterEmailerSteps()" style="min-width: 210px;">
+                </div>
+            </div>
+
+            <div class="p-3 p-md-4">
+                <div class="row g-3" id="emailerStepsGrid">
+                    {% for tpl in email_templates %}
+                    <div class="col-12 col-lg-6 emailer-step-col" data-category="{{ tpl.category }}" data-search="{{ (tpl.step_name ~ ' ' ~ tpl.category ~ ' ' ~ tpl.step_key ~ ' ' ~ (tpl.description or ''))|lower }}">
+                        <div class="card h-100 border rounded-3 shadow-sm emailer-step-card {{ '' if tpl.is_enabled else 'opacity-75 bg-light' }}" id="stepCard_{{ tpl.step_key }}" style="border-color: {{ '#cbd5e1' if tpl.is_enabled else '#fca5a5' }} !important;">
+                            <div class="card-body p-3 d-flex flex-column justify-content-between gap-2">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                        <div>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-1" style="font-size: 0.72rem;">{{ tpl.category }}</span>
+                                            <h6 class="fw-bold mb-1 text-dark" style="font-size: 0.96rem;">{{ tpl.step_name }}</h6>
+                                            <p class="text-muted small mb-2" style="font-size: 0.8rem;">{{ tpl.description }}</p>
+                                        </div>
+                                        <div class="form-check form-switch m-0 flex-shrink-0">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="stepSwitch_{{ tpl.step_key }}" style="width: 2.6em; height: 1.35em; cursor: pointer;" {{ 'checked' if tpl.is_enabled else '' }} onchange="toggleStepEmail('{{ tpl.step_key }}', this)">
+                                        </div>
+                                    </div>
+                                    <div class="p-2 rounded-2 bg-light border small mb-2">
+                                        <div class="text-muted fw-semibold" style="font-size: 0.7rem;">SUBJECT TEMPLATE:</div>
+                                        <div class="text-dark fw-semibold text-truncate" id="stepSubjectPreview_{{ tpl.step_key }}">{{ tpl.subject_template }}</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top">
+                                    <span class="badge rounded-pill {{ 'bg-success-subtle text-success border border-success-subtle' if tpl.is_enabled else 'bg-danger-subtle text-danger border border-danger-subtle' }}" id="stepStatusBadge_{{ tpl.step_key }}">
+                                        {{ 'Step Enabled' if tpl.is_enabled else 'Step Disabled' }}
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                                            onclick='openEmailTemplateModal({{ {
+                                                "step_key": tpl.step_key,
+                                                "step_name": tpl.step_name,
+                                                "category": tpl.category,
+                                                "is_enabled": tpl.is_enabled,
+                                                "subject_template": tpl.subject_template,
+                                                "body_template": tpl.body_template,
+                                                "available_placeholders": tpl.available_placeholders or ""
+                                            }|tojson }})'>
+                                        <i class="fas fa-pen-to-square me-1"></i> Edit Content &amp; Grammar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= EDIT EMAIL TEMPLATE MODAL ================= -->
+<div class="modal fade" id="emailTemplateEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-dark text-white py-3 px-4">
+                <div>
+                    <span class="badge bg-info text-dark mb-1" id="tplModalCategory">Category</span>
+                    <h6 class="modal-title fw-bold mb-0" id="tplModalStepName">Edit Email Content</h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 p-md-4 bg-light bg-opacity-50">
+                <input type="hidden" id="tplEditStepKey">
+                <div class="d-flex justify-content-between align-items-center p-3 bg-white rounded-3 border mb-3 flex-wrap gap-2">
+                    <div>
+                        <strong class="text-dark d-block" style="font-size: 0.9rem;">Enable This Email Step</strong>
+                        <small class="text-muted">Only sends when Global System Email is also Enabled.</small>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="tplEditEnabled" style="width: 2.8em; height: 1.45em; cursor: pointer;">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-secondary">Dynamic Placeholders (Click to insert at cursor)</label>
+                    <div class="d-flex flex-wrap gap-1 p-2 bg-white border rounded-3" id="tplPlaceholdersBox"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="tplEditSubject" class="form-label fw-bold small text-dark">Email Subject</label>
+                    <input type="text" class="form-control" id="tplEditSubject" oninput="refreshEmailSamplePreview()">
+                </div>
+
+                <div class="mb-3">
+                    <label for="tplEditBody" class="form-label fw-bold small text-dark">Email Message Content (HTML or Plain Text)</label>
+                    <textarea class="form-control font-monospace" id="tplEditBody" rows="7" style="font-size: 0.85rem;" oninput="refreshEmailSamplePreview()"></textarea>
+                </div>
+
+                <div class="card border rounded-3 overflow-hidden">
+                    <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
+                        <span class="small fw-bold text-secondary"><i class="fas fa-eye text-success me-1"></i>Dynamic Sample Preview</span>
+                        <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">Example values substituted live</span>
+                    </div>
+                    <div class="card-body bg-white p-3">
+                        <div class="small text-muted mb-1">Subject: <strong class="text-dark" id="tplPreviewSubject"></strong></div>
+                        <hr class="my-2">
+                        <div id="tplPreviewBody" style="font-size: 0.88rem;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top py-3 px-4 d-flex flex-wrap justify-content-between gap-2">
+                <button type="button" class="btn btn-outline-warning btn-sm px-3 rounded-pill" onclick="resetEmailTemplate()">
+                    <i class="fas fa-rotate-left me-1"></i> Reset Default
+                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light border btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success btn-sm px-4 rounded-pill fw-bold" id="btnSaveEmailTpl" onclick="saveEmailTemplate()">
+                        <i class="fas fa-save me-1"></i> Save Content
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ================= CONFIRM PURGE MODAL ================= -->
@@ -1287,6 +1470,12 @@
             document.getElementById('paneMasters').style.display = 'block';
             document.getElementById('tabBtnMasters').classList.add('active');
             window.location.hash = 'masters';
+        } else if (tabName === 'emailer') {
+            const paneE = document.getElementById('paneEmailer');
+            const btnE = document.getElementById('tabBtnEmailer');
+            if (paneE) paneE.style.display = 'block';
+            if (btnE) btnE.classList.add('active');
+            window.location.hash = 'emailer';
         } else if (tabName === 'authTickets') {
             document.getElementById('paneAuthTickets').style.display = 'block';
             document.getElementById('tabBtnAuthTickets').classList.add('active');
@@ -1311,6 +1500,309 @@
             sideActivity.classList.toggle('active', tabName === 'activity');
             sideProjects.classList.toggle('active', tabName === 'projects');
         }
+    }
+
+    // Master Emailer Management State & Controllers
+    const EMAILER_TEMPLATES_MAP = {
+        {% for tpl in email_templates %}
+        {{ tpl.step_key|tojson }}: {
+            step_key: {{ tpl.step_key|tojson }},
+            step_name: {{ tpl.step_name|tojson }},
+            category: {{ tpl.category|tojson }},
+            is_enabled: {{ tpl.is_enabled|tojson }},
+            subject_template: {{ tpl.subject_template|tojson }},
+            body_template: {{ tpl.body_template|tojson }},
+            available_placeholders: {{ (tpl.available_placeholders or '')|tojson }}
+        },
+        {% endfor %}
+    };
+    let lastFocusedEmailField = null;
+
+    function toggleGlobalEmailMaster(chk) {
+        const enabled = Boolean(chk.checked);
+        fetch('/api/it/emailer/global-toggle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ enabled: enabled })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                chk.checked = !enabled;
+                showToast('danger', 'Update Failed', data.message || 'Unable to update Global Email setting.');
+                return;
+            }
+            const card = document.getElementById('globalEmailMasterCard');
+            const body = card ? card.querySelector('.card-body') : null;
+            const iconBox = document.getElementById('globalEmailIconBox');
+            const icon = document.getElementById('globalEmailIcon');
+            const badge = document.getElementById('globalEmailStatusBadge');
+            const desc = document.getElementById('globalEmailDesc');
+            const lbl = document.getElementById('globalEmailSwitchLabel');
+            const navBadge = document.getElementById('emailerGlobalNavBadge');
+            const headerPill = document.getElementById('headerGlobalEmailPill');
+
+            if (enabled) {
+                if (card) card.style.setProperty('border', '2px solid #bbf7d0', 'important');
+                if (body) body.style.background = '#f0fdf4';
+                if (iconBox) iconBox.style.background = '#16a34a';
+                if (icon) icon.className = 'fas fa-envelope-circle-check';
+                if (badge) { badge.className = 'badge rounded-pill bg-success'; badge.textContent = 'ALL AUTOMATED EMAILS ENABLED'; }
+                if (desc) desc.textContent = 'Automated workflow & reminder emails are active. Individual steps below follow their per-step switches.';
+                if (lbl) { lbl.className = 'form-check-label fw-bold text-success'; lbl.textContent = 'Enabled'; }
+                if (navBadge) { navBadge.className = 'badge rounded-pill ms-1 bg-success'; navBadge.textContent = 'ON'; }
+                if (headerPill) headerPill.textContent = 'Emails: ENABLED';
+            } else {
+                if (card) card.style.setProperty('border', '2px solid #fecaca', 'important');
+                if (body) body.style.background = '#fef2f2';
+                if (iconBox) iconBox.style.background = '#dc2626';
+                if (icon) icon.className = 'fas fa-ban';
+                if (badge) { badge.className = 'badge rounded-pill bg-danger'; badge.textContent = 'ALL AUTOMATED EMAILS DISABLED'; }
+                if (desc) desc.textContent = 'Master Override Active: NO automated emails will be communicated to anybody at any step until re-enabled.';
+                if (lbl) { lbl.className = 'form-check-label fw-bold text-danger'; lbl.textContent = 'Disabled'; }
+                if (navBadge) { navBadge.className = 'badge rounded-pill ms-1 bg-danger'; navBadge.textContent = 'OFF'; }
+                if (headerPill) headerPill.textContent = 'Emails: DISABLED';
+            }
+            showToast(enabled ? 'success' : 'danger', 'Master Email Switch', data.message);
+        })
+        .catch(() => {
+            chk.checked = !enabled;
+            showToast('danger', 'Network Error', 'Failed to save global email setting.');
+        });
+    }
+
+    function applyStepCardVisualState(stepKey, enabled) {
+        const card = document.getElementById(`stepCard_${stepKey}`);
+        const badge = document.getElementById(`stepStatusBadge_${stepKey}`);
+        const sw = document.getElementById(`stepSwitch_${stepKey}`);
+        if (sw) sw.checked = enabled;
+        if (card) {
+            card.classList.toggle('opacity-75', !enabled);
+            card.classList.toggle('bg-light', !enabled);
+            card.style.setProperty('border-color', enabled ? '#cbd5e1' : '#fca5a5', 'important');
+        }
+        if (badge) {
+            badge.className = enabled
+                ? 'badge rounded-pill bg-success-subtle text-success border border-success-subtle'
+                : 'badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle';
+            badge.textContent = enabled ? 'Step Enabled' : 'Step Disabled';
+        }
+    }
+
+    function toggleStepEmail(stepKey, chk) {
+        const enabled = Boolean(chk.checked);
+        fetch(`/api/it/emailer/step/${encodeURIComponent(stepKey)}/toggle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ is_enabled: enabled })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                chk.checked = !enabled;
+                showToast('danger', 'Toggle Failed', data.message || 'Unable to update step.');
+                return;
+            }
+            if (EMAILER_TEMPLATES_MAP[stepKey]) EMAILER_TEMPLATES_MAP[stepKey].is_enabled = enabled;
+            applyStepCardVisualState(stepKey, enabled);
+            showToast(enabled ? 'success' : 'info', 'Email Step Updated', data.message);
+        })
+        .catch(() => {
+            chk.checked = !enabled;
+            showToast('danger', 'Network Error', 'Unable to update step status.');
+        });
+    }
+
+    function filterEmailerSteps() {
+        const cat = (document.getElementById('emailerCategoryFilter')?.value || '').trim();
+        const q = (document.getElementById('emailerStepSearch')?.value || '').trim().toLowerCase();
+        document.querySelectorAll('.emailer-step-col').forEach(col => {
+            const c = col.getAttribute('data-category') || '';
+            const s = col.getAttribute('data-search') || '';
+            const show = (!cat || c === cat) && (!q || s.includes(q));
+            col.style.display = show ? '' : 'none';
+        });
+    }
+
+    function openEmailTemplateModal(tplOrKey) {
+        const key = typeof tplOrKey === 'string' ? tplOrKey : tplOrKey.step_key;
+        const tpl = EMAILER_TEMPLATES_MAP[key] || tplOrKey;
+        document.getElementById('tplEditStepKey').value = tpl.step_key;
+        document.getElementById('tplModalCategory').textContent = tpl.category;
+        document.getElementById('tplModalStepName').textContent = tpl.step_name;
+        document.getElementById('tplEditEnabled').checked = Boolean(tpl.is_enabled);
+        document.getElementById('tplEditSubject').value = tpl.subject_template || '';
+        document.getElementById('tplEditBody').value = tpl.body_template || '';
+
+        const phBox = document.getElementById('tplPlaceholdersBox');
+        phBox.innerHTML = '';
+        const list = (tpl.available_placeholders || '').split(',').map(x => x.trim()).filter(Boolean);
+        if (list.length === 0) {
+            phBox.innerHTML = '<span class="small text-muted">No dynamic variables defined for this step.</span>';
+        } else {
+            list.forEach(token => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-xs btn-outline-secondary font-monospace py-0 px-2';
+                btn.style.fontSize = '0.75rem';
+                btn.textContent = token;
+                btn.onclick = () => insertPlaceholderToken(token);
+                phBox.appendChild(btn);
+            });
+        }
+
+        const subjEl = document.getElementById('tplEditSubject');
+        const bodyEl = document.getElementById('tplEditBody');
+        subjEl.onfocus = () => { lastFocusedEmailField = subjEl; };
+        bodyEl.onfocus = () => { lastFocusedEmailField = bodyEl; };
+        lastFocusedEmailField = bodyEl;
+
+        refreshEmailSamplePreview();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('emailTemplateEditorModal')).show();
+    }
+
+    function insertPlaceholderToken(token) {
+        const target = lastFocusedEmailField || document.getElementById('tplEditBody');
+        if (!target) return;
+        const start = target.selectionStart || 0;
+        const end = target.selectionEnd || 0;
+        const val = target.value || '';
+        target.value = val.slice(0, start) + token + val.slice(end);
+        target.focus();
+        target.selectionStart = target.selectionEnd = start + token.length;
+        refreshEmailSamplePreview();
+    }
+
+    function refreshEmailSamplePreview() {
+        const sample = {
+            project_name: 'Smart GIS Drainage Survey',
+            file_number: 'ENG/EMC/014',
+            client_name: 'Municipal Corporation',
+            department_name: 'Engineering',
+            creator_name: 'Kaustubha Panda',
+            pm_name: 'Anshuman Sahoo',
+            employee_name: 'Rahul Sharma',
+            emp_id: '150405',
+            recipient_name: 'Project Manager',
+            approver_name: 'Chinmaya Tripathy (CEO)',
+            remarks: 'Approved for immediate execution.',
+            remarks_html: '<p><b>CEO Remarks:</b> Approved for immediate execution.</p>',
+            change_type: 'Timeline Extension',
+            title: 'Extend Survey Phase by 15 Days',
+            description: 'Additional field survey sites requested by client.',
+            revised_budget: '₹ 4,50,000',
+            revised_end_date: '31-Dec-2026',
+            estimated_value: '₹ 4,20,000',
+            grand_total: '₹ 4,85,000.00',
+            contract_value: '₹ 6,50,000.00',
+            budget_summary_html: '<p><b>Estimated Budget Grand Total:</b> ₹ 4,85,000.00</p>',
+            task_description: 'GIS Parcel Digitization & QA',
+            week_range: '23 Nov – 27 Nov 2026',
+            month_name: 'November 2026',
+            missed_count: '2',
+            missed_dates_list: '<li>24-Nov-2026 (Tuesday)</li><li>25-Nov-2026 (Wednesday)</li>',
+            total_hours: '40.0 hrs',
+            status: 'CEO Approved',
+            reason: 'Please add task-level breakups.',
+            deadline_date: '05-Dec-2026',
+            portal_url: window.location.origin + '/login',
+            ticket_id: '42',
+            otp_code: '654321',
+            email: 'hr@ecometrix.co.in',
+            total_projects: '18',
+            active_projects: '11',
+            completed_projects: '5',
+            pending_approvals: '2',
+            submitted_timesheets: '34',
+            approved_timesheets: '29'
+        };
+        const subRaw = document.getElementById('tplEditSubject')?.value || '';
+        const bodyRaw = document.getElementById('tplEditBody')?.value || '';
+        const replaceVars = str => str.replace(/\{([a-zA-Z0-9_]+)\}/g, (m, k) => (k in sample ? sample[k] : m));
+        document.getElementById('tplPreviewSubject').textContent = replaceVars(subRaw);
+        document.getElementById('tplPreviewBody').innerHTML = replaceVars(bodyRaw);
+    }
+
+    function saveEmailTemplate() {
+        const stepKey = document.getElementById('tplEditStepKey').value;
+        const subject = document.getElementById('tplEditSubject').value.trim();
+        const body = document.getElementById('tplEditBody').value.trim();
+        const isEnabled = document.getElementById('tplEditEnabled').checked;
+        if (!subject || !body) {
+            showToast('danger', 'Validation Error', 'Subject and Message Content are required.');
+            return;
+        }
+        const btn = document.getElementById('btnSaveEmailTpl');
+        btn.disabled = true;
+        fetch(`/api/it/emailer/step/${encodeURIComponent(stepKey)}/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                subject_template: subject,
+                body_template: body,
+                is_enabled: isEnabled
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            if (!data.success) {
+                showToast('danger', 'Save Failed', data.message || 'Unable to save template.');
+                return;
+            }
+            if (EMAILER_TEMPLATES_MAP[stepKey]) {
+                EMAILER_TEMPLATES_MAP[stepKey].subject_template = data.subject_template;
+                EMAILER_TEMPLATES_MAP[stepKey].body_template = data.body_template;
+                EMAILER_TEMPLATES_MAP[stepKey].is_enabled = data.is_enabled;
+            }
+            const previewEl = document.getElementById(`stepSubjectPreview_${stepKey}`);
+            if (previewEl) previewEl.textContent = data.subject_template;
+            applyStepCardVisualState(stepKey, data.is_enabled);
+            bootstrap.Modal.getInstance(document.getElementById('emailTemplateEditorModal'))?.hide();
+            showToast('success', 'Emailer Template Saved', data.message);
+        })
+        .catch(() => {
+            btn.disabled = false;
+            showToast('danger', 'Network Error', 'Failed to communicate with server.');
+        });
+    }
+
+    function resetEmailTemplate() {
+        const stepKey = document.getElementById('tplEditStepKey').value;
+        if (!confirm('Reset this email subject and message body back to default wording?')) return;
+        fetch(`/api/it/emailer/step/${encodeURIComponent(stepKey)}/reset`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                showToast('danger', 'Reset Failed', data.message || 'Unable to reset.');
+                return;
+            }
+            document.getElementById('tplEditSubject').value = data.subject_template;
+            document.getElementById('tplEditBody').value = data.body_template;
+            if (EMAILER_TEMPLATES_MAP[stepKey]) {
+                EMAILER_TEMPLATES_MAP[stepKey].subject_template = data.subject_template;
+                EMAILER_TEMPLATES_MAP[stepKey].body_template = data.body_template;
+            }
+            const previewEl = document.getElementById(`stepSubjectPreview_${stepKey}`);
+            if (previewEl) previewEl.textContent = data.subject_template;
+            refreshEmailSamplePreview();
+            showToast('info', 'Reset Complete', data.message);
+        });
     }
 
     // Toggle Password Visibility
@@ -1673,7 +2165,7 @@
     // Check initial hash on page load
     document.addEventListener('DOMContentLoaded', function() {
         const hash = window.location.hash.replace('#', '');
-        if (hash === 'activity' || hash === 'projects') {
+        if (['activity', 'projects', 'emailer', 'authTickets', 'masters'].includes(hash)) {
             switchItTab(hash);
         } else {
             switchItTab('masters');

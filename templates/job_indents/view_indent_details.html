@@ -185,6 +185,9 @@
         .project-header-card {
             padding: 18px 16px;
         }
+        .project-header-card h2 {
+            font-size: 1.35rem !important;
+        }
         .metric-card {
             padding: 14px 12px;
         }
@@ -193,9 +196,17 @@
         }
         .analytics-card .card-header {
             padding: 12px 14px;
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 8px;
         }
         .analytics-card .card-body {
             padding: 14px;
+        }
+        .table-custom-budget th,
+        .table-custom-budget td {
+            padding: 10px 8px;
+            font-size: 0.8rem;
         }
     }
 </style>
@@ -242,52 +253,11 @@
         </div>
     </div>
 
-    <!-- Action Required: CEO Approval & PM Assignment (Placed at Top of Job Indent) -->
-    {% if current_user.role == 'MD' and indent.status == 'Pending Approval' %}
-    <div class="analytics-card border-warning mb-4" id="ceoPmAssignmentCard">
-        <div class="card-header bg-warning-subtle text-warning-emphasis d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fs-6 fw-bold">
-                <i class="fas fa-user-shield me-2"></i>Action Required: CEO Approval &amp; PM Assignment
-            </h5>
-            <span class="badge bg-warning text-dark">Pending CEO Action</span>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('process_indent', indent_id=indent.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <input type="hidden" name="action" value="approve">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="project_manager" class="form-label fw-bold small text-muted">Assign Project Manager (Search by Name or Emp ID)</label>
-                        <select class="form-select searchable-emp-select" id="project_manager" name="project_manager_id" required data-search-placeholder="Type PM name or Employee ID...">
-                            <option value="">Choose PM from staff list...</option>
-                            {% for pm in project_managers %}
-                            <option value="{{ pm.id }}" data-emp-id="{{ pm.emp_id or '' }}">{{ pm.clean_name or pm.name }} ({{ pm.emp_id or 'N/A' }}) - {{ pm.designation or 'Team Member' }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="comments" class="form-label fw-bold small text-muted">Approval Remarks (Optional)</label>
-                        <textarea class="form-control" id="comments" name="comments" rows="2" placeholder="Enter comments or special instructions..."></textarea>
-                    </div>
-                    <div class="col-12 mt-2 d-flex gap-2 flex-wrap">
-                        <button type="submit" name="action" value="approve" class="btn btn-success">
-                            <i class="fas fa-check-circle me-1"></i> Approve Indent &amp; Assign PM
-                        </button>
-                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
-                            <i class="fas fa-times-circle me-1"></i> Reject Indent
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-
     <!-- Project Header Banner -->
     <div class="project-header-card">
         <div class="row align-items-center g-3">
             <div class="col-lg-8">
-                <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
                     <span class="badge bg-light text-dark font-monospace px-2 py-1" style="font-size: 0.85rem;">
                         {{ indent.file_number }}
                     </span>
@@ -301,11 +271,11 @@
                     {% endif %}
                 </div>
                 <h2 class="mb-1 fw-bold text-white fs-3">{{ indent.project_name }}</h2>
-                <div class="text-white-50 d-flex flex-wrap gap-3 small align-items-center mt-2">
+                <div class="text-white-50 d-flex flex-wrap gap-2 gap-md-3 small align-items-center mt-2">
                     <span><i class="far fa-building me-1 text-emerald-400"></i><strong>Client:</strong> {{ indent.client_name }}</span>
-                    <span>•</span>
+                    <span class="d-none d-sm-inline">•</span>
                     <span><i class="fas fa-sitemap me-1"></i><strong>Department:</strong> {{ indent.department.name if indent.department else 'General Administration' }}</span>
-                    <span>•</span>
+                    <span class="d-none d-sm-inline">•</span>
                     <span><i class="fas fa-user-tie me-1"></i><strong>Created By:</strong> {{ indent.creator.name if indent.creator else 'System' }}</span>
                 </div>
             </div>
@@ -327,13 +297,13 @@
 
     <!-- Project Attached Documents & Contracts Card -->
     <div class="analytics-card mb-4" style="border-radius: 14px; border: 1px solid #e2e8f0; background: #ffffff;">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 border-bottom">
             <div class="d-flex align-items-center gap-2">
-                <div class="p-2 rounded-3 bg-primary-subtle text-primary">
+                <div class="p-2 rounded-3 bg-primary-subtle text-primary flex-shrink-0">
                     <i class="fas fa-folder-open fa-lg"></i>
                 </div>
                 <div>
-                    <h5 class="mb-0 fs-6 fw-bold text-dark">Authorized Project Documents & Contracts</h5>
+                    <h5 class="mb-0 fs-6 fw-bold text-dark">Authorized Project Documents &amp; Contracts</h5>
                     <small class="text-muted">Official documents registered for project execution. Click preview to inspect in in-screen pop-up modal.</small>
                 </div>
             </div>
@@ -405,6 +375,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Action Required: CEO Approval & PM Assignment (Placed right under Authorized Project Documents & Contracts) -->
+    {% if current_user.role == 'MD' and indent.status == 'Pending Approval' %}
+    <div class="analytics-card border-warning mb-4" id="ceoPmAssignmentCard">
+        <div class="card-header bg-warning-subtle text-warning-emphasis d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h5 class="mb-0 fs-6 fw-bold">
+                <i class="fas fa-user-shield me-2"></i>Action Required: CEO Approval &amp; PM Assignment
+            </h5>
+            <span class="badge bg-warning text-dark">Pending CEO Action</span>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('process_indent', indent_id=indent.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="action" value="approve">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label for="project_manager" class="form-label fw-bold small text-muted">Assign Project Manager (Department-wise &bull; Search Name or Emp ID)</label>
+                        <select class="form-select searchable-emp-select" id="project_manager" name="project_manager_id" required data-search-placeholder="Type Name, Emp ID, Designation or Dept...">
+                            <option value="">Choose PM from staff list...</option>
+                            {% for pm in project_managers %}
+                            <option value="{{ pm.id }}" data-emp-id="{{ pm.emp_id or '' }}" data-dept="{{ pm.department.name if pm.department else 'General' }}">{{ pm.clean_name or pm.name }} ({{ pm.emp_id or 'N/A' }}) - {{ pm.designation or 'Team Member' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="comments" class="form-label fw-bold small text-muted">Approval Remarks (Optional)</label>
+                        <textarea class="form-control" id="comments" name="comments" rows="2" placeholder="Enter comments or special instructions..."></textarea>
+                    </div>
+                    <div class="col-12 mt-2 d-flex flex-column flex-sm-row gap-2">
+                        <button type="submit" name="action" value="approve" class="btn btn-success">
+                            <i class="fas fa-check-circle me-1"></i> Approve Indent &amp; Assign PM
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                            <i class="fas fa-times-circle me-1"></i> Reject Indent
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Core Metrics Overview Grid -->
     <div class="row g-3 mb-4">

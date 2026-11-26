@@ -168,7 +168,7 @@
                                         <option value="">-- Select Reporting Manager --</option>
                                         {% for mgr in managers %}
                                         {% if mgr.employment_type != 'DEPARTMENT' %}
-                                        <option value="{{ mgr.id }}" data-emp-id="{{ mgr.emp_id or '' }}" {% if emp.manager_id == mgr.id %}selected{% endif %}>{{ mgr.clean_name or mgr.name }} ({{ mgr.emp_id or 'N/A' }} - {{ mgr.designation or mgr.role }})</option>
+                                        <option value="{{ mgr.id }}" data-emp-id="{{ mgr.emp_id or '' }}" data-dept="{{ mgr.department.name if mgr.department else 'General' }}" {% if emp.manager_id == mgr.id %}selected{% endif %}>{{ mgr.clean_name or mgr.name }} ({{ mgr.emp_id or 'N/A' }}) - {{ mgr.designation or mgr.role }}</option>
                                         {% endif %}
                                         {% endfor %}
                                     </select>

@@ -722,7 +722,7 @@
                                 <option value="">Select Project Manager (Optional)</option>
                                 {% for emp in employees %}
                                     {% if emp.role in ['PM', 'EMP'] and emp.is_active and emp.employment_type != 'DEPARTMENT' %}
-                                    <option value="{{ emp.id }}" data-emp-id="{{ emp.emp_id or '' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }} - {{ emp.department.name if emp.department else 'General' }})</option>
+                                    <option value="{{ emp.id }}" data-emp-id="{{ emp.emp_id or '' }}" data-dept="{{ emp.department.name if emp.department else 'General' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }}) - {{ emp.designation or emp.role }}</option>
                                     {% endif %}
                                 {% endfor %}
                             </select>

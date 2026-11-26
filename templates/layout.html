@@ -1426,11 +1426,49 @@
             font-weight: 600;
             color: #047857;
         }
+        .emc-ss-group-header {
+            padding: 7px 10px 5px;
+            margin-top: 4px;
+            font-size: 0.74rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #0f766e;
+            background: #f0fdfa;
+            border-top: 1px solid #ccfbf1;
+            border-bottom: 1px solid #ccfbf1;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .emc-ss-group-header:first-child {
+            margin-top: 0;
+            border-top: none;
+        }
+        .emc-ss-option.is-grouped {
+            padding-left: 16px;
+        }
         .emc-ss-empty {
             padding: 14px 12px;
             text-align: center;
             color: #64748b;
             font-size: 0.82rem;
+        }
+        @media (max-width: 768px) {
+            .emc-ss-dropdown {
+                max-width: calc(100vw - 16px) !important;
+            }
+            .emc-ss-list {
+                max-height: min(240px, 42vh);
+            }
+            .emc-ss-option {
+                padding: 9px 10px;
+                font-size: 0.86rem;
+            }
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -2228,27 +2266,45 @@
                     list.innerHTML = '';
                     let matches = 0;
 
+                    const placeholderOpts = [];
+                    const groupedOpts = new Map();
+                    const flatOpts = [];
+
                     Array.from(sel.options).forEach(opt => {
                         if (opt.disabled && !opt.value && isMultiple) return;
                         const text = opt.textContent.trim();
                         const empId = (opt.getAttribute('data-emp-id') || '').trim();
+                        const dept = (opt.getAttribute('data-dept') || (opt.parentElement && opt.parentElement.tagName === 'OPTGROUP' ? opt.parentElement.label : '') || '').trim();
                         const extraSearch = (opt.getAttribute('data-search') || '').trim();
-                        const haystack = `${text} ${empId} ${extraSearch}`.toLowerCase();
+                        const haystack = `${text} ${empId} ${dept} ${extraSearch}`.toLowerCase();
 
                         if (terms.length > 0 && !terms.every(t => haystack.includes(t))) {
                             return;
                         }
                         matches++;
 
+                        if (!opt.value && !dept) {
+                            placeholderOpts.push(opt);
+                        } else if (dept) {
+                            if (!groupedOpts.has(dept)) groupedOpts.set(dept, []);
+                            groupedOpts.get(dept).push(opt);
+                        } else {
+                            flatOpts.push(opt);
+                        }
+                    });
+
+                    function buildOptionLi(opt, indented) {
+                        const text = opt.textContent.trim();
+                        const empId = (opt.getAttribute('data-emp-id') || '').trim();
                         const li = document.createElement('li');
-                        li.className = 'emc-ss-option' + (opt.selected ? ' is-selected' : '');
+                        li.className = 'emc-ss-option' + (opt.selected ? ' is-selected' : '') + (indented ? ' is-grouped' : '');
                         if (opt.disabled) {
                             li.style.opacity = '0.5';
                             li.style.pointerEvents = 'none';
                         }
 
                         const spanText = document.createElement('span');
-                        spanText.textContent = text;
+                        spanText.textContent = indented && opt.value ? `- ${text}` : text;
                         li.appendChild(spanText);
 
                         const rightMeta = document.createElement('span');
@@ -2283,9 +2339,27 @@
                                 closeActive();
                             }
                         });
+                        return li;
+                    }
 
-                        list.appendChild(li);
-                    });
+                    placeholderOpts.forEach(opt => list.appendChild(buildOptionLi(opt, false)));
+
+                    if (groupedOpts.size > 0) {
+                        const sortedDepts = Array.from(groupedOpts.keys()).sort((a, b) => a.localeCompare(b));
+                        sortedDepts.forEach(deptName => {
+                            const items = groupedOpts.get(deptName).slice().sort((a, b) =>
+                                a.textContent.trim().localeCompare(b.textContent.trim())
+                            );
+                            const hdr = document.createElement('li');
+                            hdr.className = 'emc-ss-group-header';
+                            hdr.innerHTML = `<span><i class="fas fa-building me-1"></i>${deptName.replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}</span><span class="badge bg-white border px-1" style="font-size:0.66rem;color:#0f766e;">${items.length}</span>`;
+                            hdr.addEventListener('click', ev => ev.stopPropagation());
+                            list.appendChild(hdr);
+                            items.forEach(opt => list.appendChild(buildOptionLi(opt, true)));
+                        });
+                    }
+
+                    flatOpts.forEach(opt => list.appendChild(buildOptionLi(opt, false)));
 
                     if (matches === 0) {
                         const empty = document.createElement('li');
@@ -2297,9 +2371,17 @@
 
                 function positionDropdown() {
                     const rect = trigger.getBoundingClientRect();
-                    const width = Math.max(rect.width, 280);
+                    const inModal = Boolean(sel.closest('.modal'));
+                    const minTop = inModal ? 0 : 60;
+                    // Auto-close cleanly if user scrolls the input off-screen or behind sticky topbar
+                    if (rect.width === 0 || rect.bottom < minTop || rect.top > window.innerHeight - 10) {
+                        closeActive();
+                        return false;
+                    }
+                    const maxAllowedWidth = Math.max(240, window.innerWidth - 16);
+                    const width = Math.min(Math.max(rect.width, 300), maxAllowedWidth);
                     const spaceBelow = window.innerHeight - rect.bottom;
-                    const estHeight = 295;
+                    const estHeight = Math.min(295, Math.floor(window.innerHeight * 0.48));
                     const openUp = spaceBelow < estHeight && rect.top > estHeight;
                     dropdown.style.width = width + 'px';
                     dropdown.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + 'px';
@@ -2310,6 +2392,7 @@
                         dropdown.style.bottom = 'auto';
                         dropdown.style.top = (rect.bottom + 4) + 'px';
                     }
+                    return true;
                 }
 
                 trigger.addEventListener('click', function(e) {
@@ -2321,7 +2404,7 @@
                     if (wasOpen) return;
 
                     mountDropdown();
-                    positionDropdown();
+                    if (!positionDropdown()) return;
                     searchInput.value = '';
                     renderList('');
                     dropdown.hidden = false;
@@ -2329,10 +2412,16 @@
                     trigger.setAttribute('aria-expanded', 'true');
                     activeDropdown = dropdown;
 
-                    const onResize = () => { if (activeDropdown === dropdown) positionDropdown(); };
-                    window.addEventListener('resize', onResize);
+                    const onReposition = () => {
+                        if (activeDropdown === dropdown) {
+                            positionDropdown();
+                        }
+                    };
+                    window.addEventListener('resize', onReposition);
+                    document.addEventListener('scroll', onReposition, true);
                     activeCleanup = () => {
-                        window.removeEventListener('resize', onResize);
+                        window.removeEventListener('resize', onReposition);
+                        document.removeEventListener('scroll', onReposition, true);
                         trigger.setAttribute('aria-expanded', 'false');
                     };
                     setTimeout(() => searchInput.focus({ preventScroll: true }), 10);

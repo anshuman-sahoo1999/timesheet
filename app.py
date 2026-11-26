@@ -977,6 +977,318 @@ class TimesheetApproval(db.Model):
     timesheet = db.relationship('WeeklyTimesheet', backref='approvals')
     approver = db.relationship('Employee', backref='timesheet_approvals')
 
+
+class EmailSystemConfig(db.Model):
+    """Global switch controlling all automated emails managed by IT Admin."""
+    id = db.Column(db.Integer, primary_key=True)
+    global_email_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    updated_by_name = db.Column(db.String(120), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EmailTemplateMaster(db.Model):
+    """Per-step email Enable/Disable and editable Subject/Body templates managed by IT Admin."""
+    id = db.Column(db.Integer, primary_key=True)
+    step_key = db.Column(db.String(80), unique=True, nullable=False)
+    category = db.Column(db.String(60), nullable=False, default='General')
+    step_name = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.String(300), nullable=True)
+    is_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    subject_template = db.Column(db.String(300), nullable=False)
+    body_template = db.Column(db.Text, nullable=False)
+    default_subject = db.Column(db.String(300), nullable=False)
+    default_body = db.Column(db.Text, nullable=False)
+    available_placeholders = db.Column(db.String(500), nullable=True)
+    sort_order = db.Column(db.Integer, default=0)
+    updated_by = db.Column(db.String(120), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+DEFAULT_EMAIL_TEMPLATES = [
+    {
+        'step_key': 'indent_submitted',
+        'category': 'Job Indents',
+        'step_name': 'Job Indent Submission for Approval',
+        'description': 'Sent to CEO / MD when BD creates and submits a new Job Indent for executive approval.',
+        'placeholders': '{project_name}, {file_number}, {client_name}, {creator_name}, {department_name}, {portal_url}',
+        'subject': 'New Job Indent Submitted for Approval: {project_name} ({file_number})',
+        'body': '<p>Dear CEO / MD,</p><p>A new Job Indent for project <b>{project_name}</b> (Code: <code>{file_number}</code>, Client: <b>{client_name}</b>, Department: <b>{department_name}</b>) has been submitted by <b>{creator_name}</b> and is awaiting your approval and PM allocation.</p><p><a href="{portal_url}">Open PMS DayLog Portal</a> to review.</p>',
+    },
+    {
+        'step_key': 'indent_approved_bd',
+        'category': 'Job Indents',
+        'step_name': 'Job Indent Approved (to BD)',
+        'description': 'Sent to the BD creator when CEO approves a Job Indent and allocates a Project Manager.',
+        'placeholders': '{creator_name}, {project_name}, {file_number}, {pm_name}, {client_name}',
+        'subject': 'Job Indent Approved: {project_name}',
+        'body': '<p>Dear {creator_name},</p><p>Your Job Indent for project <b>{project_name}</b> (Code: <b>{file_number}</b>) has been <b>approved</b>.</p><p>Project Manager Assigned: <b>{pm_name}</b></p>',
+    },
+    {
+        'step_key': 'indent_approved_pm',
+        'category': 'Job Indents',
+        'step_name': 'Job Indent Approved & PM Allocation',
+        'description': 'Sent to the appointed Project Manager when CEO approves a Job Indent and allocates it to them.',
+        'placeholders': '{pm_name}, {project_name}, {file_number}, {client_name}, {portal_url}',
+        'subject': 'You have been assigned as Project Manager for {project_name}',
+        'body': '<p>Dear {pm_name},</p><p>You have been officially allocated as the Project Manager for: <b>{project_name}</b> (Code: <b>{file_number}</b>).</p><p>Please open the PMS Timesheet Portal and visit <b>Manage Job Cards</b> to create the deliverables, milestones, and budget estimation.</p>',
+    },
+    {
+        'step_key': 'indent_rejected',
+        'category': 'Job Indents',
+        'step_name': 'Job Indent Rejected',
+        'description': 'Sent to the BD creator when CEO rejects a submitted Job Indent.',
+        'placeholders': '{creator_name}, {project_name}, {file_number}, {remarks}',
+        'subject': 'Job Indent Rejected: {project_name}',
+        'body': '<p>Dear {creator_name},</p><p>Your Job Indent for project <b>{project_name}</b> (Code: <b>{file_number}</b>) has been <b>rejected</b>.</p><p>{remarks}</p>',
+    },
+    {
+        'step_key': 'job_card_submitted',
+        'category': 'Job Cards',
+        'step_name': 'Job Card Submission Email',
+        'description': 'Sent to CEO / MD when PM submits a new Job Card and budget estimate for final sanction.',
+        'placeholders': '{project_name}, {file_number}, {pm_name}, {grand_total}, {contract_value}, {budget_summary_html}, {portal_url}',
+        'subject': 'Job Card Submitted for Approval: {project_name} ({file_number})',
+        'body': '<p>Dear CEO / MD,</p><p>Project Manager <b>{pm_name}</b> has completed and submitted the official Job Card and Budget Estimation for project <b>{project_name}</b> (Code: <code>{file_number}</code>).</p>{budget_summary_html}<p>Please log in to the PMS Portal to review the submission and grant approval.</p>',
+    },
+    {
+        'step_key': 'job_card_approved_pm',
+        'category': 'Job Cards',
+        'step_name': 'Job Card Approval (to PM)',
+        'description': 'Sent to the Project Manager when CEO approves and sanctions the Job Card.',
+        'placeholders': '{pm_name}, {project_name}, {file_number}, {remarks_html}',
+        'subject': 'Job Card Approved: {project_name}',
+        'body': '<p>Dear {pm_name},</p><p>Your Job Card for project <b>{project_name}</b> (Code: <b>{file_number}</b>) has been <b>approved</b> by CEO/MD.</p>{remarks_html}',
+    },
+    {
+        'step_key': 'job_card_approved_team',
+        'category': 'Job Cards',
+        'step_name': 'Job Card Approval & Task Allocation (Team)',
+        'description': 'Sent to assigned project team members when a Job Card / task allocation is approved.',
+        'placeholders': '{employee_name}, {project_name}, {file_number}, {pm_name}, {task_description}, {portal_url}',
+        'subject': 'Project Assignment: {project_name}',
+        'body': '<p>Dear {employee_name},</p><p>You have been assigned to project <b>{project_name}</b> (Code: <b>{file_number}</b>) by Project Manager <b>{pm_name}</b>.</p><p><b>Assigned Task:</b> {task_description}</p><p>Please access your PMS dashboard to log your project timesheets.</p>',
+    },
+    {
+        'step_key': 'job_card_revision',
+        'category': 'Job Cards',
+        'step_name': 'Job Card Revision Requested',
+        'description': 'Sent to Project Manager when CEO returns a Job Card for budget or scope revision.',
+        'placeholders': '{pm_name}, {project_name}, {file_number}, {remarks_html}',
+        'subject': 'Job Card Revision Requested: {project_name}',
+        'body': '<p>Dear {pm_name},</p><p>Your Job Card for project <b>{project_name}</b> (Code: <b>{file_number}</b>) has been returned for revision by CEO/MD.</p>{remarks_html}',
+    },
+    {
+        'step_key': 'job_card_resubmitted',
+        'category': 'Job Cards',
+        'step_name': 'Job Card Re-submission',
+        'description': 'Sent to CEO / MD when PM updates and re-submits a Job Card after revision.',
+        'placeholders': '{project_name}, {file_number}, {pm_name}, {estimated_value}, {portal_url}',
+        'subject': 'Job Card Re-Submitted for Approval: {project_name} ({file_number})',
+        'body': '<p>Dear CEO / MD,</p><p>Project Manager <b>{pm_name}</b> has revised and re-submitted the Job Card for project <b>{project_name}</b> (Code: <code>{file_number}</code>).</p><p>Please log in to the PMS Portal to review the updated submission.</p>',
+    },
+    {
+        'step_key': 'job_card_change_request',
+        'category': 'Job Cards',
+        'step_name': 'Job Card Change Request',
+        'description': 'Sent to CEO / MD when PM raises a Budget, Timeline, Scope, or Resource Change Request.',
+        'placeholders': '{project_name}, {file_number}, {pm_name}, {change_type}, {title}, {description}, {revised_budget}, {revised_end_date}',
+        'subject': 'Project Change Request ({change_type}): {project_name}',
+        'body': '<p>Dear CEO / MD,</p><p>Project Manager <b>{pm_name}</b> has raised a <b>{change_type}</b> change request for project <b>{project_name}</b> (Code: <code>{file_number}</code>).</p><p><b>Title:</b> {title}</p><p><b>Details:</b> {description}</p><p><b>Revised Budget:</b> {revised_budget} &bull; <b>Revised End Date:</b> {revised_end_date}</p><p>Please review in the PMS Portal.</p>',
+    },
+    {
+        'step_key': 'timesheet_reminder_weekly',
+        'category': 'Timesheets',
+        'step_name': 'Timesheet Reminder — Weekly',
+        'description': 'Automated Friday reminder sent to active employees to submit their weekly timesheet.',
+        'placeholders': '{employee_name}, {week_range}, {portal_url}',
+        'subject': 'Weekly Timesheet Reminder: Week of {week_range}',
+        'body': '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;"><h2 style="color: #0e8749; margin-top: 0;">Weekly Timesheet Reminder</h2><p>Dear <b>{employee_name}</b>,</p><p>This is a friendly reminder to complete and submit your timesheet entries for the current week: <b>{week_range}</b>.</p><p>Kindly ensure all your project tasks and daily activities are logged accurately before closing your work for the week.</p><div style="text-align: center; margin: 25px 0;"><a href="{portal_url}" style="background-color: #0e8749; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Log Your Timesheet</a></div><p style="color: #64748b; font-size: 13px;">Note: Sundays, Second Saturdays, and declared company holidays are non-working days.</p></div>',
+    },
+    {
+        'step_key': 'timesheet_reminder_monthly',
+        'category': 'Timesheets',
+        'step_name': 'Timesheet Reminder — Monthly Missed Dates',
+        'description': 'Automated month-end alert listing specific missed working dates to employees.',
+        'placeholders': '{employee_name}, {month_name}, {missed_count}, {missed_dates_list}, {portal_url}',
+        'subject': 'Action Required: Missed Timesheet Entries for {month_name}',
+        'body': '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #fca5a5; border-radius: 8px; background-color: #fffaf0;"><h2 style="color: #dc2626; margin-top: 0;">Missing Timesheet Notification</h2><p>Dear <b>{employee_name}</b>,</p><p>Today is the final day of <b>{month_name}</b>. Our records show that you have <b>{missed_count}</b> unsubmitted working day(s) for this month:</p><ul>{missed_dates_list}</ul><p>Please log in to DayLog and submit your timesheets for the dates listed above.</p></div>',
+    },
+    {
+        'step_key': 'timesheet_reminder_pm',
+        'category': 'Timesheets',
+        'step_name': 'Timesheet Reminder — Manual by PM',
+        'description': 'Sent when a Project Manager triggers a manual reminder to an assigned team member.',
+        'placeholders': '{employee_name}, {project_name}, {task_description}, {pm_name}',
+        'subject': 'Timesheet Reminder: {project_name}',
+        'body': 'Dear {employee_name},<br><br>This is a reminder to submit your daily timesheet for the task: <b>{task_description}</b> in project <b>{project_name}</b>.<br>Please log your hours as soon as possible.<br><br>Thanks,<br>{pm_name} (Project Manager)',
+    },
+    {
+        'step_key': 'timesheet_submitted_auto',
+        'category': 'Timesheets',
+        'step_name': 'Timesheet Auto-Submission Alert (to PM)',
+        'description': 'Sent to Project Manager when employee draft timesheets are auto-submitted.',
+        'placeholders': '{pm_name}, {employee_name}, {week_range}',
+        'subject': 'Weekly Timesheet Submitted - {employee_name}',
+        'body': 'Dear {pm_name},<br><br>{employee_name} has submitted their weekly timesheet for {week_range}.<br><br>Please review and approve the timesheet in the system.<br><br>Thanks,<br>System',
+    },
+    {
+        'step_key': 'timesheet_approved',
+        'category': 'Timesheets',
+        'step_name': 'Timesheet Verified / Approved',
+        'description': 'Sent to the employee when their timesheet is verified/approved by PM, HR, or CEO.',
+        'placeholders': '{employee_name}, {week_range}, {total_hours}, {status}, {approver_name}',
+        'subject': 'Timesheet {status}: {week_range}',
+        'body': '<p>Dear <b>{employee_name}</b>,</p><p>Your timesheet for <b>{week_range}</b> has been verified and marked as <b>{status}</b> by {approver_name}.</p><p><b>Total Hours:</b> {total_hours}</p>',
+    },
+    {
+        'step_key': 'timesheet_rejected',
+        'category': 'Timesheets',
+        'step_name': 'Timesheet Rejected',
+        'description': 'Sent to the employee when their timesheet is rejected by PM, HR, or CEO.',
+        'placeholders': '{employee_name}, {week_range}, {reason}, {approver_name}',
+        'subject': 'Timesheet Rejected: {week_range}',
+        'body': '<p>Dear <b>{employee_name}</b>,</p><p>Your timesheet for <b>{week_range}</b> has been <b>rejected</b> by {approver_name}.</p><p><b>Reason / Remarks:</b> {reason}</p><p>Please review and resubmit.</p>',
+    },
+    {
+        'step_key': 'project_deadline_alert',
+        'category': 'Project & Digest',
+        'step_name': 'Project Deadline Alert',
+        'description': 'Automated reminder sent 7 days prior to project contract end date to PM & CEO.',
+        'placeholders': '{recipient_name}, {project_name}, {file_number}, {deadline_date}, {pm_name}',
+        'subject': 'Project Deadline Alert: {project_name}',
+        'body': 'Dear {recipient_name},<br><br>The project <b>{project_name}</b> (Code: <b>{file_number}</b>) is approaching its deadline on <b>{deadline_date}</b>.<br>PM: {pm_name}<br><br>Please ensure all tasks are completed on time.',
+    },
+    {
+        'step_key': 'weekly_digest',
+        'category': 'Project & Digest',
+        'step_name': 'Weekly Management Digest',
+        'description': 'Weekly summary report emailed to CEO / MD with project & timesheet totals.',
+        'placeholders': '{week_range}, {total_projects}, {active_projects}, {completed_projects}, {pending_approvals}, {submitted_timesheets}, {approved_timesheets}',
+        'subject': 'Weekly Digest: {week_range}',
+        'body': '<h3>Weekly Project Management Digest</h3><p><strong>Period:</strong> {week_range}</p><ul><li>Total Projects: {total_projects}</li><li>Active Projects: {active_projects}</li><li>Completed Projects: {completed_projects}</li><li>Pending Approvals: {pending_approvals}</li><li>Submitted Timesheets: {submitted_timesheets}</li><li>Approved Timesheets: {approved_timesheets}</li></ul>',
+    },
+    {
+        'step_key': 'it_auth_ticket',
+        'category': 'IT & Auth',
+        'step_name': 'QR Authentication Ticket & Reset Alerts',
+        'description': 'Notifications for QR auth reset tickets submitted to IT Support and resolved confirmations.',
+        'placeholders': '{employee_name}, {emp_id}, {ticket_id}, {portal_url}',
+        'subject': '[PMS DayLog] QR Authentication Assistance - Ticket #{ticket_id}',
+        'body': '<p>Dear <b>{employee_name}</b>,</p><p>Notification regarding QR Authentication Ticket <strong>#{ticket_id}</strong> (Employee ID: <strong>{emp_id}</strong>). Portal: <a href="{portal_url}">{portal_url}</a></p>',
+    },
+    {
+        'step_key': 'it_master_credentials',
+        'category': 'IT & Auth',
+        'step_name': 'IT Master Account Credential Dispatch',
+        'description': 'Email sent by IT Admin to Master Accounts (CEO, BD, HR, Finance) with login details.',
+        'placeholders': '{recipient_name}, {title}, {portal_url}, {email}',
+        'subject': '[CONFIDENTIAL] Ecometrix PMS Portal - {title} Access Credentials',
+        'body': '<p>Dear <strong>{recipient_name}</strong>,</p><p>Your master access credentials for <b>{title}</b> ({email}) on the Ecometrix PMS Portal (<a href="{portal_url}">{portal_url}</a>) have been dispatched by IT Administration.</p>',
+    },
+    {
+        'step_key': 'otp_login',
+        'category': 'IT & Auth',
+        'step_name': 'Login OTP Verification Email',
+        'description': 'One-Time Password emails sent during login verification.',
+        'placeholders': '{otp_code}',
+        'subject': 'Your OTP Code for Login',
+        'body': 'Your OTP code is: <b>{otp_code}</b>. It is valid for 10 minutes. If you did not request this, please ignore this email.',
+    },
+]
+
+
+def _ensure_email_master_tables_and_seed():
+    """Ensure EmailSystemConfig and EmailTemplateMaster tables and default steps exist."""
+    try:
+        from sqlalchemy import inspect as sa_inspect
+        inspector = sa_inspect(db.engine)
+        existing_tables = set(inspector.get_table_names())
+        if 'email_system_config' not in existing_tables or 'email_template_master' not in existing_tables:
+            db.create_all()
+
+        cfg = EmailSystemConfig.query.first()
+        if not cfg:
+            cfg = EmailSystemConfig(global_email_enabled=True, updated_by_name='System Default')
+            db.session.add(cfg)
+
+        existing_keys = {row.step_key for row in EmailTemplateMaster.query.all()}
+        added = False
+        for idx, item in enumerate(DEFAULT_EMAIL_TEMPLATES, start=1):
+            if item['step_key'] not in existing_keys:
+                db.session.add(EmailTemplateMaster(
+                    step_key=item['step_key'],
+                    category=item['category'],
+                    step_name=item['step_name'],
+                    description=item['description'],
+                    is_enabled=True,
+                    subject_template=item['subject'],
+                    body_template=item['body'],
+                    default_subject=item['subject'],
+                    default_body=item['body'],
+                    available_placeholders=item['placeholders'],
+                    sort_order=idx,
+                    updated_by='System Default'
+                ))
+                added = True
+        if added or not cfg.id:
+            db.session.commit()
+    except Exception as e:
+        print(f"[WARN] Email master seeding skipped/failed: {e}")
+
+
+def is_email_communication_allowed(step_key=None):
+    """Return (allowed: bool, reason: str) according to IT Admin Global & Per-Step toggles."""
+    try:
+        _ensure_email_master_tables_and_seed()
+        cfg = EmailSystemConfig.query.first()
+        if cfg and not cfg.global_email_enabled:
+            return False, 'Global automated email is disabled by IT Admin'
+        if step_key:
+            tpl = EmailTemplateMaster.query.filter_by(step_key=step_key).first()
+            if tpl and not tpl.is_enabled:
+                return False, f"Email step '{tpl.step_name}' is disabled by IT Admin"
+        return True, 'Allowed'
+    except Exception as e:
+        print(f"[WARN] Email permission check error: {e}")
+        return True, 'Fallback Allowed'
+
+
+def _render_placeholder_string(template_str, context):
+    """Safely substitute {placeholder_key} using regex so stray braces/CSS never crash formatting."""
+    if not template_str:
+        return ''
+    ctx = {str(k): ('' if v is None else str(v)) for k, v in (context or {}).items()}
+    return re.sub(r'\{([a-zA-Z0-9_]+)\}', lambda m: ctx[m.group(1)] if m.group(1) in ctx else m.group(0), template_str)
+
+
+def dispatch_templated_email(step_key, to, context, fallback_subject, fallback_body, cc=None, signature=None):
+    """
+    Central email dispatcher respecting IT Admin Global Master toggle, per-step Enable/Disable toggle,
+    and editable dynamic Subject & Body templates.
+    """
+    allowed, _ = is_email_communication_allowed(step_key)
+    if not allowed:
+        return False
+
+    subject = fallback_subject
+    body = fallback_body
+    try:
+        tpl = EmailTemplateMaster.query.filter_by(step_key=step_key).first()
+        if tpl:
+            if tpl.subject_template and tpl.subject_template.strip():
+                subject = _render_placeholder_string(tpl.subject_template, context)
+            if tpl.body_template and tpl.body_template.strip():
+                body = _render_placeholder_string(tpl.body_template, context)
+    except Exception as e:
+        print(f"[WARN] Failed rendering template {step_key}: {e}")
+
+    try:
+        return send_email(to, subject, body, cc=cc, signature=signature, step_key=step_key)
+    except Exception as e:
+        print(f"[MAIL_ERROR] dispatch_templated_email({step_key}) failed for {to}: {e}")
+        return False
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return Employee.query.get(int(user_id))
@@ -1087,6 +1399,7 @@ def init_db():
             pm_user.role = 'PM'
 
         db.session.commit()
+        _ensure_email_master_tables_and_seed()
 
 # --- RFC 6238 TOTP Passwordless Authentication Helpers ---
 def generate_totp_secret():
@@ -2021,7 +2334,7 @@ def api_auth_ticket_submit():
             <p>Please log in to the DayLog IT Administration dashboard to review and re-enable QR Authentication for this user.</p>
         </div>
         """
-        send_email('itsupport@ecometrix.co.in', it_subject, it_html)
+        send_email('itsupport@ecometrix.co.in', it_subject, it_html, step_key='it_auth_ticket')
     except Exception as e:
         print(f"[MAIL_ERROR] Failed to email IT Support: {e}")
 
@@ -2044,7 +2357,7 @@ def api_auth_ticket_submit():
             <p style="font-size: 13px; color: #64748b;">Best regards,<br>IT Support Helpdesk<br>Ecometrix Consultants Pvt. Ltd.</p>
         </div>
         """
-        send_email(emp.email, emp_subject, emp_html)
+        send_email(emp.email, emp_subject, emp_html, step_key='it_auth_ticket')
     except Exception as e:
         print(f"[MAIL_ERROR] Failed to email Employee: {e}")
 
@@ -2106,7 +2419,7 @@ def api_it_admin_ticket_resolve(ticket_id):
             <p style="font-size: 13px; color: #64748b;">Best regards,<br>IT Administration<br>Ecometrix Consultants Pvt. Ltd.</p>
         </div>
         """
-        send_email(emp.email, subject, html)
+        send_email(emp.email, subject, html, step_key='it_auth_ticket')
     except Exception as e:
         print(f"[MAIL_ERROR] Failed to email resolution instructions: {e}")
 
@@ -2268,6 +2581,25 @@ def create_job_indent():
                         'New Job Indent Awaiting Approval',
                         f'Job indent "{job_indent.project_name}" ({job_indent.file_number}) has been created by {current_user.name} and is awaiting executive review.',
                         'info'
+                    )
+                ceo_email = get_ceo_email()
+                if ceo_email:
+                    portal_url = request.host_url.rstrip('/') + url_for('view_indent_details', indent_id=job_indent.id)
+                    dept_name = department.name if department else 'General'
+                    dispatch_templated_email(
+                        step_key='indent_submitted',
+                        to=ceo_email,
+                        context={
+                            'project_name': job_indent.project_name,
+                            'file_number': job_indent.file_number,
+                            'client_name': job_indent.client_name,
+                            'creator_name': current_user.name,
+                            'department_name': dept_name,
+                            'portal_url': portal_url,
+                        },
+                        fallback_subject=f"New Job Indent Submitted for Approval: {job_indent.project_name} ({job_indent.file_number})",
+                        fallback_body=f"<p>Dear CEO / MD,</p><p>A new Job Indent for project <b>{job_indent.project_name}</b> (Code: <code>{job_indent.file_number}</code>) has been submitted by <b>{current_user.name}</b> for your approval and PM allocation.</p>",
+                        cc=current_user.email
                     )
             except Exception as notif_err:
                 print(f"[WARN] Notification delivery failed: {notif_err}")
@@ -2993,31 +3325,62 @@ def process_indent(indent_id):
             )
 
         flash(f'Job Indent {indent.file_number} has been approved and assigned to PM {assigned_pm.name if assigned_pm else ""}.', 'success')
-        # CEO signature for BD
         ceo_signature = get_ceo_signature()
+        portal_url = request.host_url.rstrip('/') + url_for('manage_job_cards')
+
         # Notify BD
-        subject = f"Job Indent Approved: {indent.project_name}"
-        body = f"<p>Dear {indent.creator.name},</p>" \
-               f"<p>Your Job Indent for project <b>{indent.project_name}</b> (Code: {indent.file_number}) has been <b>approved</b>.</p>" \
-               f"<p>Project Manager Assigned: {assigned_pm.name if assigned_pm else 'N/A'}</p>"
-        send_email(indent.creator.email, subject, body)
-        # CEO signature for PM assignment
+        dispatch_templated_email(
+            step_key='indent_approved_bd',
+            to=indent.creator.email if indent.creator else None,
+            context={
+                'creator_name': indent.creator.name if indent.creator else 'BD Team',
+                'project_name': indent.project_name,
+                'file_number': indent.file_number,
+                'pm_name': assigned_pm.name if assigned_pm else 'N/A',
+                'client_name': indent.client_name,
+            },
+            fallback_subject=f"Job Indent Approved: {indent.project_name}",
+            fallback_body=f"<p>Dear {indent.creator.name if indent.creator else 'Team'},</p><p>Your Job Indent for project <b>{indent.project_name}</b> (Code: {indent.file_number}) has been <b>approved</b>.</p><p>Project Manager Assigned: {assigned_pm.name if assigned_pm else 'N/A'}</p>"
+        )
+
+        # Notify Assigned PM
         if assigned_pm:
-            pm_subject = f"You have been assigned as Project Manager for {indent.project_name}"
-            pm_body = f"<p>Dear {assigned_pm.name},</p>" \
-                      f"<p>You have been officially allocated as the Project Manager for: <b>{indent.project_name}</b> (Code: {indent.file_number}).</p>" \
-                      f"<p>Please open the PMS Timesheet Portal and visit <b>Manage Job Cards</b> to create the deliverables, milestones, and budget estimation.</p>"
-            send_email(assigned_pm.email, pm_subject, pm_body, cc=ceo_email, signature=ceo_signature)
+            dispatch_templated_email(
+                step_key='indent_approved_pm',
+                to=assigned_pm.email,
+                context={
+                    'pm_name': assigned_pm.name,
+                    'project_name': indent.project_name,
+                    'file_number': indent.file_number,
+                    'client_name': indent.client_name,
+                    'portal_url': portal_url,
+                },
+                fallback_subject=f"You have been assigned as Project Manager for {indent.project_name}",
+                fallback_body=f"<p>Dear {assigned_pm.name},</p><p>You have been officially allocated as the Project Manager for: <b>{indent.project_name}</b> (Code: {indent.file_number}).</p><p>Please open the PMS Timesheet Portal and visit <b>Manage Job Cards</b> to create the deliverables, milestones, and budget estimation.</p>",
+                cc=ceo_email,
+                signature=ceo_signature
+            )
     elif action == 'reject':
         indent.status = 'Rejected'
         indent.approved_at = datetime.utcnow()
         flash(f'Job Indent {indent.file_number} has been rejected.', 'warning')
         ceo_email = get_ceo_email()
-        subject = f"Job Indent Rejected: {indent.project_name}"
-        body = f"<p>Dear {indent.creator.name},</p>" \
-               f"<p>Your Job Indent for project <b>{indent.project_name}</b> (Code: {indent.file_number}) has been <b>rejected</b>.</p>"
         ceo_signature = get_ceo_signature()
-        send_email(indent.creator.email, subject, body, cc=ceo_email, signature=ceo_signature)
+        comments = request.form.get('comments', '').strip()
+        dispatch_templated_email(
+            step_key='indent_rejected',
+            to=indent.creator.email if indent.creator else None,
+            context={
+                'creator_name': indent.creator.name if indent.creator else 'BD Team',
+                'project_name': indent.project_name,
+                'file_number': indent.file_number,
+                'remarks': comments or 'No remarks specified.',
+            },
+            fallback_subject=f"Job Indent Rejected: {indent.project_name}",
+            fallback_body=f"<p>Dear {indent.creator.name if indent.creator else 'Team'},</p><p>Your Job Indent for project <b>{indent.project_name}</b> (Code: {indent.file_number}) has been <b>rejected</b>.</p>",
+            cc=ceo_email,
+            signature=ceo_signature
+        )
     db.session.commit()
     return redirect(url_for('manage_job_indents'))
 
@@ -3306,6 +3669,8 @@ def api_submit_job_card(indent_id):
     jc.grand_total = grand_total
     jc.estimated_value = grand_total
 
+    is_resubmission = (jc.status == 'Rejected' or jc.budget_status == 'Revision Requested')
+
     jc.status = 'Submitted'
     jc.budget_status = 'Pending Approval'
     jc.submitted_at = datetime.utcnow()
@@ -3332,20 +3697,17 @@ def api_submit_job_card(indent_id):
                 t.assignees.append(emp)
                 db.session.add(t)
 
-    # In-app notification to CEO
+    # In-app notification and configurable email to CEO
     ceo_user = Employee.query.filter_by(role='MD').first()
     if ceo_user:
         create_notification(
             ceo_user.id,
-            f"Job Card Submitted: {indent.project_name}",
-            f"Project Manager {current_user.name} has submitted the Job Card and Budget Estimate (Grand Total: ₹ {grand_total:,.2f}) for '{indent.project_name}' for your final approval.",
+            f"Job Card {'Re-Submitted' if is_resubmission else 'Submitted'}: {indent.project_name}",
+            f"Project Manager {current_user.name} has {'re-submitted' if is_resubmission else 'submitted'} the Job Card and Budget Estimate (Grand Total: ₹ {grand_total:,.2f}) for '{indent.project_name}' for your final approval.",
             'warning'
         )
         ceo_email = get_ceo_email()
-        subject = f"Job Card Submitted for Approval: {indent.project_name} ({indent.file_number})"
-        body = f"""
-        <p>Dear CEO / MD,</p>
-        <p>Project Manager <b>{current_user.name}</b> has completed and submitted the official Job Card and Budget Estimation for project <b>{indent.project_name}</b> (Code: <code>{indent.file_number}</code>).</p>
+        budget_table_html = f"""
         <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
             <tr><td><b>Contract Value:</b></td><td>₹ {indent.contract_value:,.2f}</td></tr>
             <tr><td><b>Resource Estimation:</b></td><td>₹ {resource_total:,.2f}</td></tr>
@@ -3354,9 +3716,25 @@ def api_submit_job_card(indent_id):
             <tr><td><b>Overhead Cost (30%):</b></td><td>₹ {overhead_cost:,.2f}</td></tr>
             <tr style="background-color: #ecfdf5;"><td><b>Grand Total Budget:</b></td><td><b>₹ {grand_total:,.2f}</b></td></tr>
         </table>
-        <p>Please log in to the PMS Portal to review the submission and grant approval.</p>
         """
-        send_email(ceo_email, subject, body, cc=current_user.email)
+        portal_url = request.host_url.rstrip('/') + url_for('view_indent_details', indent_id=indent.id)
+        dispatch_templated_email(
+            step_key='job_card_resubmitted' if is_resubmission else 'job_card_submitted',
+            to=ceo_email,
+            context={
+                'project_name': indent.project_name,
+                'file_number': indent.file_number,
+                'pm_name': current_user.name,
+                'estimated_value': f"₹ {grand_total:,.2f}",
+                'grand_total': f"₹ {grand_total:,.2f}",
+                'contract_value': f"₹ {(indent.contract_value or 0):,.2f}",
+                'budget_summary_html': budget_table_html,
+                'portal_url': portal_url,
+            },
+            fallback_subject=f"Job Card {'Re-Submitted' if is_resubmission else 'Submitted'} for Approval: {indent.project_name} ({indent.file_number})",
+            fallback_body=f"<p>Dear CEO / MD,</p><p>Project Manager <b>{current_user.name}</b> has {'revised and re-submitted' if is_resubmission else 'completed and submitted'} the Job Card for <b>{indent.project_name}</b> ({indent.file_number}).</p>{budget_table_html}",
+            cc=current_user.email
+        )
 
     db.session.commit()
     return jsonify({'success': True, 'message': 'Job Card has been submitted to CEO for final approval.'})
@@ -3831,6 +4209,27 @@ def submit_change_request(indent_id):
             f"PM {current_user.name} has submitted a {change_type} request for '{indent.project_name}': {title}",
             'warning'
         )
+        ceo_email = get_ceo_email()
+        if ceo_email:
+            rev_budget_str = f"₹ {revised_budget:,.2f}" if revised_budget else 'N/A'
+            rev_end_str = revised_end_date.strftime('%d-%b-%Y') if revised_end_date else 'N/A'
+            dispatch_templated_email(
+                step_key='job_card_change_request',
+                to=ceo_email,
+                context={
+                    'project_name': indent.project_name,
+                    'file_number': indent.file_number,
+                    'pm_name': current_user.name,
+                    'change_type': change_type or 'General Change',
+                    'title': title or '',
+                    'description': description or '',
+                    'revised_budget': rev_budget_str,
+                    'revised_end_date': rev_end_str,
+                },
+                fallback_subject=f"Project Change Request ({change_type}): {indent.project_name}",
+                fallback_body=f"<p>Dear CEO / MD,</p><p>Project Manager <b>{current_user.name}</b> has submitted a <b>{change_type}</b> request for project <b>{indent.project_name}</b> ({indent.file_number}):</p><p><b>{title}</b><br>{description}</p><p>Revised Budget: {rev_budget_str} &bull; Revised End Date: {rev_end_str}</p>",
+                cc=current_user.email
+            )
 
     db.session.commit()
     flash("Project Change Request submitted to CEO for review.", "success")
@@ -3992,21 +4391,47 @@ def create_job_card(indent_id):
             )
         
         flash('Job Card created and submitted for approval.', 'success')
-        # Notify CEO/MD and PM (existing logic)
         ceo_email = get_ceo_email()
         pm = indent.project_manager
-        pm_signature = f"Thanks & Regards.<br>{pm.name}<br>Project Manager ({indent.project_name})"
-        subject = f"Job Card Submitted: {indent.project_name}"
-        body = f"<p>Dear CEO/MD,</p>" \
-               f"<p>The Job Card for project <b>{indent.project_name}</b> (Code: {indent.file_number}) has been submitted by PM {pm.name} and is pending your approval.</p>"
-        send_email(ceo_email, subject, body, cc=pm.email, signature=pm_signature)
+        pm_signature = f"Thanks & Regards.<br>{pm.name if pm else 'PM'}<br>Project Manager ({indent.project_name})"
+        portal_url = request.host_url.rstrip('/') + url_for('view_indent_details', indent_id=indent.id)
+        dispatch_templated_email(
+            step_key='job_card_submitted',
+            to=ceo_email,
+            context={
+                'project_name': indent.project_name,
+                'file_number': indent.file_number,
+                'pm_name': pm.name if pm else current_user.name,
+                'grand_total': f"₹ {(job_card.estimated_value or 0):,.2f}",
+                'contract_value': f"₹ {(indent.contract_value or 0):,.2f}",
+                'budget_summary_html': f"<p><b>Estimated Value:</b> ₹ {(job_card.estimated_value or 0):,.2f}</p>",
+                'portal_url': portal_url,
+            },
+            fallback_subject=f"Job Card Submitted: {indent.project_name}",
+            fallback_body=f"<p>Dear CEO/MD,</p><p>The Job Card for project <b>{indent.project_name}</b> (Code: {indent.file_number}) has been submitted by PM {pm.name if pm else current_user.name} and is pending your approval.</p>",
+            cc=pm.email if pm else None,
+            signature=pm_signature
+        )
         # Notify each assigned employee
         for email in assigned_emails:
             emp = Employee.query.filter_by(email=email).first()
             if emp:
-                emp_body = f"<p>Dear {emp.name},</p>" \
-                           f"<p>You have been assigned a task in project <b>{indent.project_name}</b> (Code: {indent.file_number}) by PM {pm.name}.</p>"
-                send_email(emp.email, f"Task Assignment: {indent.project_name}", emp_body, cc=[ceo_email, pm.email], signature=pm_signature)
+                dispatch_templated_email(
+                    step_key='job_card_approved_team',
+                    to=emp.email,
+                    context={
+                        'employee_name': emp.name,
+                        'project_name': indent.project_name,
+                        'file_number': indent.file_number,
+                        'pm_name': pm.name if pm else current_user.name,
+                        'task_description': 'Assigned project deliverables',
+                        'portal_url': portal_url,
+                    },
+                    fallback_subject=f"Task Assignment: {indent.project_name}",
+                    fallback_body=f"<p>Dear {emp.name},</p><p>You have been assigned a task in project <b>{indent.project_name}</b> (Code: {indent.file_number}) by PM {pm.name if pm else current_user.name}.</p>",
+                    cc=[c for c in [ceo_email, pm.email if pm else None] if c],
+                    signature=pm_signature
+                )
         return redirect(url_for('pm_projects'))
     # Filter employees by department or sub-department
     if indent.sub_department_id:
@@ -4023,6 +4448,7 @@ def edit_job_card(card_id):
     if indent.project_manager_id != current_user.id:
         abort(403)
     if request.method == 'POST':
+        was_revision = (job_card.status == 'Rejected' or job_card.budget_status == 'Revision Requested')
         # Update estimated value
         job_card.estimated_value = float(request.form['estimated_value'])
         # Set status to Submitted
@@ -4067,6 +4493,26 @@ def edit_job_card(card_id):
                 job_card.budget_items.append(budget_item)
             budget_idx += 1
         db.session.commit()
+        ceo_email = get_ceo_email()
+        if ceo_email:
+            portal_url = request.host_url.rstrip('/') + url_for('view_indent_details', indent_id=indent.id)
+            dispatch_templated_email(
+                step_key='job_card_resubmitted' if was_revision else 'job_card_submitted',
+                to=ceo_email,
+                context={
+                    'project_name': indent.project_name,
+                    'file_number': indent.file_number,
+                    'pm_name': current_user.name,
+                    'estimated_value': f"₹ {(job_card.estimated_value or 0):,.2f}",
+                    'grand_total': f"₹ {(job_card.estimated_value or 0):,.2f}",
+                    'contract_value': f"₹ {(indent.contract_value or 0):,.2f}",
+                    'budget_summary_html': f"<p><b>Estimated Value:</b> ₹ {(job_card.estimated_value or 0):,.2f}</p>",
+                    'portal_url': portal_url,
+                },
+                fallback_subject=f"Job Card {'Re-Submitted' if was_revision else 'Submitted'} for Approval: {indent.project_name}",
+                fallback_body=f"<p>Dear CEO / MD,</p><p>PM <b>{current_user.name}</b> has {'re-submitted' if was_revision else 'updated & submitted'} the Job Card for <b>{indent.project_name}</b> ({indent.file_number}).</p>",
+                cc=current_user.email
+            )
         flash('Job Card updated successfully.', 'success')
         return redirect(url_for('pm_projects'))
     # GET: Pre-fill form with existing data
@@ -4262,6 +4708,8 @@ def process_job_card(card_id):
                 print(f"Error syncing tasks on approval: {e}")
 
         flash(f'Job Card for {job_card.indent.project_name} has been successfully approved! Work assignments and timesheet logging are now active.', 'success')
+        remarks_html = f"<p><b>CEO Remarks:</b> {remarks}</p>" if remarks else ""
+        portal_url = request.host_url.rstrip('/') + url_for('dashboard')
         # Notify PM in-app and email
         if pm:
             create_notification(
@@ -4270,12 +4718,20 @@ def process_job_card(card_id):
                 f"CEO has APPROVED the Job Card for project '{job_card.indent.project_name}' ({job_card.indent.file_number}). Work assignments and timesheet logging are now active." + (f" Remarks: {remarks}" if remarks else ""),
                 'success'
             )
-            subject = f"Job Card Approved: {job_card.indent.project_name}"
-            body = f"<p>Dear {pm.name},</p>" \
-                   f"<p>Your Job Card for project <b>{job_card.indent.project_name}</b> (Code: {job_card.indent.file_number}) has been <b>approved</b> by CEO/MD.</p>"
-            if remarks:
-                body += f"<p><b>CEO Remarks:</b> {remarks}</p>"
-            send_email(pm.email, subject, body, cc=ceo_email, signature=ceo_signature)
+            dispatch_templated_email(
+                step_key='job_card_approved_pm',
+                to=pm.email,
+                context={
+                    'pm_name': pm.name,
+                    'project_name': job_card.indent.project_name,
+                    'file_number': job_card.indent.file_number,
+                    'remarks_html': remarks_html,
+                },
+                fallback_subject=f"Job Card Approved: {job_card.indent.project_name}",
+                fallback_body=f"<p>Dear {pm.name},</p><p>Your Job Card for project <b>{job_card.indent.project_name}</b> (Code: {job_card.indent.file_number}) has been <b>approved</b> by CEO/MD.</p>{remarks_html}",
+                cc=ceo_email,
+                signature=ceo_signature
+            )
 
         # Circulate over email and in-app to all assigned team members
         assigned_notified = set()
@@ -4289,15 +4745,26 @@ def process_job_card(card_id):
                         f"You have been officially allocated to project '{job_card.indent.project_name}' as team member for task: '{t.description}'.",
                         'info'
                     )
-                    emp_body = f"<p>Dear {assignee.name},</p>" \
-                               f"<p>You have been assigned to project <b>{job_card.indent.project_name}</b> (Code: {job_card.indent.file_number}) by Project Manager {pm.name if pm else 'PM'}.</p>" \
-                               f"<p><b>Assigned Task:</b> {t.description}</p>" \
-                               f"<p>Please access your PMS dashboard to log your project timesheets.</p>"
-                    send_email(assignee.email, f"Project Assignment: {job_card.indent.project_name}", emp_body, cc=[pm.email] if pm else None)
+                    dispatch_templated_email(
+                        step_key='job_card_approved_team',
+                        to=assignee.email,
+                        context={
+                            'employee_name': assignee.name,
+                            'project_name': job_card.indent.project_name,
+                            'file_number': job_card.indent.file_number,
+                            'pm_name': pm.name if pm else 'PM',
+                            'task_description': t.description,
+                            'portal_url': portal_url,
+                        },
+                        fallback_subject=f"Project Assignment: {job_card.indent.project_name}",
+                        fallback_body=f"<p>Dear {assignee.name},</p><p>You have been assigned to project <b>{job_card.indent.project_name}</b> (Code: {job_card.indent.file_number}) by Project Manager {pm.name if pm else 'PM'}.</p><p><b>Assigned Task:</b> {t.description}</p><p>Please access your PMS dashboard to log your project timesheets.</p>",
+                        cc=[pm.email] if pm else None
+                    )
     elif action == 'reject':
         job_card.status = 'Rejected'
         job_card.budget_status = 'Revision Requested'
         flash(f'Job Card for {job_card.indent.project_name} has been returned to PM for revision.', 'warning')
+        remarks_html = f"<p><b>Revision Instructions / Remarks:</b> {remarks}</p>" if remarks else ""
         if pm:
             create_notification(
                 pm.id,
@@ -4305,12 +4772,20 @@ def process_job_card(card_id):
                 f"CEO has requested revision for Job Card on project '{job_card.indent.project_name}'." + (f" Instructions: {remarks}" if remarks else ""),
                 'warning'
             )
-            subject = f"Job Card Revision Requested: {job_card.indent.project_name}"
-            body = f"<p>Dear {pm.name},</p>" \
-                   f"<p>Your Job Card for project <b>{job_card.indent.project_name}</b> (Code: {job_card.indent.file_number}) has been returned for revision by CEO/MD.</p>"
-            if remarks:
-                body += f"<p><b>Revision Instructions / Remarks:</b> {remarks}</p>"
-            send_email(pm.email, subject, body, cc=ceo_email, signature=ceo_signature)
+            dispatch_templated_email(
+                step_key='job_card_revision',
+                to=pm.email,
+                context={
+                    'pm_name': pm.name,
+                    'project_name': job_card.indent.project_name,
+                    'file_number': job_card.indent.file_number,
+                    'remarks_html': remarks_html,
+                },
+                fallback_subject=f"Job Card Revision Requested: {job_card.indent.project_name}",
+                fallback_body=f"<p>Dear {pm.name},</p><p>Your Job Card for project <b>{job_card.indent.project_name}</b> (Code: {job_card.indent.file_number}) has been returned for revision by CEO/MD.</p>{remarks_html}",
+                cc=ceo_email,
+                signature=ceo_signature
+            )
     db.session.commit()
     return redirect(url_for('view_job_card_details', card_id=card_id))
 
@@ -5291,6 +5766,21 @@ def verify_timesheet_action(entry_id):
             f'Your timesheet for week starting {entry.week_start_date.strftime("%d-%b-%Y")} has been verified ({new_status}) by {current_user.name}.',
             'success'
         )
+        if entry.employee and entry.employee.email:
+            week_range_str = f"{entry.week_start_date.strftime('%d %b')} - {entry.week_end_date.strftime('%d %b, %Y')}"
+            dispatch_templated_email(
+                step_key='timesheet_approved',
+                to=entry.employee.email,
+                context={
+                    'employee_name': entry.employee.name,
+                    'week_range': week_range_str,
+                    'total_hours': f"{entry.total_hours} hrs",
+                    'status': new_status,
+                    'approver_name': current_user.name,
+                },
+                fallback_subject=f"Timesheet {new_status}: {week_range_str}",
+                fallback_body=f"<p>Dear <b>{entry.employee.name}</b>,</p><p>Your timesheet for <b>{week_range_str}</b> has been verified and marked as <b>{new_status}</b> by {current_user.name}.</p>"
+            )
 
         msg = f"Timesheet for {entry.employee.name} (Week of {entry.week_start_date.strftime('%d-%b-%Y')}) verified as {new_status}."
         if is_ajax:
@@ -5462,6 +5952,10 @@ def dashboard():
         auth_tickets = AuthTicket.query.order_by(AuthTicket.id.desc()).all()
         pending_tickets_count = AuthTicket.query.filter_by(status='Pending').count()
 
+        _ensure_email_master_tables_and_seed()
+        email_config = EmailSystemConfig.query.first()
+        email_templates = EmailTemplateMaster.query.order_by(EmailTemplateMaster.sort_order.asc(), EmailTemplateMaster.id.asc()).all()
+
         return render_template(
             'dashboards/it_dashboard.html',
             master_accounts=master_accounts,
@@ -5471,7 +5965,9 @@ def dashboard():
             failed_attempts_today=failed_attempts_today,
             resets_count=resets_count,
             auth_tickets=auth_tickets,
-            pending_tickets_count=pending_tickets_count
+            pending_tickets_count=pending_tickets_count,
+            email_config=email_config,
+            email_templates=email_templates
         )
 
     elif current_user.role == 'MD':
@@ -7280,6 +7776,20 @@ def reject_timesheet_action(entry_id):
             f'Your timesheet for week starting {entry.week_start_date.strftime("%d-%b-%Y")} was rejected by {current_user.name}.' + (f' Reason: {reason}' if reason else ''),
             'warning'
         )
+        if entry.employee and entry.employee.email:
+            week_range_str = f"{entry.week_start_date.strftime('%d %b')} - {entry.week_end_date.strftime('%d %b, %Y')}"
+            dispatch_templated_email(
+                step_key='timesheet_rejected',
+                to=entry.employee.email,
+                context={
+                    'employee_name': entry.employee.name,
+                    'week_range': week_range_str,
+                    'reason': reason or 'No reason specified',
+                    'approver_name': current_user.name,
+                },
+                fallback_subject=f"Timesheet Rejected: {week_range_str}",
+                fallback_body=f"<p>Dear <b>{entry.employee.name}</b>,</p><p>Your timesheet for <b>{week_range_str}</b> has been rejected by {current_user.name}.</p><p><b>Reason:</b> {reason or 'No reason specified'}</p>"
+            )
 
         msg = f"Timesheet for {entry.employee.name} (Week of {entry.week_start_date.strftime('%d-%b-%Y')}) has been rejected."
         if is_ajax:
@@ -7396,19 +7906,22 @@ def pm_approve_week():
     # Send email notification to employee
     employee = Employee.query.get(emp_id)
     if employee:
-        subject = f"Timesheet Approved - Week of {week_start.strftime('%d %b %Y')}"
-        body = f"""
-        Dear {employee.name},
-        
-        Your timesheet for the week of {week_start.strftime('%d %b %Y')} has been approved by your Project Manager.
-        
-        Thanks,
-        System
-        """
-        
         try:
-            from mail import send_email
-            send_email(employee.email, subject, body)
+            week_label = f"Week of {week_start.strftime('%d %b %Y')}"
+            tot_hrs = round(sum(float(wt.total_hours or 0) for wt in weekly_timesheets), 2)
+            dispatch_templated_email(
+                'timesheet_approved',
+                employee.email,
+                context={
+                    'employee_name': employee.name,
+                    'week_range': week_label,
+                    'total_hours': tot_hrs,
+                    'status': 'PM Approved',
+                    'approver_name': f"{current_user.name} (Project Manager)"
+                },
+                fallback_subject=f"Timesheet Approved - {week_label}",
+                fallback_body=f"Dear {employee.name},<br><br>Your timesheet for the {week_label} has been approved by your Project Manager.<br><br>Thanks,<br>System"
+            )
         except Exception as e:
             print(f"Error sending email to {employee.email}: {e}")
     
@@ -7460,23 +7973,20 @@ def pm_reject_week():
     # Send email notification to employee
     employee = Employee.query.get(emp_id)
     if employee:
-        subject = f"Timesheet Rejected - Week of {week_start.strftime('%d %b %Y')}"
-        body = f"""
-        Dear {employee.name},
-        
-        Your timesheet for the week of {week_start.strftime('%d %b %Y')} has been rejected by your Project Manager.
-        
-        Reason: {rejection_reason}
-        
-        Please review and resubmit your timesheet.
-        
-        Thanks,
-        System
-        """
-        
         try:
-            from mail import send_email
-            send_email(employee.email, subject, body)
+            week_label = f"Week of {week_start.strftime('%d %b %Y')}"
+            dispatch_templated_email(
+                'timesheet_rejected',
+                employee.email,
+                context={
+                    'employee_name': employee.name,
+                    'week_range': week_label,
+                    'reason': rejection_reason or 'No reason provided',
+                    'approver_name': f"{current_user.name} (Project Manager)"
+                },
+                fallback_subject=f"Timesheet Rejected - {week_label}",
+                fallback_body=f"Dear {employee.name},<br><br>Your timesheet for the {week_label} has been rejected by your Project Manager.<br><br>Reason: {rejection_reason}<br><br>Please review and resubmit your timesheet.<br><br>Thanks,<br>System"
+            )
         except Exception as e:
             print(f"Error sending email to {employee.email}: {e}")
     
@@ -7556,19 +8066,22 @@ def hr_verify_week():
     # Send email notification to employee
     employee = Employee.query.get(emp_id)
     if employee:
-        subject = f"Timesheet Approved by HR - Week of {week_start.strftime('%d %b %Y')}"
-        body = f"""
-        Dear {employee.name},
-        
-        Your timesheet for the week of {week_start.strftime('%d %b %Y')} has been approved by HR.
-        
-        Thanks,
-        System
-        """
-        
         try:
-            from mail import send_email
-            send_email(employee.email, subject, body)
+            week_label = f"Week of {week_start.strftime('%d %b %Y')}"
+            tot_hrs = round(sum(float(wt.total_hours or 0) for wt in weekly_timesheets), 2)
+            dispatch_templated_email(
+                'timesheet_approved',
+                employee.email,
+                context={
+                    'employee_name': employee.name,
+                    'week_range': week_label,
+                    'total_hours': tot_hrs,
+                    'status': 'HR Approved',
+                    'approver_name': f"{current_user.name} (HR)"
+                },
+                fallback_subject=f"Timesheet Approved by HR - {week_label}",
+                fallback_body=f"Dear {employee.name},<br><br>Your timesheet for the {week_label} has been approved by HR.<br><br>Thanks,<br>System"
+            )
         except Exception as e:
             print(f"Error sending email to {employee.email}: {e}")
     
@@ -7620,23 +8133,20 @@ def hr_reject_week():
     # Send email notification to employee
     employee = Employee.query.get(emp_id)
     if employee:
-        subject = f"Timesheet Rejected by HR - Week of {week_start.strftime('%d %b %Y')}"
-        body = f"""
-        Dear {employee.name},
-        
-        Your timesheet for the week of {week_start.strftime('%d %b %Y')} has been rejected by HR.
-        
-        Reason: {rejection_reason}
-        
-        Please review and resubmit your timesheet.
-        
-        Thanks,
-        System
-        """
-        
         try:
-            from mail import send_email
-            send_email(employee.email, subject, body)
+            week_label = f"Week of {week_start.strftime('%d %b %Y')}"
+            dispatch_templated_email(
+                'timesheet_rejected',
+                employee.email,
+                context={
+                    'employee_name': employee.name,
+                    'week_range': week_label,
+                    'reason': rejection_reason or 'No reason provided',
+                    'approver_name': f"{current_user.name} (HR)"
+                },
+                fallback_subject=f"Timesheet Rejected by HR - {week_label}",
+                fallback_body=f"Dear {employee.name},<br><br>Your timesheet for the {week_label} has been rejected by HR.<br><br>Reason: {rejection_reason}<br><br>Please review and resubmit your timesheet.<br><br>Thanks,<br>System"
+            )
         except Exception as e:
             print(f"Error sending email to {employee.email}: {e}")
     
@@ -7689,8 +8199,22 @@ def pm_send_timesheet_reminder():
     task = Task.query.get_or_404(task_id)
     subject = f"Timesheet Reminder: {project.project_name}"
     body = f"Dear {assignee.name},<br><br>This is a reminder to submit your daily timesheet for the task: <b>{task.description}</b> in project <b>{project.project_name}</b>.<br>Please log your hours as soon as possible.<br><br>Thanks,<br>{current_user.name} (Project Manager)"
-    send_email(assignee.email, subject, body)
-    flash(f"Reminder sent to {assignee.name}.", "success")
+    sent = dispatch_templated_email(
+        step_key='timesheet_reminder_pm',
+        to=assignee.email,
+        context={
+            'employee_name': assignee.name,
+            'project_name': project.project_name,
+            'task_description': task.description,
+            'pm_name': current_user.name,
+        },
+        fallback_subject=subject,
+        fallback_body=body
+    )
+    if sent:
+        flash(f"Reminder sent to {assignee.name}.", "success")
+    else:
+        flash("Reminder email skipped because email notifications are currently disabled by IT Admin.", "warning")
     return redirect(url_for('pm_team_timesheet_status'))
 
 # Add automatic weekly submission function
@@ -7739,6 +8263,7 @@ def auto_submit_weekly_timesheets():
             for draft in emp_drafts:
                 db.session.delete(draft)
         db.session.commit()
+        week_range_str = f"{week_start.strftime('%d %b')} - {week_end.strftime('%d %b %Y')}"
         for employee_id in submitted_employees:
             employee = Employee.query.get(employee_id)
             if employee and employee.department:
@@ -7747,15 +8272,21 @@ def auto_submit_weekly_timesheets():
                     subject = f"Weekly Timesheet Submitted - {employee.name}"
                     body = f"""
                     Dear {pm.name},<br><br>
-                    {employee.name} has submitted their weekly timesheet for {week_start.strftime('%d %b')} - {week_end.strftime('%d %b %Y')}.<br><br>
+                    {employee.name} has submitted their weekly timesheet for {week_range_str}.<br><br>
                     Please review and approve the timesheet in the system.<br><br>
                     Thanks,<br>System
                     """
-                    try:
-                        from mail import send_email
-                        send_email(pm.email, subject, body)
-                    except Exception as e:
-                        print(f"Error sending email to {pm.email}: {e}")
+                    dispatch_templated_email(
+                        step_key='timesheet_submitted_auto',
+                        to=pm.email,
+                        context={
+                            'pm_name': pm.name,
+                            'employee_name': employee.name,
+                            'week_range': week_range_str,
+                        },
+                        fallback_subject=subject,
+                        fallback_body=body
+                    )
                     create_notification(
                         pm.id,
                         f"Weekly Timesheet Submitted - {employee.name}",
@@ -7801,10 +8332,17 @@ def send_weekly_timesheet_reminder():
                 <p style="color: #94a3b8; font-size: 12px; margin-bottom: 0;">DayLog &bull; Unified Timesheet & Project Management System &bull; Ecometrix Consultants Pvt. Ltd.</p>
             </div>
             """
-            try:
-                send_email(emp.email, subject, body)
-            except Exception as e:
-                print(f"[ERROR] Failed to send weekly reminder to {emp.email}: {e}")
+            dispatch_templated_email(
+                step_key='timesheet_reminder_weekly',
+                to=emp.email,
+                context={
+                    'employee_name': emp.name,
+                    'week_range': week_range_str,
+                    'portal_url': 'https://pmstimesheet.vercel.app/login',
+                },
+                fallback_subject=subject,
+                fallback_body=body
+            )
 
 def send_monthly_missing_timesheet_reminder():
     """
@@ -7894,10 +8432,19 @@ def send_monthly_missing_timesheet_reminder():
                 <p style="color: #94a3b8; font-size: 12px; margin-bottom: 0;">DayLog &bull; Unified Timesheet & Project Management System &bull; Ecometrix Consultants Pvt. Ltd.</p>
             </div>
             """
-            try:
-                send_email(emp.email, subject, body)
-            except Exception as e:
-                print(f"[ERROR] Failed to send monthly missing reminder to {emp.email}: {e}")
+            dispatch_templated_email(
+                step_key='timesheet_reminder_monthly',
+                to=emp.email,
+                context={
+                    'employee_name': emp.name,
+                    'month_name': month_name,
+                    'missed_count': len(missed_dates),
+                    'missed_dates_list': missed_list_html,
+                    'portal_url': 'https://pmstimesheet.vercel.app/login',
+                },
+                fallback_subject=subject,
+                fallback_body=body
+            )
 
 def send_missing_log_alerts():
     """Legacy wrapper calling send_monthly_missing_timesheet_reminder"""
@@ -7916,18 +8463,44 @@ def send_project_deadline_notifications():
     ).all()
     
     for project in projects:
+        deadline_str = project.contract_end_date.strftime('%d %b, %Y')
+        pm_name = project.project_manager.name if project.project_manager else 'Not Assigned'
         # Notify PM
         if project.project_manager:
             subject = f"Project Deadline Alert: {project.project_name}"
-            body = f"Dear {project.project_manager.name},<br><br>The project <b>{project.project_name}</b> (Code: {project.file_number}) is approaching its deadline on {project.contract_end_date.strftime('%d %b, %Y')}.<br><br>Please ensure all tasks are completed on time.<br><br>Thanks,<br>System"
-            send_email(project.project_manager.email, subject, body)
+            body = f"Dear {project.project_manager.name},<br><br>The project <b>{project.project_name}</b> (Code: {project.file_number}) is approaching its deadline on {deadline_str}.<br><br>Please ensure all tasks are completed on time.<br><br>Thanks,<br>System"
+            dispatch_templated_email(
+                step_key='project_deadline_alert',
+                to=project.project_manager.email,
+                context={
+                    'recipient_name': project.project_manager.name,
+                    'project_name': project.project_name,
+                    'file_number': project.file_number,
+                    'deadline_date': deadline_str,
+                    'pm_name': pm_name,
+                },
+                fallback_subject=subject,
+                fallback_body=body
+            )
         
         # Notify CEO/MD
         ceo_email = get_ceo_email()
         if ceo_email:
             ceo_subject = f"Project Deadline Alert: {project.project_name}"
-            ceo_body = f"Dear CEO/MD,<br><br>The project <b>{project.project_name}</b> (Code: {project.file_number}) is approaching its deadline on {project.contract_end_date.strftime('%d %b, %Y')}.<br><br>PM: {project.project_manager.name if project.project_manager else 'Not Assigned'}<br><br>Thanks,<br>System"
-            send_email(ceo_email, ceo_subject, ceo_body)
+            ceo_body = f"Dear CEO/MD,<br><br>The project <b>{project.project_name}</b> (Code: {project.file_number}) is approaching its deadline on {deadline_str}.<br><br>PM: {pm_name}<br><br>Thanks,<br>System"
+            dispatch_templated_email(
+                step_key='project_deadline_alert',
+                to=ceo_email,
+                context={
+                    'recipient_name': 'CEO / MD',
+                    'project_name': project.project_name,
+                    'file_number': project.file_number,
+                    'deadline_date': deadline_str,
+                    'pm_name': pm_name,
+                },
+                fallback_subject=ceo_subject,
+                fallback_body=ceo_body
+            )
 
 def send_task_assignment_notifications():
     """Send notifications for new task assignments"""
@@ -7965,10 +8538,11 @@ def send_weekly_digest():
         # Send digest to CEO/MD
         ceo_email = get_ceo_email()
         if ceo_email:
-            subject = f"Weekly Digest: {week_start.strftime('%d %b')} - {week_end.strftime('%d %b, %Y')}"
+            week_range_str = f"{week_start.strftime('%d %b')} - {week_end.strftime('%d %b, %Y')}"
+            subject = f"Weekly Digest: {week_range_str}"
             body = f"""
             <h3>Weekly Project Management Digest</h3>
-            <p><strong>Period:</strong> {week_start.strftime('%d %b')} - {week_end.strftime('%d %b, %Y')}</p>
+            <p><strong>Period:</strong> {week_range_str}</p>
             
             <h4>Project Overview</h4>
             <ul>
@@ -7988,7 +8562,21 @@ def send_weekly_digest():
             
             <p>Thanks,<br>System</p>
             """
-            send_email(ceo_email, subject, body)
+            dispatch_templated_email(
+                step_key='weekly_digest',
+                to=ceo_email,
+                context={
+                    'week_range': week_range_str,
+                    'total_projects': total_projects,
+                    'active_projects': active_projects,
+                    'completed_projects': completed_projects,
+                    'pending_approvals': pending_approvals,
+                    'submitted_timesheets': submitted_timesheets,
+                    'approved_timesheets': approved_timesheets,
+                },
+                fallback_subject=subject,
+                fallback_body=body
+            )
 
 # Update the scheduler to include new notifications
 def schedule_automatic_tasks():
@@ -8205,9 +8793,20 @@ def hr_advanced_verification(timesheet_id):
                 db.session.commit()
                 
                 # Send approval notification
-                subject = f"Timesheet Approved: {timesheet.week_start_date.strftime('%d %b')} - {timesheet.week_end_date.strftime('%d %b, %Y')}"
-                body = f"Dear {employee.name},<br><br>Your timesheet for {timesheet.week_start_date.strftime('%d %b')} - {timesheet.week_end_date.strftime('%d %b, %Y')} has been approved by HR.<br><br>Total Hours: {timesheet.total_hours}<br><br>Thanks,<br>{current_user.name} (HR)"
-                send_email(employee.email, subject, body)
+                week_label = f"{timesheet.week_start_date.strftime('%d %b')} - {timesheet.week_end_date.strftime('%d %b, %Y')}"
+                dispatch_templated_email(
+                    'timesheet_approved',
+                    employee.email,
+                    context={
+                        'employee_name': employee.name,
+                        'week_range': week_label,
+                        'total_hours': timesheet.total_hours,
+                        'status': 'HR Approved',
+                        'approver_name': f"{current_user.name} (HR)"
+                    },
+                    fallback_subject=f"Timesheet Approved: {week_label}",
+                    fallback_body=f"Dear {employee.name},<br><br>Your timesheet for {week_label} has been approved by HR.<br><br>Total Hours: {timesheet.total_hours}<br><br>Thanks,<br>{current_user.name} (HR)"
+                )
                 
                 flash('Timesheet verified successfully.', 'success')
             else:
@@ -8219,9 +8818,19 @@ def hr_advanced_verification(timesheet_id):
             db.session.commit()
             
             # Send rejection notification with reasons
-            subject = f"Timesheet Rejected: {timesheet.week_start_date.strftime('%d %b')} - {timesheet.week_end_date.strftime('%d %b, %Y')}"
-            body = f"Dear {employee.name},<br><br>Your timesheet for {timesheet.week_start_date.strftime('%d %b')} - {timesheet.week_end_date.strftime('%d %b, %Y')} has been rejected.<br><br>Reason: {verification_notes}<br><br>Please review and resubmit.<br><br>Thanks,<br>{current_user.name} (HR)"
-            send_email(employee.email, subject, body)
+            week_label = f"{timesheet.week_start_date.strftime('%d %b')} - {timesheet.week_end_date.strftime('%d %b, %Y')}"
+            dispatch_templated_email(
+                'timesheet_rejected',
+                employee.email,
+                context={
+                    'employee_name': employee.name,
+                    'week_range': week_label,
+                    'reason': verification_notes or 'Rejected during HR verification',
+                    'approver_name': f"{current_user.name} (HR)"
+                },
+                fallback_subject=f"Timesheet Rejected: {week_label}",
+                fallback_body=f"Dear {employee.name},<br><br>Your timesheet for {week_label} has been rejected.<br><br>Reason: {verification_notes}<br><br>Please review and resubmit.<br><br>Thanks,<br>{current_user.name} (HR)"
+            )
             
             flash('Timesheet rejected.', 'warning')
         
@@ -8850,6 +9459,21 @@ def approve_timesheet(timesheet_id):
             f'Your timesheet for {timesheet.week_start_date} has been approved ({new_status}) by {current_user.name}',
             'success'
         )
+        if timesheet.employee and timesheet.employee.email:
+            week_label = f"{timesheet.week_start_date.strftime('%d %b')} - {timesheet.week_end_date.strftime('%d %b, %Y')}"
+            dispatch_templated_email(
+                'timesheet_approved',
+                timesheet.employee.email,
+                context={
+                    'employee_name': timesheet.employee.name,
+                    'week_range': week_label,
+                    'total_hours': timesheet.total_hours,
+                    'status': new_status,
+                    'approver_name': f"{current_user.name} ({approval_level})"
+                },
+                fallback_subject=f"Timesheet {new_status}: {week_label}",
+                fallback_body=f"Dear {timesheet.employee.name},<br><br>Your timesheet for {week_label} has been approved ({new_status}) by {current_user.name}."
+            )
         return jsonify({'success': True, 'status': new_status, 'message': f'Timesheet approved ({new_status}) successfully'})
     except Exception as e:
         db.session.rollback()
@@ -9554,8 +10178,8 @@ def api_task_details(task_id):
         'timeline_start': task.timeline_start.strftime('%Y-%m-%d') if task.timeline_start else '',
         'timeline_end': task.timeline_end.strftime('%Y-%m-%d') if task.timeline_end else '',
         'status': task.status,
-        'assignees': [{'id': a.id, 'name': a.clean_name or a.name, 'emp_id': a.emp_id or ''} for a in task.assignees],
-        'available_assignees': [{'id': a.id, 'name': a.clean_name or a.name, 'emp_id': a.emp_id or ''} for a in available_assignees]
+        'assignees': [{'id': a.id, 'name': a.clean_name or a.name, 'emp_id': a.emp_id or '', 'department': a.department.name if a.department else 'General', 'designation': a.designation or a.role} for a in task.assignees],
+        'available_assignees': [{'id': a.id, 'name': a.clean_name or a.name, 'emp_id': a.emp_id or '', 'department': a.department.name if a.department else 'General', 'designation': a.designation or a.role} for a in available_assignees]
     }
     
     return jsonify({'success': True, 'task': task_data})
@@ -10474,9 +11098,26 @@ def api_it_send_credentials_email():
             'recipient': master_user.email
         })
 
+    allowed, reason = is_email_communication_allowed('it_master_credentials')
+    if not allowed and not is_mock_test:
+        return jsonify({
+            'success': False,
+            'message': f"Cannot dispatch email: {reason}. Re-enable it in Master Emailer Control."
+        }), 400
+
     try:
         from mail import send_email
-        send_email(to=master_user.email, subject=subject, template=html_content)
+        tpl = EmailTemplateMaster.query.filter_by(step_key='it_master_credentials').first()
+        if tpl and tpl.subject_template and tpl.subject_template.strip():
+            subject = _render_placeholder_string(tpl.subject_template, {
+                'recipient_name': master_user.name,
+                'title': title,
+                'portal_url': portal_url,
+                'email': master_user.email,
+            })
+        sent = send_email(to=master_user.email, subject=subject, template=html_content, step_key='it_master_credentials')
+        if not sent:
+            return jsonify({'success': False, 'message': 'Email dispatch blocked by IT Admin Emailer control.'}), 400
         log_audit_trail(
             action='CREDENTIAL_EMAIL_SENT',
             table_name='employee',
@@ -10652,6 +11293,137 @@ def api_it_purge_project(indent_id):
         db.session.rollback()
         print(f"Error purging project {indent_id}: {e}")
         return jsonify({'success': False, 'message': f'Failed to purge project: {str(e)}'}), 500
+
+# ==============================================================================
+# IT ADMIN MASTER EMAILER MANAGEMENT APIs
+# ==============================================================================
+@app.route('/api/it/emailer/global-toggle', methods=['POST'])
+@login_required
+def api_it_emailer_global_toggle():
+    if current_user.role not in ['IT', 'IT_ADMIN']:
+        return jsonify({'success': False, 'message': 'Access restricted to IT Administration.'}), 403
+
+    _ensure_email_master_tables_and_seed()
+    data = request.get_json() or {}
+    enabled = bool(data.get('enabled', True))
+
+    cfg = EmailSystemConfig.query.first()
+    if not cfg:
+        cfg = EmailSystemConfig(global_email_enabled=enabled)
+        db.session.add(cfg)
+    cfg.global_email_enabled = enabled
+    cfg.updated_by_name = current_user.name
+    cfg.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    log_audit_trail(
+        action='GLOBAL_EMAIL_TOGGLED',
+        table_name='email_system_config',
+        record_id=cfg.id,
+        new_values={'global_email_enabled': enabled, 'updated_by': current_user.name},
+        user_id=current_user.id
+    )
+    state_txt = 'ENABLED' if enabled else 'DISABLED'
+    return jsonify({
+        'success': True,
+        'global_email_enabled': enabled,
+        'message': f'All automated system emails are now {state_txt}.'
+    })
+
+
+@app.route('/api/it/emailer/step/<step_key>/toggle', methods=['POST'])
+@login_required
+def api_it_emailer_step_toggle(step_key):
+    if current_user.role not in ['IT', 'IT_ADMIN']:
+        return jsonify({'success': False, 'message': 'Access restricted to IT Administration.'}), 403
+
+    _ensure_email_master_tables_and_seed()
+    tpl = EmailTemplateMaster.query.filter_by(step_key=step_key).first_or_404()
+    data = request.get_json() or {}
+    enabled = bool(data.get('is_enabled', not tpl.is_enabled))
+
+    tpl.is_enabled = enabled
+    tpl.updated_by = current_user.name
+    tpl.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    log_audit_trail(
+        action='EMAIL_STEP_TOGGLED',
+        table_name='email_template_master',
+        record_id=tpl.id,
+        new_values={'step_key': step_key, 'is_enabled': enabled, 'updated_by': current_user.name},
+        user_id=current_user.id
+    )
+    return jsonify({
+        'success': True,
+        'step_key': step_key,
+        'is_enabled': enabled,
+        'message': f"'{tpl.step_name}' email notifications {'ENABLED' if enabled else 'DISABLED'}."
+    })
+
+
+@app.route('/api/it/emailer/step/<step_key>/save', methods=['POST'])
+@login_required
+def api_it_emailer_step_save(step_key):
+    if current_user.role not in ['IT', 'IT_ADMIN']:
+        return jsonify({'success': False, 'message': 'Access restricted to IT Administration.'}), 403
+
+    _ensure_email_master_tables_and_seed()
+    tpl = EmailTemplateMaster.query.filter_by(step_key=step_key).first_or_404()
+    data = request.get_json() or {}
+    subject = (data.get('subject_template') or '').strip()
+    body = (data.get('body_template') or '').strip()
+
+    if not subject or not body:
+        return jsonify({'success': False, 'message': 'Subject and message body cannot be empty.'}), 400
+
+    tpl.subject_template = subject
+    tpl.body_template = body
+    if 'is_enabled' in data:
+        tpl.is_enabled = bool(data['is_enabled'])
+    tpl.updated_by = current_user.name
+    tpl.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    log_audit_trail(
+        action='EMAIL_TEMPLATE_UPDATED',
+        table_name='email_template_master',
+        record_id=tpl.id,
+        new_values={'step_key': step_key, 'subject_template': subject, 'updated_by': current_user.name},
+        user_id=current_user.id
+    )
+    return jsonify({
+        'success': True,
+        'step_key': step_key,
+        'subject_template': tpl.subject_template,
+        'body_template': tpl.body_template,
+        'is_enabled': tpl.is_enabled,
+        'message': f"Saved updated email content & grammar for '{tpl.step_name}'."
+    })
+
+
+@app.route('/api/it/emailer/step/<step_key>/reset', methods=['POST'])
+@login_required
+def api_it_emailer_step_reset(step_key):
+    if current_user.role not in ['IT', 'IT_ADMIN']:
+        return jsonify({'success': False, 'message': 'Access restricted to IT Administration.'}), 403
+
+    _ensure_email_master_tables_and_seed()
+    tpl = EmailTemplateMaster.query.filter_by(step_key=step_key).first_or_404()
+    tpl.subject_template = tpl.default_subject
+    tpl.body_template = tpl.default_body
+    tpl.updated_by = current_user.name
+    tpl.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'step_key': step_key,
+        'subject_template': tpl.subject_template,
+        'body_template': tpl.body_template,
+        'message': f"Reset '{tpl.step_name}' back to default corporate message."
+    })
+
 
 # Call this when app starts
 if __name__ == '__main__':

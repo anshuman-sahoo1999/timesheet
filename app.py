@@ -652,8 +652,8 @@ class JobIndent(db.Model):
     department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
     sub_department_id = db.Column(db.Integer, db.ForeignKey('department.id'))
     file_number = db.Column(db.String(50), unique=True, nullable=False)
-    project_name = db.Column(db.String(200), nullable=False)
-    client_name = db.Column(db.String(200), nullable=False)
+    project_name = db.Column(db.Text, nullable=False)
+    client_name = db.Column(db.Text, nullable=False)
     contract_value = db.Column(db.Float)
     contract_start_date = db.Column(db.Date)
     contract_end_date = db.Column(db.Date)
@@ -763,7 +763,7 @@ class ProjectChangeRequest(db.Model):
     job_card_id = db.Column(db.Integer, db.ForeignKey('job_card.id'), nullable=True)
     requested_by_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
     change_type = db.Column(db.String(50), nullable=False)  # Budget Revision, Timeline Extension, Scope Change, Resource Reallocation
-    title = db.Column(db.String(200), nullable=False)
+    title = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text, nullable=False)
     revised_budget = db.Column(db.Float, nullable=True)
     revised_end_date = db.Column(db.Date, nullable=True)
@@ -859,7 +859,7 @@ class Timesheet(db.Model):
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('job_indent.id'), nullable=True)
-    project_name = db.Column(db.String(150), default='Others')
+    project_name = db.Column(db.Text, default='Others')
     date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     start_time = db.Column(db.String(20), nullable=True)
     end_time = db.Column(db.String(20), nullable=True)
@@ -955,7 +955,7 @@ class Notification(db.Model):
     """In-app notifications"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
+    title = db.Column(db.Text, nullable=False)
     message = db.Column(db.Text, nullable=False)
     type = db.Column(db.String(50), nullable=False)  # info, warning, success, error
     is_read = db.Column(db.Boolean, default=False)
@@ -994,9 +994,9 @@ class EmailTemplateMaster(db.Model):
     step_name = db.Column(db.String(150), nullable=False)
     description = db.Column(db.String(300), nullable=True)
     is_enabled = db.Column(db.Boolean, default=True, nullable=False)
-    subject_template = db.Column(db.String(300), nullable=False)
+    subject_template = db.Column(db.Text, nullable=False)
     body_template = db.Column(db.Text, nullable=False)
-    default_subject = db.Column(db.String(300), nullable=False)
+    default_subject = db.Column(db.Text, nullable=False)
     default_body = db.Column(db.Text, nullable=False)
     available_placeholders = db.Column(db.String(500), nullable=True)
     sort_order = db.Column(db.Integer, default=0)
@@ -1197,9 +1197,43 @@ DEFAULT_EMAIL_TEMPLATES = [
 ]
 
 
+_TEXT_COLUMNS_MIGRATED = False
+
+
+def _ensure_text_column_migrations():
+    """Upgrade legacy fixed-length varchar columns (e.g. notification.title) to TEXT in PostgreSQL."""
+    global _TEXT_COLUMNS_MIGRATED
+    if _TEXT_COLUMNS_MIGRATED:
+        return
+    try:
+        from sqlalchemy import text as sa_text
+        if db.engine.dialect.name == 'postgresql':
+            targets = [
+                ('notification', 'title'),
+                ('timesheet', 'project_name'),
+                ('job_indent', 'project_name'),
+                ('job_indent', 'client_name'),
+                ('project_change_request', 'title'),
+                ('email_template_master', 'subject_template'),
+                ('email_template_master', 'default_subject'),
+            ]
+            with db.engine.begin() as conn:
+                for tbl, col in targets:
+                    res = conn.execute(sa_text(
+                        "SELECT data_type FROM information_schema.columns "
+                        "WHERE table_schema = current_schema() AND table_name = :tbl AND column_name = :col"
+                    ), {'tbl': tbl, 'col': col}).fetchone()
+                    if res and res[0] and res[0].lower() != 'text':
+                        conn.execute(sa_text(f'ALTER TABLE "{tbl}" ALTER COLUMN "{col}" TYPE TEXT'))
+        _TEXT_COLUMNS_MIGRATED = True
+    except Exception as e:
+        print(f"[WARN] Text column migration check skipped: {e}")
+
+
 def _ensure_email_master_tables_and_seed():
     """Ensure EmailSystemConfig and EmailTemplateMaster tables and default steps exist."""
     try:
+        _ensure_text_column_migrations()
         from sqlalchemy import inspect as sa_inspect
         inspector = sa_inspect(db.engine)
         existing_tables = set(inspector.get_table_names())
@@ -1297,6 +1331,7 @@ def load_user(user_id):
 def init_db():
     with app.app_context():
         db.create_all()
+        _ensure_text_column_migrations()
         create_database_indexes()
 
         # Ensure CEO individual account has proper administrative role
@@ -3315,73 +3350,88 @@ def process_indent(indent_id):
             )
             db.session.add(jc)
 
+        # Commit core indent approval and JobCard before sending notifications/emails
+        db.session.commit()
+
+        file_no = indent.file_number
+        proj_name = indent.project_name
+        cli_name = indent.client_name
+        creator_email = indent.creator.email if indent.creator else None
+        creator_name = indent.creator.name if indent.creator else 'BD Team'
+        pm_name = assigned_pm.name if assigned_pm else 'N/A'
+        pm_email = assigned_pm.email if assigned_pm else None
+
         # In-app notification for the newly appointed PM
         if assigned_pm:
             create_notification(
                 assigned_pm.id,
-                f"Assigned as Project Manager: {indent.project_name}",
-                f"You have been allocated as the Project Manager for project '{indent.project_name}' ({indent.file_number}). Please navigate to 'Manage Job Cards' to draft project deliverables, milestones, and budget.",
+                f"Assigned as Project Manager: {proj_name}",
+                f"You have been allocated as the Project Manager for project '{proj_name}' ({file_no}). Please navigate to 'Manage Job Cards' to draft project deliverables, milestones, and budget.",
                 'info'
             )
 
-        flash(f'Job Indent {indent.file_number} has been approved and assigned to PM {assigned_pm.name if assigned_pm else ""}.', 'success')
+        flash(f'Job Indent {file_no} has been approved and assigned to PM {assigned_pm.name if assigned_pm else ""}.', 'success')
         ceo_signature = get_ceo_signature()
         portal_url = request.host_url.rstrip('/') + url_for('manage_job_cards')
 
         # Notify BD
         dispatch_templated_email(
             step_key='indent_approved_bd',
-            to=indent.creator.email if indent.creator else None,
+            to=creator_email,
             context={
-                'creator_name': indent.creator.name if indent.creator else 'BD Team',
-                'project_name': indent.project_name,
-                'file_number': indent.file_number,
-                'pm_name': assigned_pm.name if assigned_pm else 'N/A',
-                'client_name': indent.client_name,
+                'creator_name': creator_name,
+                'project_name': proj_name,
+                'file_number': file_no,
+                'pm_name': pm_name,
+                'client_name': cli_name,
             },
-            fallback_subject=f"Job Indent Approved: {indent.project_name}",
-            fallback_body=f"<p>Dear {indent.creator.name if indent.creator else 'Team'},</p><p>Your Job Indent for project <b>{indent.project_name}</b> (Code: {indent.file_number}) has been <b>approved</b>.</p><p>Project Manager Assigned: {assigned_pm.name if assigned_pm else 'N/A'}</p>"
+            fallback_subject=f"Job Indent Approved: {proj_name}",
+            fallback_body=f"<p>Dear {creator_name},</p><p>Your Job Indent for project <b>{proj_name}</b> (Code: {file_no}) has been <b>approved</b>.</p><p>Project Manager Assigned: {pm_name}</p>"
         )
 
         # Notify Assigned PM
         if assigned_pm:
             dispatch_templated_email(
                 step_key='indent_approved_pm',
-                to=assigned_pm.email,
+                to=pm_email,
                 context={
-                    'pm_name': assigned_pm.name,
-                    'project_name': indent.project_name,
-                    'file_number': indent.file_number,
-                    'client_name': indent.client_name,
+                    'pm_name': pm_name,
+                    'project_name': proj_name,
+                    'file_number': file_no,
+                    'client_name': cli_name,
                     'portal_url': portal_url,
                 },
-                fallback_subject=f"You have been assigned as Project Manager for {indent.project_name}",
-                fallback_body=f"<p>Dear {assigned_pm.name},</p><p>You have been officially allocated as the Project Manager for: <b>{indent.project_name}</b> (Code: {indent.file_number}).</p><p>Please open the PMS Timesheet Portal and visit <b>Manage Job Cards</b> to create the deliverables, milestones, and budget estimation.</p>",
+                fallback_subject=f"You have been assigned as Project Manager for {proj_name}",
+                fallback_body=f"<p>Dear {pm_name},</p><p>You have been officially allocated as the Project Manager for: <b>{proj_name}</b> (Code: {file_no}).</p><p>Please open the PMS Timesheet Portal and visit <b>Manage Job Cards</b> to create the deliverables, milestones, and budget estimation.</p>",
                 cc=ceo_email,
                 signature=ceo_signature
             )
     elif action == 'reject':
         indent.status = 'Rejected'
         indent.approved_at = datetime.utcnow()
-        flash(f'Job Indent {indent.file_number} has been rejected.', 'warning')
+        db.session.commit()
+        file_no = indent.file_number
+        proj_name = indent.project_name
+        creator_email = indent.creator.email if indent.creator else None
+        creator_name = indent.creator.name if indent.creator else 'BD Team'
+        flash(f'Job Indent {file_no} has been rejected.', 'warning')
         ceo_email = get_ceo_email()
         ceo_signature = get_ceo_signature()
         comments = request.form.get('comments', '').strip()
         dispatch_templated_email(
             step_key='indent_rejected',
-            to=indent.creator.email if indent.creator else None,
+            to=creator_email,
             context={
-                'creator_name': indent.creator.name if indent.creator else 'BD Team',
-                'project_name': indent.project_name,
-                'file_number': indent.file_number,
+                'creator_name': creator_name,
+                'project_name': proj_name,
+                'file_number': file_no,
                 'remarks': comments or 'No remarks specified.',
             },
-            fallback_subject=f"Job Indent Rejected: {indent.project_name}",
-            fallback_body=f"<p>Dear {indent.creator.name if indent.creator else 'Team'},</p><p>Your Job Indent for project <b>{indent.project_name}</b> (Code: {indent.file_number}) has been <b>rejected</b>.</p>",
+            fallback_subject=f"Job Indent Rejected: {proj_name}",
+            fallback_body=f"<p>Dear {creator_name},</p><p>Your Job Indent for project <b>{proj_name}</b> (Code: {file_no}) has been <b>rejected</b>.</p>",
             cc=ceo_email,
             signature=ceo_signature
         )
-    db.session.commit()
     return redirect(url_for('manage_job_indents'))
 
 @app.route('/pm/manage-job-cards')
@@ -3696,6 +3746,8 @@ def api_submit_job_card(indent_id):
                 )
                 t.assignees.append(emp)
                 db.session.add(t)
+
+    db.session.commit()
 
     # In-app notification and configurable email to CEO
     ceo_user = Employee.query.filter_by(role='MD').first()
@@ -4200,6 +4252,7 @@ def submit_change_request(indent_id):
         status='Pending'
     )
     db.session.add(cr)
+    db.session.commit()
 
     ceo_user = Employee.query.filter_by(role='MD').first()
     if ceo_user:
@@ -9914,17 +9967,38 @@ def log_audit_trail(action, table_name, record_id, old_values=None, new_values=N
         print(f"Error logging audit trail: {e}")
 
 def create_notification(user_id, title, message, notification_type='info'):
-    """Create in-app notification"""
+    """Create in-app notification safely without poisoning outer transactions."""
+    if not user_id:
+        return
+    clean_title = str(title or 'Notification').strip()
+    clean_message = str(message or '').strip()
+    _ensure_text_column_migrations()
     try:
-        notification = Notification(
-            user_id=user_id,
-            title=title,
-            message=message,
-            type=notification_type
-        )
-        db.session.add(notification)
+        try:
+            with db.session.begin_nested():
+                notification = Notification(
+                    user_id=user_id,
+                    title=clean_title,
+                    message=clean_message,
+                    type=notification_type
+                )
+                db.session.add(notification)
+                db.session.flush()
+        except Exception:
+            # Fallback if an un-migrated schema enforces varchar(200)
+            with db.session.begin_nested():
+                safe_short = (clean_title[:195] + '...') if len(clean_title) > 198 else clean_title
+                notification = Notification(
+                    user_id=user_id,
+                    title=safe_short,
+                    message=clean_message,
+                    type=notification_type
+                )
+                db.session.add(notification)
+                db.session.flush()
         db.session.commit()
     except Exception as e:
+        db.session.rollback()
         print(f"Error creating notification: {e}")
 
 def secure_filename(filename):

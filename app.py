@@ -11210,6 +11210,154 @@ def api_it_update_master_credentials():
     # Ensure email is unique across other users
     conflict = Employee.query.filter(Employee.email == new_email, Employee.id != master_user.id).first()
     if conflict:
+        return jsonify({'success': False, 'message': f'Email {new_email} is already registered to {conflict.name}.'}), 400
+
+    old_email = master_user.email
+    old_name = master_user.name
+    master_user.email = new_email
+    if new_name:
+        master_user.name = new_name
+
+    password_changed = False
+    if new_password:
+        if len(new_password) < 6:
+            return jsonify({'success': False, 'message': 'Password must be at least 6 characters long.'}), 400
+        master_user.set_password(new_password)
+        password_changed = True
+
+    try:
+        db.session.commit()
+        log_audit_trail(
+            action='PASSWORD_RESET_BY_IT' if password_changed else 'CREDENTIAL_UPDATE',
+            table_name='employee',
+            record_id=master_user.id,
+            old_values={'email': old_email, 'name': old_name, 'role': master_user.role, 'master_key': master_key},
+            new_values={'email': master_user.email, 'name': master_user.name, 'password_reset': password_changed},
+            user_id=current_user.id
+        )
+        return jsonify({
+            'success': True,
+            'message': f"Credentials for {master_key} ({master_user.name}) have been updated successfully.",
+            'email': master_user.email,
+            'name': master_user.name,
+            'password_changed': password_changed
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/it/master/send-credentials-email', methods=['POST'])
+@login_required
+def api_it_send_credentials_email():
+    if current_user.role not in ['IT', 'IT_ADMIN']:
+        return jsonify({'success': False, 'message': 'Access restricted to IT Administration.'}), 403
+
+    data = request.get_json() or {}
+    master_key = (data.get('master_key') or '').strip().upper()
+    password_to_send = (data.get('password') or '').strip()
+    is_mock_test = bool(data.get('test_mode') or request.headers.get('X-Test-Bypass-Email'))
+
+    if not master_key:
+        return jsonify({'success': False, 'message': 'Missing master_key.'}), 400
+
+    master_user = None
+    title = master_key
+    if master_key == 'CEO':
+        master_user = Employee.query.filter(or_(Employee.emp_id == '15M006', Employee.email == 'chinmay.tripathy@ecometrix.co.in', Employee.role == 'MD')).first()
+        title = "CEO / Managing Director"
+    elif master_key == 'BD':
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_BD', Employee.email == 'bd@ecometrix.co.in')).first()
+        title = "Business Development Master"
+    elif master_key == 'HR':
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_HR', Employee.email == 'hr@ecometrix.co.in')).first()
+        title = "Human Resources Master"
+    elif master_key in ['FINANCE', 'ACCOUNTS', 'FIN']:
+        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_FIN', Employee.email == 'accounts@ecometrix.co.in', Employee.email == 'finance@ecometrix.co.in')).first()
+        title = "Finance & Accounts Master"
+
+    if not master_user:
+        return jsonify({'success': False, 'message': f'Master account for {master_key} not found.'}), 404
+
+    if not password_to_send:
+        return jsonify({'success': False, 'message': 'Please enter or specify the password to send over email.'}), 400
+
+    subject = f"PMS Portal Access Credentials - {title}"
+    portal_url = request.host_url.rstrip('/') + url_for('login')
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0e8749; padding-bottom: 14px;">
+            <h2 style="color: #0e8749; margin: 0; font-size: 22px;">Ecometrix Project Monitoring System</h2>
+            <p style="color: #64748b; font-size: 13px; margin-top: 4px; text-transform: uppercase;">Official Master Account Credentials</p>
+        </div>
+        <p style="font-size: 15px; color: #1e293b;">Dear <strong>{master_user.name}</strong>,</p>
+        <p style="font-size: 14px; color: #475569; line-height: 1.6;">Your master access credentials for the Ecometrix PMS Portal have been configured by the IT Administration. Please find your login details below:</p>
+        
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0e8749; padding: 16px; margin: 18px 0; border-radius: 6px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <tr>
+                    <td style="padding: 6px 0; color: #64748b; width: 38%;"><strong>Master Authority:</strong></td>
+                    <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">{title}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; color: #64748b;"><strong>Portal URL:</strong></td>
+                    <td style="padding: 6px 0;"><a href="{portal_url}" style="color: #0e8749; font-weight: 600; text-decoration: none;">{portal_url}</a></td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; color: #64748b;"><strong>Username / Email ID:</strong></td>
+                    <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-size: 14px; font-weight: 600;">{master_user.email}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; color: #64748b;"><strong>Access Password:</strong></td>
+                    <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-size: 15px; font-weight: 700; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; display: inline-block;">{password_to_send}</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div style="background: #fff1f2; border: 1px solid #ffe4e6; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 13px; color: #e11d48; line-height: 1.5;">
+                <strong>Security Advisory:</strong> This is a confidential master credential. Do not forward or share this communication. For any support, contact IT Administration at <a href="mailto:it@ecometrix.co.in" style="color: #e11d48;">it@ecometrix.co.in</a>.
+            </p>
+        </div>
+        
+        <p style="font-size: 13px; color: #64748b; margin-top: 20px;">Best regards,<br><strong style="color: #0f172a;">IT Administration Team</strong><br>Ecometrix Infra Solutions Pvt. Ltd.</p>
+        <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0 12px;">
+        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Automated IT Notification &bull; Ecometrix PMS</p>
+    </div>
+    """
+
+    if is_mock_test:
+        log_audit_trail(
+            action='CREDENTIAL_EMAIL_SENT',
+            table_name='employee',
+            record_id=master_user.id,
+            new_values={'recipient': master_user.email, 'master_key': master_key, 'mode': 'TEST_MOCK_NO_EMAIL'},
+            user_id=current_user.id
+        )
+        return jsonify({
+            'success': True,
+            'message': f"[TEST MODE] Email simulated for {master_user.email}. No live email was dispatched.",
+            'recipient': master_user.email
+        })
+
+    allowed, reason = is_email_communication_allowed('it_master_credentials')
+    if not allowed and not is_mock_test:
+        return jsonify({
+            'success': False,
+            'message': f"Cannot dispatch email: {reason}. Re-enable it in Master Emailer Control."
+        }), 400
+
+    try:
+        from mail import send_email
+        tpl = EmailTemplateMaster.query.filter_by(step_key='it_master_credentials').first()
+        if tpl and tpl.subject_template and tpl.subject_template.strip():
+            subject = _render_placeholder_string(tpl.subject_template, {
+                'recipient_name': master_user.name,
+                'title': title,
+                'portal_url': portal_url,
+                'email': master_user.email,
+            })
+        sent = send_email(to=master_user.email, subject=subject, template=html_content, step_key='it_master_credentials')
+        if not sent:
             return jsonify({'success': False, 'message': 'Email dispatch blocked by IT Admin Emailer control.'}), 400
         log_audit_trail(
             action='CREDENTIAL_EMAIL_SENT',

@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import html
 
 # Ensure markupsafe and werkzeug compatibility for Flask-WTF and extensions
 try:
@@ -274,6 +275,71 @@ def format_inr(value):
         return f"Rs. {float(value):,.2f}"
     except (ValueError, TypeError, Exception):
         return "Rs. 0.00"
+
+
+@app.template_filter('compact_inr')
+def format_compact_inr(value):
+    """Format INR numbers compactly using Indian units (Cr., L, K), e.g., 37600000 -> '3.76 Cr.'."""
+    try:
+        if value is None or str(value).strip() in ['', 'None'] or 'Undefined' in str(type(value)):
+            return "0"
+        num = float(value)
+    except (ValueError, TypeError, Exception):
+        return "0"
+    sign = "-" if num < 0 else ""
+    abs_num = abs(num)
+    if abs_num >= 10_000_000:
+        v = f"{abs_num / 10_000_000:.2f}".rstrip('0').rstrip('.')
+        return f"{sign}{v} Cr."
+    if abs_num >= 100_000:
+        v = f"{abs_num / 100_000:.2f}".rstrip('0').rstrip('.')
+        return f"{sign}{v} L"
+    if abs_num >= 1_000:
+        v = f"{abs_num / 1_000:.2f}".rstrip('0').rstrip('.')
+        return f"{sign}{v} K"
+    return f"{sign}{abs_num:,.0f}"
+
+
+def clean_plain_text(value, default=''):
+    """Strip HTML tags safely without leaving HTML entities like '&amp;' in plain-text fields."""
+    raw = default if value is None else str(value)
+    cleaned = bleach.clean(raw, tags=[], strip=True)
+    return html.unescape(html.unescape(cleaned)).strip()
+
+
+def _parse_iso_date_safe(date_val):
+    """Parse YYYY-MM-DD (or date) safely to a datetime.date or None."""
+    if not date_val:
+        return None
+    if isinstance(date_val, datetime):
+        return date_val.date()
+    if isinstance(date_val, date):
+        return date_val
+    for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(str(date_val).strip(), fmt).date()
+        except ValueError:
+            pass
+    return None
+
+
+def _validate_dates_within_contract(indent, start_date, end_date, label='Project Dates'):
+    """Ensure PM-selected start and end dates fall strictly within BD's Contract Start & End dates."""
+    if not indent:
+        return None
+    cs = indent.contract_start_date
+    ce = indent.contract_end_date
+    if start_date and end_date and start_date > end_date:
+        return f"{label}: Start Date ({start_date.strftime('%d-%b-%Y')}) cannot be after End Date ({end_date.strftime('%d-%b-%Y')})."
+    if cs and start_date and start_date < cs:
+        return f"{label}: Start Date ({start_date.strftime('%d-%b-%Y')}) cannot be earlier than Contract Start Date ({cs.strftime('%d-%b-%Y')})."
+    if ce and start_date and start_date > ce:
+        return f"{label}: Start Date ({start_date.strftime('%d-%b-%Y')}) cannot exceed Contract End Date ({ce.strftime('%d-%b-%Y')})."
+    if cs and end_date and end_date < cs:
+        return f"{label}: End Date ({end_date.strftime('%d-%b-%Y')}) cannot be earlier than Contract Start Date ({cs.strftime('%d-%b-%Y')})."
+    if ce and end_date and end_date > ce:
+        return f"{label}: End Date ({end_date.strftime('%d-%b-%Y')}) cannot exceed Contract End Date ({ce.strftime('%d-%b-%Y')})."
+    return None
 
 # Optimized database queries
 @cache_result(ttl=60)  # Cache for 1 minute
@@ -1225,6 +1291,28 @@ def _ensure_text_column_migrations():
                     ), {'tbl': tbl, 'col': col}).fetchone()
                     if res and res[0] and res[0].lower() != 'text':
                         conn.execute(sa_text(f'ALTER TABLE "{tbl}" ALTER COLUMN "{col}" TYPE TEXT'))
+                # Repair any legacy plain-text rows that previously stored '&amp;' / '&lt;' / '&gt;' via bleach.clean
+                plain_cleanup = [
+                    ('job_indent', ['project_name', 'client_name', 'project_type', 'description']),
+                    ('client', ['client_name', 'department_name', 'address']),
+                    ('department', ['name']),
+                    ('task', ['description']),
+                    ('timesheet', ['project_name', 'progress_description']),
+                    ('employee', ['name', 'designation', 'place']),
+                    ('project_actual_expense', ['category', 'vendor_name', 'description']),
+                    ('project_change_request', ['title', 'description']),
+                    ('notification', ['title', 'message']),
+                ]
+                for tbl, cols in plain_cleanup:
+                    for col in cols:
+                        rows = conn.execute(sa_text(
+                            f'SELECT id, "{col}" FROM "{tbl}" WHERE "{col}" LIKE :p1 OR "{col}" LIKE :p2 OR "{col}" LIKE :p3'
+                        ), {'p1': '%&amp;%', 'p2': '%&#39;%', 'p3': '%&quot;%'}).fetchall()
+                        for rid, rval in rows:
+                            if rval:
+                                fixed = html.unescape(html.unescape(rval))
+                                if fixed != rval:
+                                    conn.execute(sa_text(f'UPDATE "{tbl}" SET "{col}" = :v WHERE id = :id'), {'v': fixed, 'id': rid})
         _TEXT_COLUMNS_MIGRATED = True
     except Exception as e:
         print(f"[WARN] Text column migration check skipped: {e}")
@@ -2338,7 +2426,7 @@ def api_auth_ticket_submit():
         last_login_str=last_login,
         request_type='Request to enable / reset QR Authentication',
         status='Pending',
-        remarks=bleach.clean(remarks) if remarks else None,
+        remarks=clean_plain_text(remarks) if remarks else None,
         created_at=datetime.utcnow()
     )
     db.session.add(ticket)
@@ -2472,7 +2560,7 @@ def create_job_indent():
     
     if request.method == 'POST':
         try:
-            financial_year = bleach.clean(request.form.get('financial_year', '')).strip()
+            financial_year = clean_plain_text(request.form.get('financial_year', ''))
             if not financial_year:
                 flash('Please select a Financial Year.', 'danger')
                 return redirect(url_for('create_job_indent'))
@@ -2498,12 +2586,12 @@ def create_job_indent():
             if sub_department_id:
                 sub_department = db.session.query(Department).filter(Department.id == sub_department_id).first()
             
-            project_name = bleach.clean(request.form.get('project_name', '')).strip()
+            project_name = clean_plain_text(request.form.get('project_name', ''))
             if not project_name:
                 flash('Project Name is required.', 'danger')
                 return redirect(url_for('create_job_indent'))
 
-            client_name = bleach.clean(request.form.get('client_name', '')).strip()
+            client_name = clean_plain_text(request.form.get('client_name', ''))
             if not client_name:
                 flash('Client Name is required.', 'danger')
                 return redirect(url_for('create_job_indent'))
@@ -2537,7 +2625,7 @@ def create_job_indent():
             contract_value = float(raw_cv) if raw_cv else None
 
             # Reference code / file number
-            custom_ref = bleach.clean(request.form.get('internal_reference_code', '')).strip()
+            custom_ref = clean_plain_text(request.form.get('internal_reference_code', ''))
             if custom_ref:
                 existing_ref = JobIndent.query.filter_by(file_number=custom_ref).first()
                 if existing_ref:
@@ -2575,8 +2663,8 @@ def create_job_indent():
                 file_number=file_number,
                 project_name=project_name,
                 client_name=client_name,
-                project_type=bleach.clean(request.form.get('project_type', '')).strip(),
-                description=bleach.clean(request.form.get('description', '')).strip(),
+                project_type=clean_plain_text(request.form.get('project_type', '')),
+                description=clean_plain_text(request.form.get('description', '')),
                 contract_value=contract_value,
                 contract_start_date=contract_start_date,
                 contract_end_date=contract_end_date,
@@ -2687,12 +2775,12 @@ def create_client():
     
     if request.method == 'POST':
         try:
-            client_name = bleach.clean(request.form.get('client_name', '')).strip()
-            department_name = bleach.clean(request.form.get('department_name', '')).strip()
-            mobile = bleach.clean(request.form.get('mobile', '')).strip() or None
-            gst_number = bleach.clean(request.form.get('gst_number', '')).strip() or None
-            pan = bleach.clean(request.form.get('pan', '')).strip() or None
-            address = bleach.clean(request.form.get('address', '')).strip() or None
+            client_name = clean_plain_text(request.form.get('client_name', ''))
+            department_name = clean_plain_text(request.form.get('department_name', ''))
+            mobile = clean_plain_text(request.form.get('mobile', '')) or None
+            gst_number = clean_plain_text(request.form.get('gst_number', '')) or None
+            pan = clean_plain_text(request.form.get('pan', '')) or None
+            address = clean_plain_text(request.form.get('address', '')) or None
 
             if not client_name or not department_name:
                 flash('Please fill in required fields: Name of Client/Organization and Department/Government/Company.', 'error')
@@ -2736,12 +2824,12 @@ def edit_client(client_id):
     client = db.session.query(Client).filter(Client.id == client_id, Client.is_active == True).first_or_404()
     if request.method == 'POST':
         try:
-            client.client_name = bleach.clean(request.form.get('client_name', '')).strip()
-            client.department_name = bleach.clean(request.form.get('department_name', '')).strip()
-            client.mobile = bleach.clean(request.form.get('mobile', '')).strip() or None
-            client.gst_number = bleach.clean(request.form.get('gst_number', '')).strip() or None
-            client.pan = bleach.clean(request.form.get('pan', '')).strip() or None
-            client.address = bleach.clean(request.form.get('address', '')).strip() or None
+            client.client_name = clean_plain_text(request.form.get('client_name', ''))
+            client.department_name = clean_plain_text(request.form.get('department_name', ''))
+            client.mobile = clean_plain_text(request.form.get('mobile', '')) or None
+            client.gst_number = clean_plain_text(request.form.get('gst_number', '')) or None
+            client.pan = clean_plain_text(request.form.get('pan', '')) or None
+            client.address = clean_plain_text(request.form.get('address', '')) or None
             
             db.session.commit()
             flash(f'Client "{client.client_name}" updated successfully!', 'success')
@@ -3205,11 +3293,11 @@ def api_finance_add_bill(indent_id):
     indent = JobIndent.query.get_or_404(indent_id)
     data = request.get_json() if request.is_json else request.form
 
-    category = bleach.clean(data.get('category', '')).strip()
+    category = clean_plain_text(data.get('category', ''))
     bill_date_str = data.get('bill_date', '')
-    bill_number = bleach.clean(data.get('bill_number', '')).strip()
-    vendor_name = bleach.clean(data.get('vendor_name', '')).strip()
-    description = bleach.clean(data.get('description', '')).strip()
+    bill_number = clean_plain_text(data.get('bill_number', ''))
+    vendor_name = clean_plain_text(data.get('vendor_name', ''))
+    description = clean_plain_text(data.get('description', ''))
     amount_str = str(data.get('amount', '0')).strip().replace(',', '')
 
     if not category:
@@ -3589,18 +3677,30 @@ def api_save_job_card_draft(indent_id):
     resources = data.get('resources', [])
     expenditures = data.get('expenditures', [])
 
-    actual_start = None
-    actual_end = None
-    if actual_start_str:
-        try:
-            actual_start = datetime.strptime(actual_start_str, '%Y-%m-%d').date()
-        except ValueError:
-            pass
-    if actual_end_str:
-        try:
-            actual_end = datetime.strptime(actual_end_str, '%Y-%m-%d').date()
-        except ValueError:
-            pass
+    actual_start = _parse_iso_date_safe(actual_start_str)
+    actual_end = _parse_iso_date_safe(actual_end_str)
+
+    date_err = _validate_dates_within_contract(indent, actual_start, actual_end, 'Actual Execution Dates')
+    if date_err:
+        return jsonify({'success': False, 'error': date_err}), 400
+    for idx, m in enumerate(milestones or [], start=1):
+        m_err = _validate_dates_within_contract(
+            indent,
+            _parse_iso_date_safe(m.get('start_date')),
+            _parse_iso_date_safe(m.get('end_date')),
+            f"Milestone #{idx}"
+        )
+        if m_err:
+            return jsonify({'success': False, 'error': m_err}), 400
+    for idx, r in enumerate(resources or [], start=1):
+        r_err = _validate_dates_within_contract(
+            indent,
+            _parse_iso_date_safe(r.get('start_date')),
+            _parse_iso_date_safe(r.get('end_date')),
+            f"Resource #{idx}"
+        )
+        if r_err:
+            return jsonify({'success': False, 'error': r_err}), 400
 
     jc.overview = overview
     jc.actual_start_date = actual_start
@@ -3675,16 +3775,39 @@ def api_submit_job_card(indent_id):
     resources = data.get('resources', [])
     expenditures = data.get('expenditures', [])
 
-    if actual_start_str:
-        try:
-            jc.actual_start_date = datetime.strptime(actual_start_str, '%Y-%m-%d').date()
-        except ValueError:
-            pass
-    if actual_end_str:
-        try:
-            jc.actual_end_date = datetime.strptime(actual_end_str, '%Y-%m-%d').date()
-        except ValueError:
-            pass
+    parsed_start = _parse_iso_date_safe(actual_start_str)
+    parsed_end = _parse_iso_date_safe(actual_end_str)
+    date_err = _validate_dates_within_contract(
+        indent,
+        parsed_start if actual_start_str else jc.actual_start_date,
+        parsed_end if actual_end_str else jc.actual_end_date,
+        'Actual Execution Dates'
+    )
+    if date_err:
+        return jsonify({'success': False, 'error': date_err}), 400
+    for idx, m in enumerate(milestones or [], start=1):
+        m_err = _validate_dates_within_contract(
+            indent,
+            _parse_iso_date_safe(m.get('start_date')),
+            _parse_iso_date_safe(m.get('end_date')),
+            f"Milestone #{idx}"
+        )
+        if m_err:
+            return jsonify({'success': False, 'error': m_err}), 400
+    for idx, r in enumerate(resources or [], start=1):
+        r_err = _validate_dates_within_contract(
+            indent,
+            _parse_iso_date_safe(r.get('start_date')),
+            _parse_iso_date_safe(r.get('end_date')),
+            f"Resource #{idx}"
+        )
+        if r_err:
+            return jsonify({'success': False, 'error': r_err}), 400
+
+    if parsed_start:
+        jc.actual_start_date = parsed_start
+    if parsed_end:
+        jc.actual_end_date = parsed_end
 
     jc.overview = overview
     jc.milestones_json = json.dumps(milestones)
@@ -4375,6 +4498,20 @@ def create_job_card(indent_id):
         if not job_card:
             job_card = JobCard(job_indent_id=indent.id)
             db.session.add(job_card)
+        # Validate and save project start/end dates strictly inside Contract Start & End dates
+        p_start = _parse_iso_date_safe(request.form.get('project_start_date'))
+        p_end = _parse_iso_date_safe(request.form.get('project_end_date'))
+        p_date_err = _validate_dates_within_contract(indent, p_start, p_end, 'Project Schedule')
+        if p_date_err:
+            flash(p_date_err, 'danger')
+            return redirect(url_for('create_job_card', indent_id=indent_id))
+        if p_start:
+            job_card.project_start_date = p_start
+            job_card.actual_start_date = p_start
+        if p_end:
+            job_card.project_end_date = p_end
+            job_card.actual_end_date = p_end
+
         # Update estimated value and status
         job_card.estimated_value = float(request.form['estimated_value'])
         job_card.status = 'Submitted'
@@ -4382,13 +4519,17 @@ def create_job_card(indent_id):
         task_idx = 0
         assigned_emails = set()
         while f'task_desc_{task_idx}' in request.form:
-            desc = bleach.clean(request.form[f'task_desc_{task_idx}'])
+            desc = clean_plain_text(request.form[f'task_desc_{task_idx}'])
             man_days = int(request.form.get(f'man_days_{task_idx}', 0))
             man_hours = int(request.form.get(f'man_hours_{task_idx}', 0))
             timeline_start_str = request.form.get(f'timeline_start_{task_idx}')
             timeline_end_str = request.form.get(f'timeline_end_{task_idx}')
-            timeline_start = datetime.strptime(timeline_start_str, '%Y-%m-%d').date() if timeline_start_str else None
-            timeline_end = datetime.strptime(timeline_end_str, '%Y-%m-%d').date() if timeline_end_str else None
+            timeline_start = _parse_iso_date_safe(timeline_start_str)
+            timeline_end = _parse_iso_date_safe(timeline_end_str)
+            t_err = _validate_dates_within_contract(indent, timeline_start, timeline_end, f'Task #{task_idx + 1}')
+            if t_err:
+                flash(t_err, 'danger')
+                return redirect(url_for('create_job_card', indent_id=indent_id))
             assignee_id = request.form.get(f'team_member_{task_idx}')
             # Only add if not already present (avoid duplicates)
             if desc and assignee_id:
@@ -4502,6 +4643,18 @@ def edit_job_card(card_id):
         abort(403)
     if request.method == 'POST':
         was_revision = (job_card.status == 'Rejected' or job_card.budget_status == 'Revision Requested')
+        p_start = _parse_iso_date_safe(request.form.get('project_start_date'))
+        p_end = _parse_iso_date_safe(request.form.get('project_end_date'))
+        p_date_err = _validate_dates_within_contract(indent, p_start, p_end, 'Project Schedule')
+        if p_date_err:
+            flash(p_date_err, 'danger')
+            return redirect(url_for('edit_job_card', card_id=card_id))
+        if p_start:
+            job_card.project_start_date = p_start
+            job_card.actual_start_date = p_start
+        if p_end:
+            job_card.project_end_date = p_end
+            job_card.actual_end_date = p_end
         # Update estimated value
         job_card.estimated_value = float(request.form['estimated_value'])
         # Set status to Submitted
@@ -4510,13 +4663,17 @@ def edit_job_card(card_id):
         task_idx = 0
         assigned_emails = set()
         while f'task_desc_{task_idx}' in request.form:
-            desc = bleach.clean(request.form[f'task_desc_{task_idx}'])
+            desc = clean_plain_text(request.form[f'task_desc_{task_idx}'])
             man_days = int(request.form.get(f'man_days_{task_idx}', 0))
             man_hours = int(request.form.get(f'man_hours_{task_idx}', 0))
             timeline_start_str = request.form.get(f'timeline_start_{task_idx}')
             timeline_end_str = request.form.get(f'timeline_end_{task_idx}')
-            timeline_start = datetime.strptime(timeline_start_str, '%Y-%m-%d').date() if timeline_start_str else None
-            timeline_end = datetime.strptime(timeline_end_str, '%Y-%m-%d').date() if timeline_end_str else None
+            timeline_start = _parse_iso_date_safe(timeline_start_str)
+            timeline_end = _parse_iso_date_safe(timeline_end_str)
+            t_err = _validate_dates_within_contract(indent, timeline_start, timeline_end, f'Task #{task_idx + 1}')
+            if t_err:
+                flash(t_err, 'danger')
+                return redirect(url_for('edit_job_card', card_id=card_id))
             assignee_id = request.form.get(f'team_member_{task_idx}')
             # Only add if not already present (avoid duplicates)
             if desc and assignee_id:
@@ -5012,10 +5169,10 @@ def log_timesheet():
         day_total = 0.0
 
         for i in range(len(descriptions)):
-            desc = bleach.clean(descriptions[i]).strip() if descriptions[i] else ''
-            p_val = bleach.clean(projects[i]).strip() if i < len(projects) else 'Others'
-            st = bleach.clean(start_times[i]).strip() if i < len(start_times) else ''
-            et = bleach.clean(end_times[i]).strip() if i < len(end_times) else ''
+            desc = clean_plain_text(descriptions[i]) if descriptions[i] else ''
+            p_val = clean_plain_text(projects[i]) if i < len(projects) else 'Others'
+            st = clean_plain_text(start_times[i]) if i < len(start_times) else ''
+            et = clean_plain_text(end_times[i]) if i < len(end_times) else ''
             raw_h = hours_list[i].strip() if i < len(hours_list) else ''
 
             if not desc and not st and not et:
@@ -5378,16 +5535,16 @@ def add_employee():
     managers = Employee.query.filter(Employee.is_active == True).order_by(Employee.name).all()
 
     if request.method == 'POST':
-        name = bleach.clean(request.form.get('name', '')).strip()
+        name = clean_plain_text(request.form.get('name', ''))
         name = re.sub(r'^(Mr\.|Ms\.|Mrs\.|Dr\.|Shri|Smt\.)\s*', '', name, flags=re.IGNORECASE).strip()
-        emp_id = bleach.clean(request.form.get('emp_id', '')).strip()
-        email = bleach.clean(request.form.get('email', '')).strip()
+        emp_id = clean_plain_text(request.form.get('emp_id', ''))
+        email = clean_plain_text(request.form.get('email', ''))
         password = request.form.get('password', '').strip()
-        designation = bleach.clean(request.form.get('designation', '')).strip()
+        designation = clean_plain_text(request.form.get('designation', ''))
         department_id = request.form.get('department_id')
         manager_id_raw = request.form.get('manager_id')
-        place = bleach.clean(request.form.get('place', '')).strip()
-        mobile = bleach.clean(request.form.get('mobile', '')).strip()
+        place = clean_plain_text(request.form.get('place', ''))
+        mobile = clean_plain_text(request.form.get('mobile', ''))
         role = request.form.get('role', 'EMP').strip()
 
         parsed_mgr_id = int(manager_id_raw) if manager_id_raw and manager_id_raw.isdigit() else None
@@ -5440,8 +5597,8 @@ def add_employee():
             place=place or None,
             mobile=mobile or None,
             monthly_salary=monthly_salary,
-            salary_grade=bleach.clean(request.form.get('salary_grade', '')).strip() or None,
-            employment_type=bleach.clean(request.form.get('employment_type', 'EMPLOYEE')).strip() or 'EMPLOYEE',
+            salary_grade=clean_plain_text(request.form.get('salary_grade', '')) or None,
+            employment_type=clean_plain_text(request.form.get('employment_type', 'EMPLOYEE')) or 'EMPLOYEE',
             date_of_joining=datetime.strptime(request.form.get('date_of_joining', '').strip(), '%Y-%m-%d').date() if request.form.get('date_of_joining', '').strip() else None,
             role=role,
             status='Active',
@@ -5465,13 +5622,13 @@ def edit_employee(emp_id):
     managers = Employee.query.filter(Employee.is_active == True, Employee.id != emp.id).order_by(Employee.name).all()
 
     if request.method == 'POST':
-        name = bleach.clean(request.form.get('name', '')).strip()
+        name = clean_plain_text(request.form.get('name', ''))
         name = re.sub(r'^(Mr\.|Ms\.|Mrs\.|Dr\.|Shri|Smt\.)\s*', '', name, flags=re.IGNORECASE).strip()
-        new_emp_id = bleach.clean(request.form.get('emp_id', '')).strip()
-        email = bleach.clean(request.form.get('email', '')).strip()
-        designation = bleach.clean(request.form.get('designation', '')).strip()
-        place = bleach.clean(request.form.get('place', '')).strip()
-        mobile = bleach.clean(request.form.get('mobile', '')).strip()
+        new_emp_id = clean_plain_text(request.form.get('emp_id', ''))
+        email = clean_plain_text(request.form.get('email', ''))
+        designation = clean_plain_text(request.form.get('designation', ''))
+        place = clean_plain_text(request.form.get('place', ''))
+        mobile = clean_plain_text(request.form.get('mobile', ''))
         role = request.form.get('role', emp.role).strip()
         department_id = request.form.get('department_id')
         manager_id_raw = request.form.get('manager_id')
@@ -5516,9 +5673,9 @@ def edit_employee(emp_id):
         emp.mobile = mobile or None
         emp.monthly_salary = monthly_salary
         if 'salary_grade' in request.form:
-            emp.salary_grade = bleach.clean(request.form.get('salary_grade', '')).strip() or None
+            emp.salary_grade = clean_plain_text(request.form.get('salary_grade', '')) or None
         if 'employment_type' in request.form:
-            emp.employment_type = bleach.clean(request.form.get('employment_type', 'EMPLOYEE')).strip() or 'EMPLOYEE'
+            emp.employment_type = clean_plain_text(request.form.get('employment_type', 'EMPLOYEE')) or 'EMPLOYEE'
         if 'date_of_joining' in request.form:
             doj_val = request.form.get('date_of_joining', '').strip()
             if doj_val:
@@ -5553,7 +5710,7 @@ def block_employee(emp_id):
         flash("You cannot block your own account.", 'danger')
         return redirect(url_for('manage_employees'))
     
-    reason = bleach.clean(request.form.get('reason', 'Temporarily blocked by HR Admin')).strip()
+    reason = clean_plain_text(request.form.get('reason', 'Temporarily blocked by HR Admin'))
     emp.status = 'Blocked'
     emp.is_active = False
     emp.blocked_at = datetime.utcnow()
@@ -5588,7 +5745,7 @@ def resign_employee(emp_id):
         flash("You cannot mark your own account as resigned.", 'danger')
         return redirect(url_for('manage_employees'))
     
-    reason = bleach.clean(request.form.get('reason', 'Resigned from organization')).strip()
+    reason = clean_plain_text(request.form.get('reason', 'Resigned from organization'))
     emp.status = 'Resigned'
     emp.is_active = False
     emp.resigned_at = datetime.utcnow()
@@ -7683,13 +7840,16 @@ def add_task_to_job_card(indent_id):
             db.session.commit()
         data = request.get_json()
         print('Received data:', data)
-        desc = bleach.clean(data.get('task_desc', ''))
+        desc = clean_plain_text(data.get('task_desc', ''))
         man_days = int(data.get('man_days', 0))
         man_hours = int(data.get('man_hours', 0))
         timeline_start_str = data.get('timeline_start')
         timeline_end_str = data.get('timeline_end')
-        timeline_start = datetime.strptime(timeline_start_str, '%Y-%m-%d').date() if timeline_start_str else None
-        timeline_end = datetime.strptime(timeline_end_str, '%Y-%m-%d').date() if timeline_end_str else None
+        timeline_start = _parse_iso_date_safe(timeline_start_str)
+        timeline_end = _parse_iso_date_safe(timeline_end_str)
+        date_err = _validate_dates_within_contract(indent, timeline_start, timeline_end, 'Task Timeline')
+        if date_err:
+            return jsonify({'success': False, 'error': date_err}), 400
         assignee_id = data.get('team_member')
         if not (desc and man_days and man_hours and timeline_start and timeline_end and assignee_id):
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
@@ -10003,7 +10163,7 @@ def create_notification(user_id, title, message, notification_type='info'):
 
 def secure_filename(filename):
     """Secure filename for uploads"""
-    return bleach.clean(filename, strip=True)
+    return html.unescape(bleach.clean(filename or '', tags=[], strip=True))
 
 @app.route('/admin/trigger-auto-submit', methods=['POST'])
 @login_required
@@ -10244,6 +10404,7 @@ def api_task_details(task_id):
         is_active=True
     ).all()
     
+    indent_ref = task.job_card.indent if task.job_card else None
     task_data = {
         'id': task.id,
         'description': task.description,
@@ -10251,6 +10412,8 @@ def api_task_details(task_id):
         'man_hours': task.man_hours,
         'timeline_start': task.timeline_start.strftime('%Y-%m-%d') if task.timeline_start else '',
         'timeline_end': task.timeline_end.strftime('%Y-%m-%d') if task.timeline_end else '',
+        'contract_start_date': indent_ref.contract_start_date.strftime('%Y-%m-%d') if (indent_ref and indent_ref.contract_start_date) else '',
+        'contract_end_date': indent_ref.contract_end_date.strftime('%Y-%m-%d') if (indent_ref and indent_ref.contract_end_date) else '',
         'status': task.status,
         'assignees': [{'id': a.id, 'name': a.clean_name or a.name, 'emp_id': a.emp_id or '', 'department': a.department.name if a.department else 'General', 'designation': a.designation or a.role} for a in task.assignees],
         'available_assignees': [{'id': a.id, 'name': a.clean_name or a.name, 'emp_id': a.emp_id or '', 'department': a.department.name if a.department else 'General', 'designation': a.designation or a.role} for a in available_assignees]
@@ -10273,19 +10436,23 @@ def api_task_update(task_id):
     
     try:
         # Update task fields
-        task.description = request.form.get('description', task.description)
+        task.description = clean_plain_text(request.form.get('description', task.description))
         task.man_days = int(request.form.get('man_days', 0))
         task.man_hours = int(request.form.get('man_hours', 0))
         task.status = request.form.get('status', task.status)
         
-        # Update timeline
+        # Update timeline with contract date enforcement
         timeline_start = request.form.get('timeline_start')
-        if timeline_start:
-            task.timeline_start = datetime.strptime(timeline_start, '%Y-%m-%d').date()
-        
         timeline_end = request.form.get('timeline_end')
-        if timeline_end:
-            task.timeline_end = datetime.strptime(timeline_end, '%Y-%m-%d').date()
+        new_start = _parse_iso_date_safe(timeline_start) if timeline_start else task.timeline_start
+        new_end = _parse_iso_date_safe(timeline_end) if timeline_end else task.timeline_end
+        date_err = _validate_dates_within_contract(task.job_card.indent if task.job_card else None, new_start, new_end, 'Task Timeline')
+        if date_err:
+            return jsonify({'success': False, 'error': date_err}), 400
+        if new_start:
+            task.timeline_start = new_start
+        if new_end:
+            task.timeline_end = new_end
         
         # Update assignees
         assignees_json = request.form.get('assignees', '[]')
@@ -11043,154 +11210,6 @@ def api_it_update_master_credentials():
     # Ensure email is unique across other users
     conflict = Employee.query.filter(Employee.email == new_email, Employee.id != master_user.id).first()
     if conflict:
-        return jsonify({'success': False, 'message': f'Email {new_email} is already registered to {conflict.name}.'}), 400
-
-    old_email = master_user.email
-    old_name = master_user.name
-    master_user.email = new_email
-    if new_name:
-        master_user.name = new_name
-
-    password_changed = False
-    if new_password:
-        if len(new_password) < 6:
-            return jsonify({'success': False, 'message': 'Password must be at least 6 characters long.'}), 400
-        master_user.set_password(new_password)
-        password_changed = True
-
-    try:
-        db.session.commit()
-        log_audit_trail(
-            action='PASSWORD_RESET_BY_IT' if password_changed else 'CREDENTIAL_UPDATE',
-            table_name='employee',
-            record_id=master_user.id,
-            old_values={'email': old_email, 'name': old_name, 'role': master_user.role, 'master_key': master_key},
-            new_values={'email': master_user.email, 'name': master_user.name, 'password_reset': password_changed},
-            user_id=current_user.id
-        )
-        return jsonify({
-            'success': True,
-            'message': f"Credentials for {master_key} ({master_user.name}) have been updated successfully.",
-            'email': master_user.email,
-            'name': master_user.name,
-            'password_changed': password_changed
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'Database error: {str(e)}'}), 500
-
-@app.route('/api/it/master/send-credentials-email', methods=['POST'])
-@login_required
-def api_it_send_credentials_email():
-    if current_user.role not in ['IT', 'IT_ADMIN']:
-        return jsonify({'success': False, 'message': 'Access restricted to IT Administration.'}), 403
-
-    data = request.get_json() or {}
-    master_key = (data.get('master_key') or '').strip().upper()
-    password_to_send = (data.get('password') or '').strip()
-    is_mock_test = bool(data.get('test_mode') or request.headers.get('X-Test-Bypass-Email'))
-
-    if not master_key:
-        return jsonify({'success': False, 'message': 'Missing master_key.'}), 400
-
-    master_user = None
-    title = master_key
-    if master_key == 'CEO':
-        master_user = Employee.query.filter(or_(Employee.emp_id == '15M006', Employee.email == 'chinmay.tripathy@ecometrix.co.in', Employee.role == 'MD')).first()
-        title = "CEO / Managing Director"
-    elif master_key == 'BD':
-        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_BD', Employee.email == 'bd@ecometrix.co.in')).first()
-        title = "Business Development Master"
-    elif master_key == 'HR':
-        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_HR', Employee.email == 'hr@ecometrix.co.in')).first()
-        title = "Human Resources Master"
-    elif master_key in ['FINANCE', 'ACCOUNTS', 'FIN']:
-        master_user = Employee.query.filter(or_(Employee.emp_id == 'DEPT_FIN', Employee.email == 'accounts@ecometrix.co.in', Employee.email == 'finance@ecometrix.co.in')).first()
-        title = "Finance & Accounts Master"
-
-    if not master_user:
-        return jsonify({'success': False, 'message': f'Master account for {master_key} not found.'}), 404
-
-    if not password_to_send:
-        return jsonify({'success': False, 'message': 'Please enter or specify the password to send over email.'}), 400
-
-    subject = f"PMS Portal Access Credentials - {title}"
-    portal_url = request.host_url.rstrip('/') + url_for('login')
-    html_content = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-        <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0e8749; padding-bottom: 14px;">
-            <h2 style="color: #0e8749; margin: 0; font-size: 22px;">Ecometrix Project Monitoring System</h2>
-            <p style="color: #64748b; font-size: 13px; margin-top: 4px; text-transform: uppercase;">Official Master Account Credentials</p>
-        </div>
-        <p style="font-size: 15px; color: #1e293b;">Dear <strong>{master_user.name}</strong>,</p>
-        <p style="font-size: 14px; color: #475569; line-height: 1.6;">Your master access credentials for the Ecometrix PMS Portal have been configured by the IT Administration. Please find your login details below:</p>
-        
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0e8749; padding: 16px; margin: 18px 0; border-radius: 6px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                <tr>
-                    <td style="padding: 6px 0; color: #64748b; width: 38%;"><strong>Master Authority:</strong></td>
-                    <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">{title}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 6px 0; color: #64748b;"><strong>Portal URL:</strong></td>
-                    <td style="padding: 6px 0;"><a href="{portal_url}" style="color: #0e8749; font-weight: 600; text-decoration: none;">{portal_url}</a></td>
-                </tr>
-                <tr>
-                    <td style="padding: 6px 0; color: #64748b;"><strong>Username / Email ID:</strong></td>
-                    <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-size: 14px; font-weight: 600;">{master_user.email}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 6px 0; color: #64748b;"><strong>Access Password:</strong></td>
-                    <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-size: 15px; font-weight: 700; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; display: inline-block;">{password_to_send}</td>
-                </tr>
-            </table>
-        </div>
-        
-        <div style="background: #fff1f2; border: 1px solid #ffe4e6; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
-            <p style="margin: 0; font-size: 13px; color: #e11d48; line-height: 1.5;">
-                <strong>Security Advisory:</strong> This is a confidential master credential. Do not forward or share this communication. For any support, contact IT Administration at <a href="mailto:it@ecometrix.co.in" style="color: #e11d48;">it@ecometrix.co.in</a>.
-            </p>
-        </div>
-        
-        <p style="font-size: 13px; color: #64748b; margin-top: 20px;">Best regards,<br><strong style="color: #0f172a;">IT Administration Team</strong><br>Ecometrix Infra Solutions Pvt. Ltd.</p>
-        <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0 12px;">
-        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">Automated IT Notification &bull; Ecometrix PMS</p>
-    </div>
-    """
-
-    if is_mock_test:
-        log_audit_trail(
-            action='CREDENTIAL_EMAIL_SENT',
-            table_name='employee',
-            record_id=master_user.id,
-            new_values={'recipient': master_user.email, 'master_key': master_key, 'mode': 'TEST_MOCK_NO_EMAIL'},
-            user_id=current_user.id
-        )
-        return jsonify({
-            'success': True,
-            'message': f"[TEST MODE] Email simulated for {master_user.email}. No live email was dispatched.",
-            'recipient': master_user.email
-        })
-
-    allowed, reason = is_email_communication_allowed('it_master_credentials')
-    if not allowed and not is_mock_test:
-        return jsonify({
-            'success': False,
-            'message': f"Cannot dispatch email: {reason}. Re-enable it in Master Emailer Control."
-        }), 400
-
-    try:
-        from mail import send_email
-        tpl = EmailTemplateMaster.query.filter_by(step_key='it_master_credentials').first()
-        if tpl and tpl.subject_template and tpl.subject_template.strip():
-            subject = _render_placeholder_string(tpl.subject_template, {
-                'recipient_name': master_user.name,
-                'title': title,
-                'portal_url': portal_url,
-                'email': master_user.email,
-            })
-        sent = send_email(to=master_user.email, subject=subject, template=html_content, step_key='it_master_credentials')
-        if not sent:
             return jsonify({'success': False, 'message': 'Email dispatch blocked by IT Admin Emailer control.'}), 400
         log_audit_trail(
             action='CREDENTIAL_EMAIL_SENT',

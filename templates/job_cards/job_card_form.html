@@ -48,24 +48,25 @@
                 <div class="row g-2 mb-2">
                     <div class="col-12 col-md-6">
                         <label for="project_start_date" class="form-label">Project Start Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="project_start_date" name="project_start_date" required>
+                        <input type="date" class="form-control" id="project_start_date" name="project_start_date"
+                               min="{{ indent.contract_start_date.strftime('%Y-%m-%d') if indent.contract_start_date else '' }}"
+                               max="{{ indent.contract_end_date.strftime('%Y-%m-%d') if indent.contract_end_date else '' }}"
+                               value="{{ (job_card.actual_start_date or indent.contract_start_date).strftime('%Y-%m-%d') if (job_card and job_card.actual_start_date) or indent.contract_start_date else '' }}"
+                               required>
+                        {% if indent.contract_start_date and indent.contract_end_date %}
+                        <small class="text-muted">Must be between {{ indent.contract_start_date.strftime('%d-%b-%Y') }} and {{ indent.contract_end_date.strftime('%d-%b-%Y') }}.</small>
+                        {% endif %}
                     </div>
                     <div class="col-12 col-md-6">
                         <label for="project_end_date" class="form-label">Project End Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="project_end_date" name="project_end_date" required>
-                    </div>
-                </div>
-                <div class="row mb-2" id="schedule-alert-row" style="display:none;">
-                    <div class="col-12">
-                        <div class="alert alert-danger blink" id="schedule-alert">
-                            Project End Date exceeds Contract End Date! Please provide justification below.
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-2" id="justification-row" style="display:none;">
-                    <div class="col-12">
-                        <label for="justification" class="form-label">Justification (required if exceeding contract date)</label>
-                        <textarea class="form-control" id="justification" name="justification" rows="2"></textarea>
+                        <input type="date" class="form-control" id="project_end_date" name="project_end_date"
+                               min="{{ indent.contract_start_date.strftime('%Y-%m-%d') if indent.contract_start_date else '' }}"
+                               max="{{ indent.contract_end_date.strftime('%Y-%m-%d') if indent.contract_end_date else '' }}"
+                               value="{{ (job_card.actual_end_date or indent.contract_end_date).strftime('%Y-%m-%d') if (job_card and job_card.actual_end_date) or indent.contract_end_date else '' }}"
+                               required>
+                        {% if indent.contract_start_date and indent.contract_end_date %}
+                        <small class="text-muted">Dates outside the Contract Period are disabled.</small>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -113,30 +114,40 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Scheduling validation
+    // Scheduling validation (strictly inside Contract Start & End dates)
+    const contractStartDateStr = "{{ indent.contract_start_date.strftime('%Y-%m-%d') if indent.contract_start_date else '' }}";
     const contractEndDateStr = "{{ indent.contract_end_date.strftime('%Y-%m-%d') if indent.contract_end_date else '' }}";
-    const contractEndDate = contractEndDateStr ? new Date(contractEndDateStr) : null;
+    const projectStartDateInput = document.getElementById('project_start_date');
     const projectEndDateInput = document.getElementById('project_end_date');
-    const scheduleAlertRow = document.getElementById('schedule-alert-row');
-    const justificationRow = document.getElementById('justification-row');
-    const justificationInput = document.getElementById('justification');
 
-    function checkSchedule() {
-        if (!projectEndDateInput.value || !contractEndDate) return;
-        const projectEndDate = new Date(projectEndDateInput.value);
-        if (projectEndDate > contractEndDate) {
-            scheduleAlertRow.style.display = '';
-            justificationRow.style.display = '';
-            justificationInput.required = true;
-        } else {
-            scheduleAlertRow.style.display = 'none';
-            justificationRow.style.display = 'none';
-            justificationInput.required = false;
+    function syncProjectDateBounds() {
+        if (!projectStartDateInput || !projectEndDateInput) return;
+        if (contractStartDateStr && projectStartDateInput.value && projectStartDateInput.value < contractStartDateStr) {
+            alert(`Project Start Date cannot be earlier than Contract Start Date (${contractStartDateStr}).`);
+            projectStartDateInput.value = contractStartDateStr;
+        }
+        if (contractEndDateStr && projectStartDateInput.value && projectStartDateInput.value > contractEndDateStr) {
+            alert(`Project Start Date cannot exceed Contract End Date (${contractEndDateStr}).`);
+            projectStartDateInput.value = contractEndDateStr;
+        }
+        if (contractStartDateStr && projectEndDateInput.value && projectEndDateInput.value < contractStartDateStr) {
+            alert(`Project End Date cannot be earlier than Contract Start Date (${contractStartDateStr}).`);
+            projectEndDateInput.value = contractStartDateStr;
+        }
+        if (contractEndDateStr && projectEndDateInput.value && projectEndDateInput.value > contractEndDateStr) {
+            alert(`Project End Date cannot exceed Contract End Date (${contractEndDateStr}).`);
+            projectEndDateInput.value = contractEndDateStr;
+        }
+        projectEndDateInput.min = projectStartDateInput.value || contractStartDateStr;
+        projectStartDateInput.max = projectEndDateInput.value || contractEndDateStr;
+        if (projectStartDateInput.value && projectEndDateInput.value && projectEndDateInput.value < projectStartDateInput.value) {
+            projectEndDateInput.value = projectStartDateInput.value;
         }
     }
-    if (projectEndDateInput) {
-        projectEndDateInput.addEventListener('change', checkSchedule);
-        checkSchedule();
+    if (projectStartDateInput && projectEndDateInput) {
+        projectStartDateInput.addEventListener('change', syncProjectDateBounds);
+        projectEndDateInput.addEventListener('change', syncProjectDateBounds);
+        syncProjectDateBounds();
     }
 
     // Team Assignment Section
@@ -170,9 +181,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Hours</label>
                 <input type="number" name="man_hours_${teamIdx}" class="form-control man-hours-output" value="8" readonly>
             </div>
-            <div class="col-8 col-md-2">
+            <div class="col-6 col-md-2">
                 <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Start Date</label>
                 <input type="date" name="timeline_start_${teamIdx}" class="form-control timeline-start" required min="{{ indent.contract_start_date.strftime('%Y-%m-%d') if indent.contract_start_date else '' }}" max="{{ indent.contract_end_date.strftime('%Y-%m-%d') if indent.contract_end_date else '' }}">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">End Date</label>
+                <input type="date" name="timeline_end_${teamIdx}" class="form-control timeline-end" required min="{{ indent.contract_start_date.strftime('%Y-%m-%d') if indent.contract_start_date else '' }}" max="{{ indent.contract_end_date.strftime('%Y-%m-%d') if indent.contract_end_date else '' }}">
             </div>
             <div class="col-4 col-md-1 d-flex align-items-end">
                 <button type="button" class="btn btn-danger btn-sm w-100 remove-team-btn py-2">

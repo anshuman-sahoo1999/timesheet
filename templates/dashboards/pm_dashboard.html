@@ -774,10 +774,10 @@
                         <div class="col-md-6">
                             <div class="form-group mb-3">
                                 <label for="taskProject" class="form-label">Project</label>
-                                <select class="form-control" id="taskProject" required>
+                                <select class="form-control" id="taskProject" required onchange="applyCreateTaskDateBounds()">
                                     <option value="">Select Project</option>
                                     {% for project in pm_projects %}
-                                    <option value="{{ project.id }}">{{ project.project_name }}</option>
+                                    <option value="{{ project.id }}" data-contract-start="{{ project.contract_start_date.isoformat() if project.contract_start_date else '' }}" data-contract-end="{{ project.contract_end_date.isoformat() if project.contract_end_date else '' }}">{{ project.project_name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -1158,6 +1158,14 @@ function editTask(taskId) {
                 document.getElementById('editTaskManHours').value = task.man_hours;
                 document.getElementById('editTaskStartDate').value = task.timeline_start;
                 document.getElementById('editTaskEndDate').value = task.timeline_end;
+                const editStartEl = document.getElementById('editTaskStartDate');
+                const editEndEl = document.getElementById('editTaskEndDate');
+                if (editStartEl && editEndEl) {
+                    editStartEl.min = task.contract_start_date || '';
+                    editStartEl.max = task.contract_end_date || '';
+                    editEndEl.min = task.timeline_start || task.contract_start_date || '';
+                    editEndEl.max = task.contract_end_date || '';
+                }
                 document.getElementById('editTaskStatus').value = task.status;
                 
                 // Populate assignees
@@ -1237,6 +1245,24 @@ function updateTaskStatus(taskId, status) {
             showNotification('Failed to update task status', 'error');
         }
     });
+}
+
+function applyCreateTaskDateBounds() {
+    const sel = document.getElementById('taskProject');
+    const sEl = document.getElementById('taskStartDate');
+    const eEl = document.getElementById('taskEndDate');
+    if (!sel || !sEl || !eEl) return;
+    const opt = sel.options[sel.selectedIndex];
+    const cs = (opt && opt.getAttribute('data-contract-start')) || '';
+    const ce = (opt && opt.getAttribute('data-contract-end')) || '';
+    sEl.min = cs;
+    sEl.max = ce;
+    eEl.min = (sEl.value && cs && sEl.value >= cs) ? sEl.value : cs;
+    eEl.max = ce;
+    if (cs && (!sEl.value || sEl.value < cs)) sEl.value = cs;
+    if (ce && sEl.value > ce) sEl.value = ce;
+    if (cs && (!eEl.value || eEl.value < sEl.value)) eEl.value = sEl.value || cs;
+    if (ce && eEl.value > ce) eEl.value = ce;
 }
 
 function saveTask() {

@@ -1029,11 +1029,11 @@
                                 <div class="row g-2 py-2 mb-2 bg-light rounded-2 text-center" style="font-size: 0.85rem;">
                                     <div class="col-4">
                                         <div class="text-muted small">Contract Value</div>
-                                        <div class="fw-bold text-dark">₹ {{ '{:,.0f}'.format(card.indent.contract_value or 0) }}</div>
+                                        <div class="fw-bold text-dark" title="₹ {{ '{:,.2f}'.format(card.indent.contract_value or 0) }}">₹ {{ (card.indent.contract_value or 0) | compact_inr }}</div>
                                     </div>
                                     <div class="col-4 border-start border-end">
                                         <div class="text-muted small">Estimated Budget</div>
-                                        <div class="fw-bold text-warning-emphasis">₹ {{ '{:,.0f}'.format(card.estimated_value or 0) }}</div>
+                                        <div class="fw-bold text-warning-emphasis" title="₹ {{ '{:,.2f}'.format(card.estimated_value or 0) }}">₹ {{ (card.estimated_value or 0) | compact_inr }}</div>
                                     </div>
                                     <div class="col-4">
                                         <div class="text-muted small">Est. Margin</div>
@@ -1089,10 +1089,10 @@
                     <i class="fas fa-indian-rupee-sign"></i>
                 </div>
             </div>
-            <div class="kpi-value-main">
+            <div class="kpi-value-main" title="₹ {{ '{:,.2f}'.format(total_contract_value or 0) }}">
                 <span class="kpi-value-currency">₹</span>
-                <span class="animated-counter-currency" data-raw="{{ total_contract_value }}">
-                    {{ '{:,.0f}'.format(total_contract_value) }}
+                <span class="animated-counter-currency" data-raw="{{ total_contract_value or 0 }}">
+                    {{ (total_contract_value or 0) | compact_inr }}
                 </span>
             </div>
             <div class="kpi-footer-row">
@@ -2585,20 +2585,31 @@
             updateCount();
         });
 
-        // Currency animated display
+        function formatCompactINR(val) {
+            const num = parseFloat(val) || 0;
+            const sign = num < 0 ? '-' : '';
+            const absNum = Math.abs(num);
+            const cleanDec = n => n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+            if (absNum >= 10000000) return `${sign}${cleanDec(absNum / 10000000)} Cr.`;
+            if (absNum >= 100000) return `${sign}${cleanDec(absNum / 100000)} L`;
+            if (absNum >= 1000) return `${sign}${cleanDec(absNum / 1000)} K`;
+            return `${sign}${Math.round(absNum).toLocaleString('en-IN')}`;
+        }
+
+        // Currency animated display (compact Cr. / L / K formatting)
         document.querySelectorAll('.animated-counter-currency').forEach(elem => {
             const raw = parseFloat(elem.getAttribute('data-raw')) || 0;
             let current = 0;
-            const duration = 1200;
+            const duration = 900;
             const increment = raw / (duration / 16);
 
             function updateCurrency() {
                 current += increment;
                 if (current < raw) {
-                    elem.textContent = Math.round(current).toLocaleString('en-IN');
+                    elem.textContent = formatCompactINR(current);
                     requestAnimationFrame(updateCurrency);
                 } else {
-                    elem.textContent = Math.round(raw).toLocaleString('en-IN');
+                    elem.textContent = formatCompactINR(raw);
                 }
             }
             updateCurrency();

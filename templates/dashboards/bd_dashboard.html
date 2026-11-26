@@ -152,7 +152,7 @@
         <div class="kpi-card">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="kpi-value">₹{{ '{:,.0f}'.format(total_contract_value) if total_contract_value else '0' }}</div>
+                    <div class="kpi-value" title="₹ {{ '{:,.2f}'.format(total_contract_value or 0) }}">₹ {{ (total_contract_value or 0) | compact_inr }}</div>
                     <div class="kpi-label">Total Contract</div>
                 </div>
                 <i class="fas fa-rupee-sign fa-2x opacity-75 d-none d-sm-block"></i>

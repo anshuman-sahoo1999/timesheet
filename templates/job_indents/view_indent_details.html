@@ -426,7 +426,7 @@
                     <div>
                         <div class="metric-label">Contract Value</div>
                         {% if current_user.role == 'MD' %}
-                        <div class="metric-value text-primary font-monospace">{{ indent.contract_value | inr }}</div>
+                        <div class="metric-value text-primary font-monospace" title="{{ indent.contract_value | inr }}">₹ {{ (indent.contract_value or 0) | compact_inr }}</div>
                         <small class="text-success fw-medium"><i class="fas fa-shield-alt me-1"></i>CEO Authorized</small>
                         {% else %}
                         <div class="confidential-badge mt-1">

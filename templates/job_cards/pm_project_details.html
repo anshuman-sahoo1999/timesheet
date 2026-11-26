@@ -626,7 +626,7 @@
                                  data-placeholder="Enter comprehensive overview of project objectives, scope, methodology, key technical deliverables...">{{ (jc.overview|safe) if jc and jc.overview else '' }}</div>
                         </div>
 
-                        <!-- (ii) Start Date and End Date selection (Image 4 & 5) -->
+                        <!-- (ii) Start Date and End Date selection (Restricted within Contract Dates) -->
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark mb-1">Start Date</label>
@@ -636,9 +636,13 @@
                                            class="form-control"
                                            min="{{ indent.contract_start_date.isoformat() if indent.contract_start_date else '' }}"
                                            max="{{ indent.contract_end_date.isoformat() if indent.contract_end_date else '' }}"
-                                           value="{{ jc.actual_start_date.isoformat() if jc and jc.actual_start_date else (indent.contract_start_date.isoformat() if indent.contract_start_date else '') }}">
+                                           value="{{ jc.actual_start_date.isoformat() if jc and jc.actual_start_date else (indent.contract_start_date.isoformat() if indent.contract_start_date else '') }}"
+                                           onchange="onActualProjectDateChange('start')">
                                     <span class="input-group-text bg-white text-muted"><i class="far fa-calendar-alt"></i></span>
                                 </div>
+                                {% if indent.contract_start_date and indent.contract_end_date %}
+                                <small class="text-muted d-block mt-1"><i class="fas fa-lock text-success me-1"></i>Selectable strictly between {{ indent.contract_start_date.strftime('%d-%b-%Y') }} and {{ indent.contract_end_date.strftime('%d-%b-%Y') }}</small>
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark mb-1">End Date</label>
@@ -646,11 +650,15 @@
                                     <input type="date" 
                                            id="actualEndDate" 
                                            class="form-control"
-                                           min="{{ indent.contract_start_date.isoformat() if indent.contract_start_date else '' }}"
+                                           min="{{ jc.actual_start_date.isoformat() if jc and jc.actual_start_date else (indent.contract_start_date.isoformat() if indent.contract_start_date else '') }}"
                                            max="{{ indent.contract_end_date.isoformat() if indent.contract_end_date else '' }}"
-                                           value="{{ jc.actual_end_date.isoformat() if jc and jc.actual_end_date else (indent.contract_end_date.isoformat() if indent.contract_end_date else '') }}">
+                                           value="{{ jc.actual_end_date.isoformat() if jc and jc.actual_end_date else (indent.contract_end_date.isoformat() if indent.contract_end_date else '') }}"
+                                           onchange="onActualProjectDateChange('end')">
                                     <span class="input-group-text bg-white text-muted"><i class="far fa-calendar-alt"></i></span>
                                 </div>
+                                {% if indent.contract_start_date and indent.contract_end_date %}
+                                <small class="text-muted d-block mt-1"><i class="fas fa-lock text-success me-1"></i>Dates outside Contract Period are disabled</small>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -1407,11 +1415,71 @@
         renderMilestones();
     }
 
+    function clampDateToContract(val) {
+        if (!val) return '';
+        if (CONTRACT_START && val < CONTRACT_START) return CONTRACT_START;
+        if (CONTRACT_END && val > CONTRACT_END) return CONTRACT_END;
+        return val;
+    }
+
+    function onActualProjectDateChange(which) {
+        const sEl = document.getElementById('actualStartDate');
+        const eEl = document.getElementById('actualEndDate');
+        if (!sEl || !eEl) return;
+
+        if (CONTRACT_START && sEl.value && sEl.value < CONTRACT_START) {
+            alert(`Start Date cannot be before Contract Start Date (${CONTRACT_START}).`);
+            sEl.value = CONTRACT_START;
+        }
+        if (CONTRACT_END && sEl.value && sEl.value > CONTRACT_END) {
+            alert(`Start Date cannot be after Contract End Date (${CONTRACT_END}).`);
+            sEl.value = CONTRACT_END;
+        }
+        if (CONTRACT_START && eEl.value && eEl.value < CONTRACT_START) {
+            alert(`End Date cannot be before Contract Start Date (${CONTRACT_START}).`);
+            eEl.value = CONTRACT_START;
+        }
+        if (CONTRACT_END && eEl.value && eEl.value > CONTRACT_END) {
+            alert(`End Date cannot be after Contract End Date (${CONTRACT_END}).`);
+            eEl.value = CONTRACT_END;
+        }
+
+        // Disable End Date before Start Date, and Start Date after End Date (within Contract bounds)
+        if (sEl.value) {
+            eEl.min = sEl.value;
+            if (eEl.value && eEl.value < sEl.value) {
+                eEl.value = sEl.value;
+            }
+        } else if (CONTRACT_START) {
+            eEl.min = CONTRACT_START;
+        }
+        if (eEl.value) {
+            sEl.max = eEl.value;
+            if (sEl.value && sEl.value > eEl.value) {
+                sEl.value = eEl.value;
+            }
+        } else if (CONTRACT_END) {
+            sEl.max = CONTRACT_END;
+        }
+    }
+
     function onMilestoneDateChange(idx) {
         const rows = document.querySelectorAll('#milestonesTableBody tr');
         if (rows[idx]) {
-            const s = rows[idx].querySelector('.ms-start').value;
-            const e = rows[idx].querySelector('.ms-end').value;
+            const sInput = rows[idx].querySelector('.ms-start');
+            const eInput = rows[idx].querySelector('.ms-end');
+            if (CONTRACT_START && sInput.value && sInput.value < CONTRACT_START) {
+                alert(`Milestone Start Date cannot be earlier than Contract Start Date (${CONTRACT_START}).`);
+                sInput.value = CONTRACT_START;
+            }
+            if (CONTRACT_END && eInput.value && eInput.value > CONTRACT_END) {
+                alert(`Milestone End Date cannot exceed Contract End Date (${CONTRACT_END}).`);
+                eInput.value = CONTRACT_END;
+            }
+            if (sInput.value) eInput.min = sInput.value;
+            if (eInput.value && sInput.value && eInput.value < sInput.value) eInput.value = sInput.value;
+            const s = sInput.value;
+            const e = eInput.value;
             const daysInput = rows[idx].querySelector('.ms-days');
             const d = calculateDays(s, e);
             daysInput.value = d;
@@ -1512,10 +1580,12 @@
                 </td>
                 <td>
                     <input type="date" class="form-control form-control-sm res-start" 
+                           min="${CONTRACT_START}" max="${CONTRACT_END}"
                            value="${res.start_date || ''}" onchange="onResourceDateChange(${idx})">
                 </td>
                 <td>
                     <input type="date" class="form-control form-control-sm res-end" 
+                           min="${CONTRACT_START}" max="${CONTRACT_END}"
                            value="${res.end_date || ''}" onchange="onResourceDateChange(${idx})">
                 </td>
                 <td class="text-center">
@@ -1602,8 +1672,20 @@
     function onResourceDateChange(idx) {
         const rows = document.querySelectorAll('#resourcesTableBody tr');
         if (rows[idx]) {
-            const s = rows[idx].querySelector('.res-start').value;
-            const e = rows[idx].querySelector('.res-end').value;
+            const sInput = rows[idx].querySelector('.res-start');
+            const eInput = rows[idx].querySelector('.res-end');
+            if (CONTRACT_START && sInput.value && sInput.value < CONTRACT_START) {
+                alert(`Resource Start Date cannot be earlier than Contract Start Date (${CONTRACT_START}).`);
+                sInput.value = CONTRACT_START;
+            }
+            if (CONTRACT_END && eInput.value && eInput.value > CONTRACT_END) {
+                alert(`Resource End Date cannot exceed Contract End Date (${CONTRACT_END}).`);
+                eInput.value = CONTRACT_END;
+            }
+            if (sInput.value) eInput.min = sInput.value;
+            if (eInput.value && sInput.value && eInput.value < sInput.value) eInput.value = sInput.value;
+            const s = sInput.value;
+            const e = eInput.value;
             const d = calculateDays(s, e);
             rows[idx].querySelector('.res-days').value = d;
             if (savedResources[idx]) {
@@ -1869,9 +1951,12 @@
         collectResourcesFromDOM();
         collectExpendituresFromDOM();
 
-        // Populate Preview Modal
         const actualStart = document.getElementById('actualStartDate').value;
         const actualEnd = document.getElementById('actualEndDate').value;
+        if ((CONTRACT_START && actualStart && actualStart < CONTRACT_START) || (CONTRACT_END && actualEnd && actualEnd > CONTRACT_END) || (actualStart && actualEnd && actualStart > actualEnd)) {
+            alert(`Project Actual Start and End dates must lie strictly within Contract Dates (${CONTRACT_START} to ${CONTRACT_END}).`);
+            return;
+        }
         document.getElementById('previewExecutionWindow').textContent = `${actualStart || 'N/A'} to ${actualEnd || 'N/A'}`;
         document.getElementById('previewOverviewText').innerHTML = document.getElementById('projectOverviewEditor').innerHTML || '<i class="text-muted">No overview text entered.</i>';
 

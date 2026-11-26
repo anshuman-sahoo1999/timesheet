@@ -811,9 +811,9 @@
                     </div>
                     <div class="form-group mb-3">
                         <label for="taskAssignees" class="form-label">Assignees</label>
-                        <select class="form-control" id="taskAssignees" multiple required>
+                        <select class="form-control searchable-emp-select" id="taskAssignees" multiple required>
                             {% for member in team_performance %}
-                            <option value="{{ member.employee.id }}">{{ member.employee.name }}</option>
+                            <option value="{{ member.employee.id }}" data-emp-id="{{ member.employee.emp_id or '' }}">{{ member.employee.clean_name or member.employee.name }} ({{ member.employee.emp_id or 'N/A' }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -871,9 +871,9 @@
                     </div>
                     <div class="form-group mb-3">
                         <label for="editTaskAssignees" class="form-label">Assignees</label>
-                        <select class="form-control" id="editTaskAssignees" multiple required>
+                        <select class="form-control searchable-emp-select" id="editTaskAssignees" multiple required>
                             {% for member in team_performance %}
-                            <option value="{{ member.employee.id }}">{{ member.employee.name }}</option>
+                            <option value="{{ member.employee.id }}" data-emp-id="{{ member.employee.emp_id or '' }}">{{ member.employee.clean_name or member.employee.name }} ({{ member.employee.emp_id or 'N/A' }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -913,8 +913,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="approveTimesheet({{ csrf_token() }})">Approve</button>
-                <button type="button" class="btn btn-danger" onclick="rejectTimesheet({{ csrf_token() }})">Reject</button>
+                <button type="button" class="btn btn-success" onclick="approveTimesheet()">Verify & Approve</button>
+                <button type="button" class="btn btn-danger" onclick="rejectTimesheet()">Reject</button>
             </div>
         </div>
     </div>
@@ -1166,10 +1166,12 @@ function editTask(taskId) {
                 task.available_assignees.forEach(emp => {
                     const option = document.createElement('option');
                     option.value = emp.id;
-                    option.textContent = emp.name;
+                    option.setAttribute('data-emp-id', emp.emp_id || '');
+                    option.textContent = emp.emp_id ? `${emp.name} (${emp.emp_id})` : emp.name;
                     option.selected = task.assignees.some(a => a.id === emp.id);
                     assigneeSelect.appendChild(option);
                 });
+                if (window.refreshSearchableSelect) window.refreshSearchableSelect(assigneeSelect);
                 
                 // Show the modal
                 const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
@@ -1287,6 +1289,53 @@ function viewTimesheet(timesheetId) {
         .catch(error => {
             showNotification('Error loading timesheet details: ' + error.message, 'error');
         });
+}
+
+function approveTimesheet() {
+    const timesheetId = document.getElementById('timesheetReviewId')?.value;
+    if (!timesheetId) return;
+    if (!confirm('Verify and approve this timesheet?')) return;
+    fetch(`/timesheet/approve/${timesheetId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Error approving timesheet');
+        }
+    });
+}
+
+function rejectTimesheet() {
+    const timesheetId = document.getElementById('timesheetReviewId')?.value;
+    if (!timesheetId) return;
+    const reason = prompt('Please enter reason for rejection:');
+    if (reason === null) return;
+    fetch(`/timesheet/reject/${timesheetId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Error rejecting timesheet');
+        }
+    });
 }
 
 // Search functionality

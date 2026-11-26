@@ -110,9 +110,9 @@
                         <td>{{ timesheet.total_hours }}</td>
                         <td>
                             <span class="badge 
-                                {% if timesheet.status == 'HR Approved' %}bg-success
+                                {% if timesheet.status in ['HR Approved', 'CEO Approved', 'Approved'] %}bg-success
                                 {% elif timesheet.status == 'PM Approved' %}bg-info
-                                {% elif timesheet.status == 'Submitted' %}bg-warning
+                                {% elif timesheet.status == 'Submitted' %}bg-warning text-dark
                                 {% elif timesheet.status == 'Rejected' %}bg-danger
                                 {% else %}bg-secondary{% endif %}">
                                 {{ timesheet.status }}
@@ -125,7 +125,7 @@
                                         onclick="viewTimesheet({{ timesheet.id }})">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                {% if timesheet.status not in ['PM Approved', 'HR Approved'] %}
+                                {% if timesheet.status not in ['PM Approved', 'HR Approved', 'CEO Approved', 'Approved'] %}
                                 <a href="{{ url_for('edit_timesheet', timesheet_id=timesheet.id) }}" 
                                    class="btn btn-sm btn-outline-warning">
                                     <i class="fas fa-edit"></i>

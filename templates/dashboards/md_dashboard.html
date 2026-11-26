@@ -1170,6 +1170,15 @@
             <span>Workforce Utilization</span>
             <span class="tab-badge">{{ employee_progress|length }}</span>
         </button>
+        <button class="landscape-tab-btn" data-tab-target="tabTimesheetApprovals" onclick="switchDashboardTab('tabTimesheetApprovals')">
+            <i class="fas fa-clipboard-check"></i>
+            <span>Timesheet Approvals</span>
+            {% if pending_timesheets_count and pending_timesheets_count > 0 %}
+            <span class="tab-badge bg-warning text-dark">{{ pending_timesheets_count }}</span>
+            {% else %}
+            <span class="tab-badge">{{ all_timesheets|length if all_timesheets else 0 }}</span>
+            {% endif %}
+        </button>
         <button class="landscape-tab-btn" data-tab-target="tabQuickTools" onclick="switchDashboardTab('tabQuickTools')">
             <i class="fas fa-bolt"></i>
             <span>Quick Operations</span>
@@ -1510,16 +1519,23 @@
                 <div class="d-flex align-items-center gap-3 flex-wrap">
                     <h2 class="panel-heading-title mb-0">
                         <i class="fas fa-users-viewfinder text-primary"></i>
-                        <span>Employee Progress & Timesheet Tracker</span>
+                        <span>Workforce Utilization &amp; Capacity Tracker</span>
                     </h2>
-                    <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2 shadow-sm" id="btnOpenExecutiveTimesheetsModal" style="border-radius: 8px; font-weight: 600; padding: 6px 14px; background: linear-gradient(135deg, #0284c7, #0369a1); border: none; transition: transform 0.15s ease, box-shadow 0.15s ease;">
+                    <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2 shadow-sm" id="btnOpenExecutiveTimesheetsModal" style="border-radius: 8px; font-weight: 600; padding: 6px 14px; background: linear-gradient(135deg, #0284c7, #0369a1); border: none;">
                         <i class="fas fa-calendar-check"></i>
-                        <span>View Timesheets</span>
+                        <span>Date-Wise Directory</span>
                     </button>
                 </div>
-                <div class="d-flex flex-wrap gap-2 w-mobile-100">
-                    <input type="text" class="form-control form-control-sm" id="employeeSearchInput" placeholder="Search employee..." style="width: 220px; border-radius: 8px;">
-                    <select class="form-select form-select-sm" id="employeeDeptSelectFilter" style="width: 160px; border-radius: 8px;">
+                <div class="d-flex flex-wrap gap-2 w-mobile-100 align-items-center">
+                    <input type="text" class="form-control form-control-sm" id="employeeSearchInput" placeholder="Search by name or Emp ID..." style="width: 210px; border-radius: 8px;">
+                    <select class="form-select form-select-sm" id="workforceUtilFilter" style="width: 180px; border-radius: 8px;">
+                        <option value="">All Utilization States</option>
+                        <option value="Idle">Idle (No Projects)</option>
+                        <option value="Working">Working (Active)</option>
+                        <option value="Over occupied">Over occupied (&gt;4 Overlap)</option>
+                        <option value="Available to work">Available to work</option>
+                    </select>
+                    <select class="form-select form-select-sm" id="employeeDeptSelectFilter" style="width: 165px; border-radius: 8px;">
                         <option value="">All Departments</option>
                         {% for dept in departments %}
                         <option value="{{ dept.name }}">{{ dept.name }}</option>
@@ -1527,6 +1543,31 @@
                     </select>
                 </div>
             </div>
+
+            <!-- Workforce Utilization Quick Filter Pills -->
+            <div class="px-3 px-md-4 pt-3 pb-2 border-bottom bg-light bg-opacity-50 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex flex-wrap gap-2 quick-workforce-pills">
+                    <button type="button" class="status-filter-pill active" data-util="" onclick="quickFilterWorkforce(this, '')">
+                        All <span class="badge bg-secondary-subtle text-dark ms-1">{{ workforce_summary.total if workforce_summary else employee_progress|length }}</span>
+                    </button>
+                    <button type="button" class="status-filter-pill" data-util="Idle" onclick="quickFilterWorkforce(this, 'Idle')">
+                        <i class="fas fa-pause-circle text-secondary me-1"></i>Idle <span class="badge bg-secondary text-white ms-1">{{ workforce_summary.idle if workforce_summary else 0 }}</span>
+                    </button>
+                    <button type="button" class="status-filter-pill" data-util="Working" onclick="quickFilterWorkforce(this, 'Working')">
+                        <i class="fas fa-briefcase text-primary me-1"></i>Working <span class="badge bg-primary text-white ms-1">{{ workforce_summary.working if workforce_summary else 0 }}</span>
+                    </button>
+                    <button type="button" class="status-filter-pill" data-util="Over occupied" onclick="quickFilterWorkforce(this, 'Over occupied')">
+                        <i class="fas fa-fire text-danger me-1"></i>Over occupied (&gt;4 Overlap) <span class="badge bg-danger text-white ms-1">{{ workforce_summary.over_occupied if workforce_summary else 0 }}</span>
+                    </button>
+                    <button type="button" class="status-filter-pill" data-util="Available to work" onclick="quickFilterWorkforce(this, 'Available to work')">
+                        <i class="fas fa-check-circle text-success me-1"></i>Available to work <span class="badge bg-success text-white ms-1">{{ workforce_summary.available if workforce_summary else 0 }}</span>
+                    </button>
+                </div>
+                <small class="text-muted" style="font-size: 0.76rem;">
+                    Over occupied = &gt;4 overlapping active project timelines &bull; Available to work = Idle or &le;4 overlapping projects
+                </small>
+            </div>
+
             <div class="panel-body-content p-0">
                 <div class="table-responsive">
                     <table class="enterprise-table" id="employeeProgressTable">
@@ -1539,18 +1580,31 @@
                                 <th>Overdue</th>
                                 <th>Completed</th>
                                 <th>Pending</th>
-                                <th>Present Status</th>
+                                <th>Utilization &amp; Availability</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for emp in employee_progress %}
-                            <tr class="emp-progress-row" data-emp-name="{{ emp.name|lower }}" data-dept="{{ (emp.department.name if emp.department else '')|lower }}">
+                            <tr class="emp-progress-row"
+                                data-emp-name="{{ (emp.name ~ ' ' ~ (emp.emp_id or ''))|lower }}"
+                                data-dept="{{ (emp.department.name if emp.department else '')|lower }}"
+                                data-util-status="{{ emp.status }}"
+                                data-available="{{ 'true' if emp.available_to_work else 'false' }}"
+                                data-overlaps="{{ emp.max_overlaps|default(0) }}">
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="avatar-circle" style="background: linear-gradient(135deg, #0284c7, #38bdf8);">
                                             {{ emp.initials }}
                                         </div>
-                                        <span class="fw-bold text-dark">{{ emp.clean_name or emp.name }}</span>
+                                        <div>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <span class="fw-bold text-dark">{{ emp.clean_name or emp.name }}</span>
+                                                {% if emp.emp_id %}
+                                                <span class="badge bg-light text-primary border border-primary-subtle px-2 py-0" style="font-size: 0.7rem;">{{ emp.emp_id }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <small class="text-muted" style="font-size: 0.75rem;">{{ emp.designation }}</small>
+                                        </div>
                                     </div>
                                 </td>
                                 <td>{{ emp.department.name if emp.department else 'General' }}</td>
@@ -1560,9 +1614,18 @@
                                 <td><span class="badge-soft badge-soft-success">{{ emp.completed }}</span></td>
                                 <td><span class="badge-soft badge-soft-warning">{{ emp.pending }}</span></td>
                                 <td>
-                                    <span class="badge-soft badge-soft-{{ 'success' if emp.status == 'Working' else 'secondary' }}">
-                                        {{ emp.status }}
-                                    </span>
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                        {% if emp.status == 'Idle' %}
+                                        <span class="badge-soft badge-soft-secondary">Idle</span>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">Available</span>
+                                        {% elif emp.status == 'Over occupied' %}
+                                        <span class="badge-soft badge-soft-danger">Over occupied ({{ emp.max_overlaps }} overlap)</span>
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.7rem;">Busy</span>
+                                        {% else %}
+                                        <span class="badge-soft badge-soft-primary">Working ({{ emp.max_overlaps }} overlap)</span>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">Available</span>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% else %}
@@ -1584,6 +1647,154 @@
                             <!-- Populated dynamically via JS -->
                         </ul>
                     </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 7B. TAB CONTENT: TIMESHEET APPROVALS (HR-STYLE DUAL VIEW) ================= -->
+    <div class="tab-content-pane d-none" id="tabTimesheetApprovalsPane">
+        <div class="enterprise-panel">
+            <div class="panel-header-bar flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <h2 class="panel-heading-title mb-0">
+                        <i class="fas fa-clipboard-check text-success"></i>
+                        <span>Timesheet Approval &amp; Dual Verification (PM &amp; RM)</span>
+                    </h2>
+                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1" style="font-size: 0.78rem;">
+                        {{ pending_timesheets_count or 0 }} Pending Approval
+                    </span>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" onclick="applyExecDatePreset('thisweek'); fetchExecutiveTimesheets(); bootstrap.Modal.getOrCreateInstance(document.getElementById('executiveTimesheetsModal')).show();" style="border-radius: 8px; font-weight: 600;">
+                        <i class="fas fa-calendar-week"></i> Date-Wise Compliance View
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-body-content">
+                <!-- HR-Style Filter Bar -->
+                <div class="row g-2 mb-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label for="mdTimesheetFilter" class="form-label fw-semibold small text-secondary mb-1">Filter by Status</label>
+                        <select class="form-select" id="mdTimesheetFilter" onchange="applyMdTimesheetFilters()">
+                            <option value="">All Status</option>
+                            <option value="Submitted">Submitted</option>
+                            <option value="PM Approved">PM Approved</option>
+                            <option value="HR Approved">HR Approved</option>
+                            <option value="CEO Approved">CEO Approved</option>
+                            <option value="Approved">All Approved (HR / CEO)</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-5">
+                        <label for="mdEmployeeFilter" class="form-label fw-semibold small text-secondary mb-1">Filter by Employee (Name or Emp ID)</label>
+                        <select class="form-select searchable-emp-select" id="mdEmployeeFilter" onchange="applyMdTimesheetFilters()">
+                            <option value="">All Employees</option>
+                            {% for emp in employees_list %}
+                            <option value="{{ (emp.clean_name or emp.name)|lower }}" data-emp-id="{{ emp.emp_id or '' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3 d-flex gap-2">
+                        <button type="button" class="btn btn-primary flex-grow-1" onclick="applyMdTimesheetFilters()">
+                            <i class="fas fa-filter me-1"></i>Apply Filters
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetMdTimesheetFilters()" title="Reset Filters">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- HR-Style Timesheets Table -->
+                <div class="table-responsive" style="max-height: 560px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 12px;">
+                    <table class="table table-hover align-middle mb-0" id="mdTimesheetsTable">
+                        <thead class="bg-white sticky-top" style="z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+                            <tr>
+                                <th style="width: 60px;" class="text-center">Sl. No.</th>
+                                <th>Employee</th>
+                                <th>Project</th>
+                                <th>Task Description</th>
+                                <th>Week Period</th>
+                                <th>Hours</th>
+                                <th>Status</th>
+                                <th class="text-center" style="min-width: 210px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ts in all_timesheets %}
+                            <tr data-status="{{ ts.status }}" data-employee="{{ (ts.employee.clean_name or ts.employee.name)|lower if ts.employee else '' }}" data-emp-id="{{ (ts.employee.emp_id or '')|lower if ts.employee else '' }}">
+                                <td class="text-center text-muted fw-semibold">{{ loop.index }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 fw-bold" style="width: 38px; height: 38px; min-width: 38px; font-size: 0.88rem;">
+                                            {{ ts.employee.initials if ts.employee else 'EM' }}
+                                        </div>
+                                        <div>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <strong class="text-dark">{{ ts.employee.clean_name if ts.employee else 'N/A' }}</strong>
+                                                {% if ts.employee and ts.employee.emp_id %}
+                                                <span class="badge bg-light text-primary border border-primary-subtle px-2 py-0" style="font-size: 0.74rem; font-weight: 600;">{{ ts.employee.emp_id }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-muted small" style="font-size: 0.78rem;">{{ ts.employee.email if ts.employee else '' }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if ts.task and ts.task.job_card and ts.task.job_card.indent %}
+                                        <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.82rem; font-weight: 600;">
+                                            <i class="fas fa-folder-open text-primary me-1"></i>{{ ts.task.job_card.indent.project_name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.82rem;">
+                                            <i class="fas fa-layer-group text-muted me-1"></i>General / Non-Project
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="fw-medium text-dark" style="max-width: 240px; line-height: 1.35; font-size: 0.85rem;">
+                                        {% if ts.task and ts.task.description %}
+                                            {{ ts.task.description }}
+                                        {% elif ts.progress_description %}
+                                            {{ ts.progress_description }}
+                                        {% else %}
+                                            <span class="text-muted">General output notes</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.8rem;">
+                                        <i class="far fa-calendar-alt text-muted me-1"></i>{{ ts.week_start_date.strftime('%d-%b') if ts.week_start_date else '' }} to {{ ts.week_end_date.strftime('%d-%b') if ts.week_end_date else '' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark fs-6">{{ ts.total_hours }}</span>
+                                    <span class="text-muted small">hrs</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if ts.status in ['Approved', 'HR Approved', 'CEO Approved'] else ('info text-dark' if ts.status == 'PM Approved' else ('warning text-dark' if ts.status == 'Submitted' else 'danger')) }} px-2 py-1 rounded-pill">
+                                        {{ ts.status }}
+                                    </span>
+                                </td>
+                                <td class="text-center text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-sm" onclick="openMdTimesheetReviewModal({{ ts.id }})">
+                                        <i class="fas fa-eye me-1"></i>Review
+                                    </button>
+                                    {% if ts.status in ['Submitted', 'PM Approved'] %}
+                                    <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1 ms-1 shadow-sm" onclick="mdVerifyApproveWeekly({{ ts.id }})">
+                                        <i class="fas fa-check me-1"></i>Verify
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-5">No timesheet submissions available yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1979,6 +2190,38 @@
                     <i class="fas fa-arrow-left me-1"></i> Back to Directory
                 </button>
                 <button type="button" class="btn btn-sm btn-secondary px-4 fw-semibold" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================================ -->
+<!-- 11. HR-STYLE DUAL APPROVAL TIMESHEET REVIEW MODAL (MD / CEO)                 -->
+<!-- ============================================================================ -->
+<div class="modal fade" id="mdTimesheetReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-bold text-dark mb-0">Timesheet Entry Verification</h6>
+                        <small class="text-muted" id="mdModalTsSubtitle">Review dual approvals (PM &amp; RM) and submitted progress</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="mdModalTsBody">
+                <div class="text-center py-4 text-muted">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2 small">Loading timesheet verification details...</div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2 px-4 border-top d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-secondary btn-sm px-4 rounded-pill" data-bs-dismiss="modal">Close</button>
+                <div class="d-flex gap-2" id="mdModalTsActionBtns"></div>
             </div>
         </div>
     </div>
@@ -2560,6 +2803,14 @@
         runCounterAnimations();
         initDashboardCharts();
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = (urlParams.get('tab') || '').toLowerCase();
+        if (tabParam === 'timesheets' || window.location.hash === '#timesheets') {
+            switchDashboardTab('tabTimesheetApprovals');
+        } else if (tabParam === 'workforce' || window.location.hash === '#workforce') {
+            switchDashboardTab('tabWorkforce');
+        }
+
         const searchInput = document.getElementById('searchProjectInput');
         if (searchInput) {
             searchInput.addEventListener('input', applyProjectFilters);
@@ -2595,19 +2846,53 @@
         if (empDept) {
             empDept.addEventListener('change', filterEmployeesList);
         }
+        const utilSelect = document.getElementById('workforceUtilFilter');
+        if (utilSelect) {
+            utilSelect.addEventListener('change', function() {
+                syncWorkforcePills(this.value);
+                filterEmployeesList();
+            });
+        }
+    }
+
+    function syncWorkforcePills(utilVal) {
+        document.querySelectorAll('.quick-workforce-pills .status-filter-pill').forEach(p => {
+            if ((p.getAttribute('data-util') || '') === (utilVal || '')) {
+                p.classList.add('active');
+            } else {
+                p.classList.remove('active');
+            }
+        });
+    }
+
+    function quickFilterWorkforce(btn, utilVal) {
+        const utilSelect = document.getElementById('workforceUtilFilter');
+        if (utilSelect) utilSelect.value = utilVal || '';
+        syncWorkforcePills(utilVal || '');
+        filterEmployeesList();
     }
 
     function filterEmployeesList() {
-        const query = (document.getElementById('employeeSearchInput').value || '').toLowerCase().trim();
-        const dept = (document.getElementById('employeeDeptSelectFilter').value || '').toLowerCase().trim();
+        const query = (document.getElementById('employeeSearchInput')?.value || '').toLowerCase().trim();
+        const dept = (document.getElementById('employeeDeptSelectFilter')?.value || '').toLowerCase().trim();
+        const utilVal = (document.getElementById('workforceUtilFilter')?.value || '').trim();
 
         const allRows = Array.from(document.querySelectorAll('#employeeProgressTable tbody tr.emp-progress-row'));
         filteredEmpRows = allRows.filter(row => {
             const name = row.getAttribute('data-emp-name') || '';
             const rowDept = row.getAttribute('data-dept') || '';
+            const utilStatus = row.getAttribute('data-util-status') || '';
+            const isAvailable = row.getAttribute('data-available') === 'true';
+
             const matchesQuery = !query || name.includes(query);
             const matchesDept = !dept || rowDept.includes(dept);
-            return matchesQuery && matchesDept;
+            let matchesUtil = true;
+            if (utilVal === 'Available to work') {
+                matchesUtil = isAvailable;
+            } else if (utilVal) {
+                matchesUtil = (utilStatus === utilVal);
+            }
+            return matchesQuery && matchesDept && matchesUtil;
         });
 
         empCurrentPage = 1;
@@ -2956,12 +3241,11 @@
             const emp = data.employee;
             const comp = data.compliance;
             const timesheets = data.timesheets;
-            currentDrillIsDirectReportee = emp.is_direct_reportee;
 
-            // Toggle Bulk Approve button: CEO can only approve direct reportees
             const btnBulkApprove = document.getElementById('btnBulkApproveTimesheets');
             if (btnBulkApprove) {
-                btnBulkApprove.style.display = emp.is_direct_reportee ? 'inline-flex' : 'none';
+                const hasPending = timesheets && timesheets.some(t => t.can_ceo_approve);
+                btnBulkApprove.style.display = hasPending ? 'inline-flex' : 'none';
             }
 
             // Update Employee Profile Banner
@@ -3032,22 +3316,38 @@
 
             let tRowsHtml = '';
             timesheets.forEach(ts => {
-                const isApproved = (ts.status === 'CEO Approved' || ts.status === 'Verified' || ts.status === 'Approved');
-                const statusBadge = isApproved 
-                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-double me-1"></i>${ts.status}</span>`
-                    : `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="fas fa-clock me-1"></i>${ts.status}</span>`;
+                const isApproved = Boolean(ts.is_approved || ['CEO Approved', 'HR Approved', 'Verified', 'Approved'].includes(ts.status));
+                const isRejected = Boolean(ts.is_rejected || ts.status === 'Rejected');
+                let statusBadgeHtml = '';
+                if (isRejected) {
+                    statusBadgeHtml = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-times-circle me-1"></i>Rejected</span>`;
+                } else if (isApproved) {
+                    statusBadgeHtml = `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-double me-1"></i>${ts.status}</span>`;
+                } else {
+                    statusBadgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="fas fa-clock me-1"></i>${ts.status}</span>`;
+                }
+
+                const dualNote = `<div class="mt-1 d-flex gap-1 justify-content-center flex-wrap" style="font-size:0.68rem;">
+                    <span class="badge ${ts.pm_verified ? 'bg-success-subtle text-success' : 'bg-light text-muted'} border">${ts.pm_verified ? 'PM ✓' : 'PM Pending'}</span>
+                    <span class="badge ${ts.rm_verified ? 'bg-success-subtle text-success' : 'bg-light text-muted'} border">${ts.rm_verified ? 'RM ✓' : 'RM Pending'}</span>
+                </div>`;
 
                 let actionButton = '';
-                if (isApproved) {
+                if (isRejected) {
+                    actionButton = `<span class="text-danger small fw-semibold"><i class="fas fa-ban me-1"></i>Rejected</span>`;
+                } else if (isApproved) {
                     actionButton = `<span class="text-success small fw-semibold"><i class="fas fa-shield-check me-1"></i>Approved</span>`;
-                } else if (!emp.is_direct_reportee) {
-                    actionButton = `<span class="badge bg-light text-secondary border" title="CEO monitor mode: Timesheet is verified by their designated Reporting Manager (${emp.reports_to})"><i class="fas fa-eye me-1"></i>RM: ${emp.reports_to}</span>`;
-                } else if (ts.needs_pm_first) {
-                    actionButton = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning" title="Employee worked on project. PM must verify before RM/CEO approval"><i class="fas fa-user-clock me-1"></i>Awaiting PM First</span>`;
                 } else {
-                    actionButton = `<button type="button" class="btn btn-xs btn-outline-success fw-bold d-inline-flex align-items-center gap-1 shadow-sm" onclick="verifyApproveSingleTimesheet(${ts.id}, ${empId})" style="border-radius: 6px; padding: 3px 8px;">
-                           <i class="fas fa-check"></i> Verify & Approve
-                       </button>`;
+                    actionButton = `
+                        <div class="d-inline-flex gap-1 align-items-center">
+                            <button type="button" class="btn btn-xs btn-success fw-bold d-inline-flex align-items-center gap-1 shadow-sm" onclick="verifyApproveSingleTimesheet(${ts.id}, ${empId})" style="border-radius: 6px; padding: 4px 10px;">
+                                <i class="fas fa-check"></i> Verify
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-danger d-inline-flex align-items-center" onclick="rejectSingleExecutiveTimesheet(${ts.id}, ${empId})" title="Reject entry" style="border-radius: 6px; padding: 4px 8px;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
                 }
 
                 tRowsHtml += `
@@ -3060,7 +3360,7 @@
                         <td><span class="small text-secondary">${ts.task_description}</span></td>
                         <td class="text-center"><span class="badge bg-primary text-white fw-bold">${ts.hours} hrs</span></td>
                         <td><span class="small text-dark" style="max-width: 250px; display: inline-block;">${ts.progress}</span></td>
-                        <td class="text-center">${statusBadge}</td>
+                        <td class="text-center">${statusBadgeHtml}${dualNote}</td>
                         <td class="text-end pe-3">${actionButton}</td>
                     </tr>
                 `;
@@ -3074,34 +3374,58 @@
         }
     }
 
-    // Single Timesheet Approval by CEO
+    // Single Timesheet Verify & Approval by CEO
     async function verifyApproveSingleTimesheet(timesheetId, empId) {
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const res = await fetch('/api/executive/timesheets/verify-approve', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({ action: 'single', timesheet_id: timesheetId })
             });
             const data = await res.json();
             if (data.success) {
-                // Refresh drilldown and main table
                 openEmployeeTimesheetDrilldown(empId);
                 fetchExecutiveTimesheets();
             } else {
-                alert('Approval failed: ' + (data.error || 'Unknown error'));
+                alert('Verification failed: ' + (data.error || 'Unknown error'));
             }
         } catch (err) {
-            alert('Error during approval: ' + err.message);
+            alert('Error during verification: ' + err.message);
+        }
+    }
+
+    async function rejectSingleExecutiveTimesheet(timesheetId, empId) {
+        const reason = prompt('Please enter reason for rejecting this timesheet entry:');
+        if (reason === null) return;
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const res = await fetch('/api/executive/timesheets/verify-approve', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ action: 'reject', timesheet_id: timesheetId, reason: reason })
+            });
+            const data = await res.json();
+            if (data.success) {
+                openEmployeeTimesheetDrilldown(empId);
+                fetchExecutiveTimesheets();
+            } else {
+                alert('Rejection failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            alert('Error during rejection: ' + err.message);
         }
     }
 
     // Bulk Approve All Timesheets for Employee
     async function verifyApproveBulkTimesheets(empId) {
         if (!empId) return;
-        if (!currentDrillIsDirectReportee) {
-            alert('Approval restriction: CEO can only approve timesheets for employees reporting directly to CEO. For other employees, their designated Reporting Manager must approve.');
-            return;
-        }
         const fromDate = document.getElementById('execFromDateInput')?.value || '';
         const toDate = document.getElementById('execToDateInput')?.value || '';
 
@@ -3110,9 +3434,13 @@
         }
 
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const res = await fetch('/api/executive/timesheets/verify-approve', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({
                     action: 'bulk',
                     employee_id: empId,
@@ -3131,6 +3459,273 @@
         } catch (err) {
             alert('Error during bulk approval: ' + err.message);
         }
+    }
+
+    // ============================================================================
+    // CEO TIMESHEET APPROVALS TAB (HR-STYLE DUAL VERIFICATION VIEW)
+    // ============================================================================
+    function applyMdTimesheetFilters() {
+        const statusFilter = (document.getElementById('mdTimesheetFilter')?.value || '').trim();
+        const empFilter = (document.getElementById('mdEmployeeFilter')?.value || '').trim().toLowerCase();
+        const rows = document.querySelectorAll('#mdTimesheetsTable tbody tr');
+        rows.forEach(row => {
+            const st = row.getAttribute('data-status') || '';
+            const emp = row.getAttribute('data-employee') || '';
+            const empId = row.getAttribute('data-emp-id') || '';
+            let matchStatus = true;
+            if (statusFilter === 'Approved') {
+                matchStatus = ['Approved', 'HR Approved', 'CEO Approved'].includes(st);
+            } else if (statusFilter) {
+                matchStatus = (st === statusFilter);
+            }
+            const matchEmp = !empFilter || emp.includes(empFilter) || empId.includes(empFilter);
+            row.style.display = (matchStatus && matchEmp) ? '' : 'none';
+        });
+    }
+
+    function resetMdTimesheetFilters() {
+        const s = document.getElementById('mdTimesheetFilter');
+        const e = document.getElementById('mdEmployeeFilter');
+        if (s) s.value = '';
+        if (e) {
+            e.value = '';
+            if (window.refreshSearchableSelect) window.refreshSearchableSelect(e);
+        }
+        applyMdTimesheetFilters();
+    }
+
+    function openMdTimesheetReviewModal(timesheetId) {
+        const modalEl = document.getElementById('mdTimesheetReviewModal');
+        if (!modalEl) return;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        const body = document.getElementById('mdModalTsBody');
+        const subtitle = document.getElementById('mdModalTsSubtitle');
+        const actionBtns = document.getElementById('mdModalTsActionBtns');
+
+        if (actionBtns) actionBtns.innerHTML = '';
+        body.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div class="mt-2 small fw-semibold">Loading verification and dual approval status...</div>
+            </div>
+        `;
+        modal.show();
+
+        fetch(`/api/timesheet/${timesheetId}/details`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.timesheet) {
+                    body.innerHTML = `<div class="alert alert-danger mb-0">${res.error || 'Failed to load timesheet details.'}</div>`;
+                    return;
+                }
+                const ts = res.timesheet;
+                subtitle.textContent = `Week Period: ${ts.week_start} to ${ts.week_end} • ${ts.total_hours} hrs logged`;
+
+                let pmStatusHtml = '';
+                if (!ts.has_project) {
+                    pmStatusHtml = `
+                        <div class="p-3 bg-light border rounded-3 d-flex align-items-center gap-3">
+                            <div class="text-secondary fs-4"><i class="fas fa-info-circle"></i></div>
+                            <div>
+                                <div class="fw-bold text-dark">N/A (Non-Project Task)</div>
+                                <div class="small text-muted">Direct functional task — PM approval not applicable</div>
+                            </div>
+                        </div>
+                    `;
+                } else if (ts.pm_approved) {
+                    pmStatusHtml = `
+                        <div class="p-3 bg-success-subtle border border-success-subtle rounded-3 text-success d-flex align-items-center gap-3">
+                            <div class="fs-4"><i class="fas fa-check-circle"></i></div>
+                            <div>
+                                <div class="fw-bold text-success">Approved by Project Manager</div>
+                                <div class="small text-muted">${ts.pm_name} &bull; ${ts.pm_approved_at || 'Verified'}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    pmStatusHtml = `
+                        <div class="p-3 bg-warning-subtle border border-warning-subtle rounded-3 text-warning-emphasis d-flex align-items-center gap-3">
+                            <div class="fs-4"><i class="fas fa-clock"></i></div>
+                            <div>
+                                <div class="fw-bold text-dark">Pending PM Approval</div>
+                                <div class="small text-muted">Assigned PM: ${ts.pm_name} (Awaiting Review)</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let rmStatusHtml = '';
+                if (ts.rm_approved) {
+                    rmStatusHtml = `
+                        <div class="p-3 bg-success-subtle border border-success-subtle rounded-3 text-success d-flex align-items-center gap-3">
+                            <div class="fs-4"><i class="fas fa-check-circle"></i></div>
+                            <div>
+                                <div class="fw-bold text-success">Approved by Reporting Manager</div>
+                                <div class="small text-muted">${ts.rm_name} &bull; ${ts.rm_approved_at || 'Verified'}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    rmStatusHtml = `
+                        <div class="p-3 bg-warning-subtle border border-warning-subtle rounded-3 text-warning-emphasis d-flex align-items-center gap-3">
+                            <div class="fs-4"><i class="fas fa-clock"></i></div>
+                            <div>
+                                <div class="fw-bold text-dark">Pending RM Approval</div>
+                                <div class="small text-muted">Reporting Manager: ${ts.rm_name} (Awaiting Review)</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let verdictHtml = '';
+                if (ts.status === 'Rejected') {
+                    verdictHtml = `
+                        <div class="alert alert-danger border border-danger-subtle rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-0">
+                            <i class="fas fa-times-circle text-danger fs-4"></i>
+                            <div>
+                                <strong class="text-danger">Timesheet Rejected</strong>
+                                <span class="small text-dark d-block">Employee must review and resubmit.</span>
+                            </div>
+                        </div>
+                    `;
+                } else if (ts.is_fully_approved || ['HR Approved', 'CEO Approved'].includes(ts.status)) {
+                    verdictHtml = `
+                        <div class="alert alert-success border border-success-subtle rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-0">
+                            <i class="fas fa-shield-alt text-success fs-4"></i>
+                            <div>
+                                <strong class="text-success">Approval Completed (${ts.status}):</strong>
+                                <span class="small text-dark d-block">Marked as verified/approved across HR, Employee, PM, and CEO views.</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    verdictHtml = `
+                        <div class="alert alert-warning border border-warning-subtle rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-0">
+                            <i class="fas fa-exclamation-triangle text-warning-emphasis fs-4"></i>
+                            <div>
+                                <strong class="text-dark">Awaiting Final CEO Verification:</strong>
+                                <span class="small text-dark d-block">Click Verify &amp; Approve to mark this timesheet approved across all portals.</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                body.innerHTML = `
+                    <div class="card border border-slate-200 rounded-3 p-3 mb-3 bg-light bg-opacity-50">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 48px; height: 48px; min-width: 48px; font-size: 1.1rem;">
+                                    ${ts.initials || 'EM'}
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <h6 class="fw-bold mb-0 text-dark fs-6">${ts.employee_name}</h6>
+                                        <span class="badge bg-white text-primary border small fw-bold">ID: ${ts.emp_id || 'N/A'}</span>
+                                        <span class="badge bg-secondary-subtle text-secondary small">${ts.department}</span>
+                                    </div>
+                                    <div class="text-muted small mt-1">
+                                        <i class="fas fa-briefcase me-1"></i>${ts.designation} &bull; <i class="fas fa-envelope me-1"></i>${ts.email}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-primary text-white px-3 py-2 rounded-pill">
+                                    <i class="fas fa-clock me-1"></i>Total: <strong>${ts.total_hours} hrs</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="fw-bold text-dark small text-uppercase mb-2 tracking-wide">
+                            <i class="fas fa-tasks text-primary me-2"></i>Dual Approval Verification (PM &amp; RM)
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card h-100 border border-slate-200 rounded-3 p-3 shadow-none">
+                                    <div class="small text-muted fw-semibold mb-1"><i class="fas fa-project-diagram text-primary me-1"></i>1. Project Manager (PM)</div>
+                                    <div class="small text-dark mb-2">Project: <strong>${ts.project_name}</strong></div>
+                                    ${pmStatusHtml}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card h-100 border border-slate-200 rounded-3 p-3 shadow-none">
+                                    <div class="small text-muted fw-semibold mb-1"><i class="fas fa-user-tie text-success me-1"></i>2. Reporting Manager (RM)</div>
+                                    <div class="small text-dark mb-2">Manager: <strong>${ts.rm_name}</strong></div>
+                                    ${rmStatusHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border border-slate-200 rounded-3 p-3 mb-3">
+                        <div class="small text-muted fw-semibold mb-1"><i class="fas fa-clipboard-list text-secondary me-1"></i>Submitted Task &amp; Progress Description</div>
+                        <div class="fw-semibold text-dark small mb-2">Task: ${ts.task_description}</div>
+                        <div class="p-2 bg-light rounded-2 text-dark small" style="white-space: pre-wrap; font-size: 0.84rem;">${ts.progress_description}</div>
+                    </div>
+
+                    ${verdictHtml}
+                `;
+
+                if (actionBtns && !['CEO Approved', 'HR Approved', 'Rejected'].includes(ts.status)) {
+                    actionBtns.innerHTML = `
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="mdRejectWeekly(${ts.id})">
+                            <i class="fas fa-times me-1"></i>Reject
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm rounded-pill px-4 fw-bold" onclick="mdVerifyApproveWeekly(${ts.id})">
+                            <i class="fas fa-check-circle me-1"></i>Verify &amp; Approve
+                        </button>
+                    `;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                body.innerHTML = `<div class="alert alert-danger mb-0">Error communicating with server.</div>`;
+            });
+    }
+
+    function mdVerifyApproveWeekly(timesheetId) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        fetch(`/timesheet/verify/${timesheetId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = `${window.location.pathname}?tab=timesheets`;
+            } else {
+                alert(data.error || 'Error verifying timesheet');
+            }
+        });
+    }
+
+    function mdRejectWeekly(timesheetId) {
+        const reason = prompt('Please provide a reason for rejection:');
+        if (reason === null) return;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        fetch(`/timesheet/reject/${timesheetId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ reason: reason })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = `${window.location.pathname}?tab=timesheets`;
+            } else {
+                alert(data.error || 'Error rejecting timesheet');
+            }
+        });
     }
 
     // DOM Ready setup for Executive Timesheets

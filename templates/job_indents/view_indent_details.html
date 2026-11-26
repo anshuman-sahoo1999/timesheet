@@ -242,6 +242,47 @@
         </div>
     </div>
 
+    <!-- Action Required: CEO Approval & PM Assignment (Placed at Top of Job Indent) -->
+    {% if current_user.role == 'MD' and indent.status == 'Pending Approval' %}
+    <div class="analytics-card border-warning mb-4" id="ceoPmAssignmentCard">
+        <div class="card-header bg-warning-subtle text-warning-emphasis d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fs-6 fw-bold">
+                <i class="fas fa-user-shield me-2"></i>Action Required: CEO Approval &amp; PM Assignment
+            </h5>
+            <span class="badge bg-warning text-dark">Pending CEO Action</span>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('process_indent', indent_id=indent.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="action" value="approve">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="project_manager" class="form-label fw-bold small text-muted">Assign Project Manager (Search by Name or Emp ID)</label>
+                        <select class="form-select searchable-emp-select" id="project_manager" name="project_manager_id" required data-search-placeholder="Type PM name or Employee ID...">
+                            <option value="">Choose PM from staff list...</option>
+                            {% for pm in project_managers %}
+                            <option value="{{ pm.id }}" data-emp-id="{{ pm.emp_id or '' }}">{{ pm.clean_name or pm.name }} ({{ pm.emp_id or 'N/A' }}) - {{ pm.designation or 'Team Member' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="comments" class="form-label fw-bold small text-muted">Approval Remarks (Optional)</label>
+                        <textarea class="form-control" id="comments" name="comments" rows="2" placeholder="Enter comments or special instructions..."></textarea>
+                    </div>
+                    <div class="col-12 mt-2 d-flex gap-2 flex-wrap">
+                        <button type="submit" name="action" value="approve" class="btn btn-success">
+                            <i class="fas fa-check-circle me-1"></i> Approve Indent &amp; Assign PM
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                            <i class="fas fa-times-circle me-1"></i> Reject Indent
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Project Header Banner -->
     <div class="project-header-card">
         <div class="row align-items-center g-3">
@@ -827,47 +868,6 @@
         </div>
     </div>
 
-    <!-- Action Required: CEO PM Assignment Form (if Pending Approval) -->
-    {% if current_user.role == 'MD' and indent.status == 'Pending Approval' %}
-    <div class="analytics-card border-warning mb-4">
-        <div class="card-header bg-warning-subtle text-warning-emphasis d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fs-6 fw-bold">
-                <i class="fas fa-exclamation-triangle me-2"></i>Action Required: CEO Approval & PM Assignment
-            </h5>
-            <span class="badge bg-warning text-dark">Pending CEO Action</span>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('process_indent', indent_id=indent.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <input type="hidden" name="action" value="approve">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="project_manager" class="form-label fw-bold small text-muted">Assign Project Manager</label>
-                        <select class="form-select" id="project_manager" name="project_manager_id" required>
-                            <option value="">Choose PM from staff list...</option>
-                            {% for pm in project_managers %}
-                            <option value="{{ pm.id }}">{{ pm.name }} ({{ pm.designation }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="comments" class="form-label fw-bold small text-muted">Approval Remarks (Optional)</label>
-                        <textarea class="form-control" id="comments" name="comments" rows="2" placeholder="Enter comments or special instructions..."></textarea>
-                    </div>
-                    <div class="col-12 mt-3 d-flex gap-2">
-                        <button type="submit" name="action" value="approve" class="btn btn-success">
-                            <i class="fas fa-check-circle me-1"></i> Approve Indent & Assign PM
-                        </button>
-                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
-                            <i class="fas fa-times-circle me-1"></i> Reject Indent
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-
 </div>
 
 <!-- Modal: View Itemized Finance Bills (Read-Only Inspection) -->
@@ -1294,11 +1294,8 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         initMilestoneChart();
-        if ($('#project_manager').length) {
-            $('#project_manager').select2({
-                theme: "bootstrap-5",
-                dropdownParent: $('#project_manager').parent()
-            });
+        if (window.initSearchableSelects) {
+            window.initSearchableSelects(document);
         }
     });
 </script>

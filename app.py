@@ -1279,6 +1279,302 @@ def calculate_weekly_hours_summary(timesheets):
     
     return weekly_summary
 
+APPROVED_TIMESHEET_STATUSES = {'Verified', 'Approved', 'PM Approved', 'HR Approved', 'CEO Approved'}
+RM_FINAL_APPROVED_STATUSES = {'HR Approved', 'CEO Approved'}
+
+
+def _upsert_timesheet_approval(weekly_ts_id, approver_id, approval_level, status, comments=''):
+    """Create or update a TimesheetApproval audit record without creating duplicate level entries."""
+    rec = TimesheetApproval.query.filter_by(
+        timesheet_id=weekly_ts_id,
+        approval_level=approval_level
+    ).order_by(TimesheetApproval.id.desc()).first()
+    if rec:
+        rec.approver_id = approver_id
+        rec.status = status
+        if comments:
+            rec.comments = comments
+        rec.approved_at = datetime.utcnow()
+    else:
+        rec = TimesheetApproval(
+            timesheet_id=weekly_ts_id,
+            approver_id=approver_id,
+            approval_level=approval_level,
+            status=status,
+            comments=comments or '',
+            approved_at=datetime.utcnow()
+        )
+        db.session.add(rec)
+    return rec
+
+
+def sync_weekly_to_daily_approval(weekly_ts, approver, new_status, approval_level, comments=''):
+    """
+    Propagate a WeeklyTimesheet approval/rejection across WeeklyTimesheet,
+    TimesheetApproval, and all Daily Timesheet rows in [week_start..week_end].
+    """
+    is_rejected = (new_status == 'Rejected')
+    if is_rejected:
+        weekly_ts.status = 'Rejected'
+        weekly_ts.approval_level = None
+        weekly_ts.approved_by_id = None
+        _upsert_timesheet_approval(weekly_ts.id, approver.id, approval_level, 'Rejected', comments)
+        if approval_level in ('HR', 'CEO', 'RM'):
+            _upsert_timesheet_approval(weekly_ts.id, approver.id, 'RM', 'Rejected', comments)
+    else:
+        weekly_ts.status = new_status
+        weekly_ts.approval_level = approval_level
+        weekly_ts.approved_by_id = approver.id
+        _upsert_timesheet_approval(weekly_ts.id, approver.id, approval_level, 'Approved', comments)
+        if approval_level in ('HR', 'CEO'):
+            _upsert_timesheet_approval(weekly_ts.id, approver.id, 'RM', 'Approved', comments)
+        if approval_level == 'CEO' and weekly_ts.task_id:
+            pm_rec = TimesheetApproval.query.filter_by(
+                timesheet_id=weekly_ts.id, approval_level='PM', status='Approved'
+            ).first()
+            if not pm_rec:
+                _upsert_timesheet_approval(
+                    weekly_ts.id, approver.id, 'PM', 'Approved',
+                    comments or 'Verified by Executive Override'
+                )
+
+    daily_entries = Timesheet.query.filter(
+        Timesheet.employee_id == weekly_ts.employee_id,
+        Timesheet.date >= weekly_ts.week_start_date,
+        Timesheet.date <= weekly_ts.week_end_date
+    ).all()
+    for d in daily_entries:
+        if is_rejected:
+            d.status = 'Rejected'
+            d.rm_status = 'Rejected'
+        elif approval_level == 'PM':
+            if d.rm_status in ('Approved', 'Verified', 'CEO Approved') or d.status in ('HR Approved', 'CEO Approved'):
+                continue
+            d.status = 'PM Approved'
+        else:
+            d.status = new_status
+            d.rm_status = 'Approved'
+    return len(daily_entries)
+
+
+def sync_daily_to_weekly_approval(daily_entries, approver, new_status, approval_level, comments=''):
+    """
+    Propagate Daily Timesheet approval/rejection back to covering WeeklyTimesheet rows
+    and TimesheetApproval so HR, CEO, PM, and Employee views always match.
+    """
+    if not daily_entries:
+        return
+    if not isinstance(daily_entries, (list, tuple, set)):
+        daily_entries = [daily_entries]
+
+    is_rejected = (new_status == 'Rejected')
+    touched_weeks = set()
+    for d in daily_entries:
+        if is_rejected:
+            d.status = 'Rejected'
+            d.rm_status = 'Rejected'
+        elif approval_level == 'PM':
+            if d.status not in ('HR Approved', 'CEO Approved'):
+                d.status = 'PM Approved'
+        else:
+            d.status = new_status
+            d.rm_status = 'Approved'
+        touched_weeks.add((d.employee_id, d.date - timedelta(days=d.date.weekday())))
+
+    for emp_id, week_start in touched_weeks:
+        week_end = week_start + timedelta(days=6)
+        weekly_entries = WeeklyTimesheet.query.filter(
+            WeeklyTimesheet.employee_id == emp_id,
+            WeeklyTimesheet.week_start_date <= week_end,
+            WeeklyTimesheet.week_end_date >= week_start
+        ).all()
+        if not weekly_entries:
+            continue
+
+        week_dailies = Timesheet.query.filter(
+            Timesheet.employee_id == emp_id,
+            Timesheet.date >= week_start,
+            Timesheet.date <= week_end
+        ).all()
+
+        for wt in weekly_entries:
+            if is_rejected:
+                wt.status = 'Rejected'
+                wt.approval_level = None
+                wt.approved_by_id = None
+                _upsert_timesheet_approval(wt.id, approver.id, approval_level, 'Rejected', comments)
+                if approval_level in ('HR', 'CEO', 'RM'):
+                    _upsert_timesheet_approval(wt.id, approver.id, 'RM', 'Rejected', comments)
+            elif approval_level == 'PM':
+                all_pm_done = all(
+                    (wd.status in APPROVED_TIMESHEET_STATUSES)
+                    for wd in week_dailies
+                ) if week_dailies else True
+                if all_pm_done and wt.status not in ('HR Approved', 'CEO Approved'):
+                    wt.status = 'PM Approved'
+                    wt.approval_level = 'PM'
+                    wt.approved_by_id = approver.id
+                _upsert_timesheet_approval(wt.id, approver.id, 'PM', 'Approved', comments)
+            else:
+                all_rm_done = all(
+                    (wd.rm_status in ('Approved', 'Verified', 'CEO Approved') or wd.status in ('HR Approved', 'CEO Approved'))
+                    for wd in week_dailies
+                ) if week_dailies else True
+                if all_rm_done:
+                    wt.status = new_status
+                    wt.approval_level = approval_level
+                    wt.approved_by_id = approver.id
+                _upsert_timesheet_approval(wt.id, approver.id, approval_level, 'Approved', comments)
+                _upsert_timesheet_approval(wt.id, approver.id, 'RM', 'Approved', comments)
+                if approval_level == 'CEO' and wt.task_id:
+                    pm_rec = TimesheetApproval.query.filter_by(
+                        timesheet_id=wt.id, approval_level='PM', status='Approved'
+                    ).first()
+                    if not pm_rec:
+                        _upsert_timesheet_approval(
+                            wt.id, approver.id, 'PM', 'Approved',
+                            comments or 'Verified by Executive Override'
+                        )
+
+
+def compute_workforce_utilization(employees, projects):
+    """
+    Compute per-employee project counts and date-overlap concurrency:
+    - Idle: 0 active projects
+    - Working: associated with active projects and max concurrent overlapping projects <= 4
+    - Over occupied: > 4 active projects overlapping on the same dates
+    - available_to_work: True when max concurrent overlaps <= 4 (Idle or Working)
+    """
+    from datetime import date as date_cls
+    today = date_cls.today()
+
+    # Map emp_id -> {project_id: {'project': p, 'intervals': [(s, e), ...]}}
+    emp_projects_map = defaultdict(dict)
+
+    for p in projects:
+        jc = p.job_card
+        proj_start = p.contract_start_date or today
+        proj_end = p.contract_end_date or proj_start
+
+        if p.project_manager_id:
+            slot = emp_projects_map[p.project_manager_id].setdefault(p.id, {'project': p, 'intervals': []})
+            slot['intervals'].append((proj_start, proj_end))
+
+        if jc:
+            jc_start = jc.actual_start_date or jc.project_start_date or proj_start
+            jc_end = jc.actual_end_date or jc.project_end_date or proj_end
+            for task in jc.tasks:
+                t_start = task.timeline_start or jc_start
+                t_end = task.timeline_end or jc_end
+                if t_end < t_start:
+                    t_end = t_start
+                for assignee in task.assignees:
+                    slot = emp_projects_map[assignee.id].setdefault(p.id, {'project': p, 'intervals': []})
+                    if task.status != 'Completed':
+                        slot['intervals'].append((t_start, t_end))
+
+            if jc.resources_json:
+                try:
+                    raw_res = json.loads(jc.resources_json)
+                    for r in raw_res:
+                        rid = r.get('employee_id')
+                        if rid and str(rid).isdigit():
+                            slot = emp_projects_map[int(rid)].setdefault(p.id, {'project': p, 'intervals': []})
+                            slot['intervals'].append((jc_start, jc_end))
+                except Exception:
+                    pass
+
+    results = []
+    idle_count = 0
+    working_count = 0
+    over_occupied_count = 0
+    available_count = 0
+
+    for emp in employees:
+        proj_slots = emp_projects_map.get(emp.id, {})
+        assigned_projects = [slot['project'] for slot in proj_slots.values()]
+
+        ongoing = len([p for p in assigned_projects if p.status in ['In Progress', 'Approved', 'Active']])
+        overdue = len([p for p in assigned_projects if p.contract_end_date and p.contract_end_date < today and p.status not in ['Completed', 'Closed', 'Rejected']])
+        completed = len([p for p in assigned_projects if p.status in ['Completed', 'Closed']])
+        pending = len([p for p in assigned_projects if p.status in ['Pending Approval', 'Pending', 'Draft']])
+
+        # Build one merged active date span per non-completed/non-rejected project
+        active_intervals = []
+        active_project_names = []
+        for slot in proj_slots.values():
+            p = slot['project']
+            if p.status in ['Completed', 'Closed', 'Rejected']:
+                continue
+            spans = slot['intervals'] or [(p.contract_start_date or today, p.contract_end_date or p.contract_start_date or today)]
+            min_s = min(s for s, _ in spans)
+            max_e = max(e for _, e in spans)
+            if max_e < min_s:
+                max_e = min_s
+            active_intervals.append((min_s, max_e))
+            active_project_names.append(p.project_name)
+
+        # Exact sweep-line to compute maximum concurrent overlapping active projects on the same date
+        max_concurrent_overlaps = 0
+        if active_intervals:
+            events = []
+            for s, e in active_intervals:
+                events.append((s, 1))
+                events.append((e + timedelta(days=1), -1))
+            events.sort(key=lambda x: (x[0], x[1]))
+            cur_active = 0
+            for _, delta in events:
+                cur_active += delta
+                if cur_active > max_concurrent_overlaps:
+                    max_concurrent_overlaps = cur_active
+
+        active_count = len(active_intervals)
+        if active_count == 0:
+            status = 'Idle'
+            available_to_work = True
+            idle_count += 1
+        elif max_concurrent_overlaps > 4:
+            status = 'Over occupied'
+            available_to_work = False
+            over_occupied_count += 1
+        else:
+            status = 'Working'
+            available_to_work = True
+            working_count += 1
+
+        if available_to_work:
+            available_count += 1
+
+        results.append({
+            'id': emp.id,
+            'emp_id': emp.emp_id or f'EMP-{emp.id}',
+            'name': emp.clean_name or emp.name,
+            'clean_name': emp.clean_name or emp.name,
+            'initials': emp.initials,
+            'designation': emp.designation or 'Team Member',
+            'department': emp.department,
+            'assigned_projects': len(assigned_projects),
+            'active_projects': active_count,
+            'active_project_names': active_project_names,
+            'max_overlaps': max_concurrent_overlaps,
+            'ongoing': ongoing,
+            'overdue': overdue,
+            'completed': completed,
+            'pending': pending,
+            'status': status,
+            'available_to_work': available_to_work
+        })
+
+    summary = {
+        'total': len(results),
+        'idle': idle_count,
+        'working': working_count,
+        'over_occupied': over_occupied_count,
+        'available': available_count
+    }
+    return results, summary
+
+
 def check_employee_occupancy(employee_id, start_date, end_date, exclude_task_id=None):
     """Check if employee is already assigned to another project within the given timeline"""
     from datetime import timedelta
@@ -2311,8 +2607,11 @@ def view_indent_details(indent_id):
             'submission_pct': emp_sub_pct
         })
 
-    # Active employees for CEO assignment dropdown (if pending)
-    project_managers = Employee.query.filter_by(is_active=True).order_by(Employee.name).all()
+    # Active human employees for CEO assignment dropdown (exclude synthetic DEPARTMENT records)
+    project_managers = Employee.query.filter(
+        Employee.is_active == True,
+        or_(Employee.employment_type != 'DEPARTMENT', Employee.employment_type == None)
+    ).order_by(Employee.name).all()
 
     uploaded_docs, docs_by_slot = build_indent_docs_context(indent)
 
@@ -3540,13 +3839,31 @@ def submit_change_request(indent_id):
 @app.route('/api/job-card/<int:indent_id>/verify-timesheet', methods=['POST'])
 @login_required
 def api_verify_timesheet(indent_id):
+    indent = JobIndent.query.get_or_404(indent_id)
+    if current_user.role not in ['PM', 'MD', 'HR', 'Admin'] and not current_user.has_hr_permission('timesheet_review'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    if current_user.role == 'PM' and indent.project_manager_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
     data = request.get_json() or {}
     ts_id = data.get('timesheet_id')
-    status = data.get('status', 'Approved')
+    if not ts_id:
+        return jsonify({'success': False, 'error': 'Timesheet ID is required'}), 400
     ts = Timesheet.query.get_or_404(int(ts_id))
-    ts.status = status
+    req_status = (data.get('status') or 'Verified').strip()
+
+    if req_status == 'Rejected':
+        level = 'PM' if current_user.role == 'PM' else ('CEO' if current_user.role == 'MD' else 'HR')
+        sync_daily_to_weekly_approval(ts, current_user, 'Rejected', level, data.get('comments', ''))
+    elif current_user.role == 'MD':
+        sync_daily_to_weekly_approval(ts, current_user, 'CEO Approved', 'CEO', data.get('comments', ''))
+    elif current_user.role == 'HR' or current_user.has_hr_permission('timesheet_review'):
+        sync_daily_to_weekly_approval(ts, current_user, 'HR Approved', 'HR', data.get('comments', ''))
+    else:
+        sync_daily_to_weekly_approval(ts, current_user, 'PM Approved', 'PM', data.get('comments', ''))
+
     db.session.commit()
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'status': ts.status, 'rm_status': ts.rm_status})
 
 # --- IT Admin Category Master CRUD ---
 @app.route('/masters/expenditure-categories', methods=['GET', 'POST'])
@@ -4301,6 +4618,16 @@ def api_timesheet_day_details():
         eh_m = int(round((e.hours_worked - eh_h) * 60))
         formatted_eh = f"{eh_h:02d}:{eh_m:02d}"
 
+        e_status = e.status or 'Not Verified'
+        e_rm = e.rm_status or 'Not Verified'
+        is_verified = (e_rm in APPROVED_TIMESHEET_STATUSES or e_status in APPROVED_TIMESHEET_STATUSES)
+        if e_status == 'Rejected' or e_rm == 'Rejected':
+            effective_rm = 'Rejected'
+        elif is_verified:
+            effective_rm = e_status if e_status in {'CEO Approved', 'HR Approved', 'PM Approved'} else 'Verified'
+        else:
+            effective_rm = e_rm
+
         result_entries.append({
             'id': e.id,
             'sl': idx,
@@ -4310,7 +4637,9 @@ def api_timesheet_day_details():
             'end_time': e.end_time or '18:00:00',
             'total_hours': formatted_eh,
             'raw_hours': e.hours_worked,
-            'rm_status': e.rm_status or e.status or 'Not Verified'
+            'status': e_status,
+            'rm_status': effective_rm,
+            'is_verified': is_verified
         })
 
     is_sun = is_sunday(target_date)
@@ -4405,24 +4734,29 @@ def api_timesheet_month_submissions():
 def verify_timesheets():
     if current_user.role not in ['PM', 'MD', 'HR'] and not current_user.has_hr_permission('timesheet_review'):
         abort(403)
-    
+
     if current_user.role in ['MD', 'HR'] or current_user.has_hr_permission('timesheet_review'):
-        timesheets = WeeklyTimesheet.query.filter_by(status='Submitted').all()
+        timesheets = WeeklyTimesheet.query.order_by(
+            WeeklyTimesheet.week_start_date.desc(),
+            WeeklyTimesheet.id.desc()
+        ).all()
+        employees_list = Employee.query.filter(
+            Employee.is_active == True,
+            or_(Employee.employment_type != 'DEPARTMENT', Employee.employment_type == None)
+        ).order_by(Employee.name).all()
     else:
-        # Get projects managed by the current PM
         pm_projects = JobIndent.query.filter_by(project_manager_id=current_user.id).all()
         project_ids = [p.id for p in pm_projects]
-        
         if project_ids:
-            # Get timesheets for tasks in PM's projects
             timesheets = WeeklyTimesheet.query.join(Task).join(JobCard).filter(
-                JobCard.job_indent_id.in_(project_ids),
-                WeeklyTimesheet.status == 'Submitted'
-            ).all()
+                JobCard.job_indent_id.in_(project_ids)
+            ).order_by(WeeklyTimesheet.week_start_date.desc(), WeeklyTimesheet.id.desc()).all()
         else:
             timesheets = []
-    
-    return render_template('timesheets/verify_timesheets.html', timesheets=timesheets)
+        emp_ids = list({ts.employee_id for ts in timesheets if ts.employee_id})
+        employees_list = Employee.query.filter(Employee.id.in_(emp_ids)).order_by(Employee.name).all() if emp_ids else []
+
+    return render_template('timesheets/verify_timesheets.html', timesheets=timesheets, employees=employees_list)
 
 @app.route('/employees')
 @login_required
@@ -4900,58 +5234,77 @@ def delete_employee(emp_id):
     return redirect(url_for('manage_employees'))
 
 @app.route('/timesheet/verify/<int:entry_id>', methods=['POST'])
+@app.route('/api/timesheet/<int:entry_id>/verify', methods=['POST'])
 @login_required
 def verify_timesheet_action(entry_id):
-    entry = WeeklyTimesheet.query.get_or_404(entry_id)
-    # If the timesheet belongs to a PM, only HR can approve
-    if entry.employee.role == 'PM':
-        if current_user.role != 'HR':
-            abort(403)
-        entry.status = 'HR Approved'
-        entry.approval_level = 'HR'
-        entry.approved_by_id = current_user.id
-        db.session.commit()
-        flash(f"Project Manager's timesheet for {entry.employee.name} (Week of {entry.week_start_date.strftime('%d-%b-%Y')}) has been approved by HR.", 'success')
-        return redirect(url_for('hr_timesheets'))
-    # If the timesheet belongs to an employee, only PM can approve
-    else:
-        # Security check: ensure the PM manages the project this timesheet belongs to
-        if current_user.role != 'PM' or entry.task.job_card.indent.project_manager_id != current_user.id:
-            abort(403)
-        entry.status = 'PM Approved'
-        entry.approval_level = 'PM'
-        entry.approved_by_id = current_user.id
-        db.session.commit()
-        flash(f"Weekly timesheet for {entry.employee.name} (Week of {entry.week_start_date.strftime('%d-%b-%Y')}) has been approved by PM.", 'success')
-        return redirect(url_for('verify_timesheets'))
+    is_ajax = (
+        request.is_json
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or 'application/json' in (request.headers.get('Accept') or '')
+    )
 
-@app.route('/timesheet/verify/<int:timesheet_id>', methods=['POST'])
-@login_required
-def verify_timesheet_api(timesheet_id):
-    """API endpoint for timesheet verification"""
-    if current_user.role not in ['HR', 'MD']:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
-    timesheet = WeeklyTimesheet.query.get_or_404(timesheet_id)
-    
+    entry = WeeklyTimesheet.query.get_or_404(entry_id)
+    if current_user.role not in ['PM', 'HR', 'MD'] and not current_user.has_hr_permission('timesheet_review'):
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        abort(403)
+
+    if current_user.role == 'PM':
+        if entry.employee and entry.employee.role == 'PM':
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'PM timesheets must be verified by HR or CEO.'}), 403
+            abort(403)
+        proj_mgr_id = entry.task.job_card.indent.project_manager_id if (entry.task and entry.task.job_card and entry.task.job_card.indent) else None
+        if proj_mgr_id != current_user.id:
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Unauthorized for this project.'}), 403
+            abort(403)
+
+    comments = ''
+    if request.is_json:
+        comments = (request.get_json() or {}).get('comments', '')
+    else:
+        comments = request.form.get('comments', '')
+
     try:
-        # HR can verify any timesheet
-        if current_user.role == 'HR':
-            timesheet.status = 'HR Approved'
-            timesheet.approval_level = 'HR'
-            timesheet.approved_by_id = current_user.id
-            db.session.commit()
-            
-            return jsonify({
-                'success': True, 
-                'message': f'Timesheet for {timesheet.employee.name} has been verified by HR.'
-            })
-        
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-        
+        if current_user.role == 'MD':
+            new_status = 'CEO Approved'
+            approval_level = 'CEO'
+        elif current_user.role == 'HR' or current_user.has_hr_permission('timesheet_review'):
+            new_status = 'HR Approved'
+            approval_level = 'HR'
+        else:
+            new_status = 'PM Approved'
+            approval_level = 'PM'
+
+        sync_weekly_to_daily_approval(entry, current_user, new_status, approval_level, comments=comments)
+        db.session.commit()
+
+        log_audit_trail('TIMESHEET_VERIFY', 'weekly_timesheet', entry.id, None, {
+            'approval_level': approval_level,
+            'status': new_status,
+            'verified_by': current_user.name
+        })
+        create_notification(
+            entry.employee_id,
+            f'Timesheet {new_status}',
+            f'Your timesheet for week starting {entry.week_start_date.strftime("%d-%b-%Y")} has been verified ({new_status}) by {current_user.name}.',
+            'success'
+        )
+
+        msg = f"Timesheet for {entry.employee.name} (Week of {entry.week_start_date.strftime('%d-%b-%Y')}) verified as {new_status}."
+        if is_ajax:
+            return jsonify({'success': True, 'status': entry.status, 'message': msg})
+
+        flash(msg, 'success')
+        next_url = request.referrer or (url_for('hr_timesheets') if current_user.role == 'HR' else url_for('verify_timesheets'))
+        return redirect(next_url)
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error verifying timesheet: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('verify_timesheets'))
 
 @app.route('/reports')
 @login_required
@@ -5150,59 +5503,28 @@ def dashboard():
                 profit_margins.append(margin)
         avg_profit_margin = round(sum(profit_margins) / len(profit_margins), 2) if profit_margins else 0
         
-        # Employee progress data
-        total_employees = Employee.query.filter_by(is_active=True).count()
-        
-        # Projects at risk (overdue or past end date)
-        at_risk_projects = []
-        for project in projects:
-            project_tasks = [task for task in project.job_card.tasks if project.job_card] if project.job_card else []
-            overdue_tasks = len([task for task in project_tasks 
-                               if task.timeline_end and task.timeline_end < datetime.now().date() and task.status != 'Completed'])
-            
-            # Check if project is at risk
-            if overdue_tasks > 0 or (project.contract_end_date and project.contract_end_date < datetime.now().date()):
-                at_risk_projects.append({
-                    'project': project,
-                    'overdue_tasks': overdue_tasks,
-                    'risk_reason': 'Overdue tasks' if overdue_tasks > 0 else 'Past end date'
-                })
-        
         # Recent projects (last 6)
         recent_projects = JobIndent.query.order_by(JobIndent.created_at.desc()).limit(6).all()
-        
-        # Employee-wise progress
-        employee_progress = []
-        active_employees = Employee.query.filter_by(is_active=True).all()
-        for emp in active_employees:
-            # Get projects assigned to this employee
-            assigned_projects = []
-            for project in projects:
-                if project.job_card:
-                    for task in project.job_card.tasks:
-                        if emp in task.assignees:
-                            assigned_projects.append(project)
-                            break
-            
-            # Count by status
-            ongoing = len([p for p in assigned_projects if p.status in ['In Progress', 'Approved', 'Active']])
-            overdue = len([p for p in assigned_projects if p.contract_end_date and p.contract_end_date < datetime.now().date() and p.status not in ['Completed', 'Closed']])
-            completed = len([p for p in assigned_projects if p.status in ['Completed', 'Closed']])
-            pending = len([p for p in assigned_projects if p.status in ['Pending Approval', 'Pending', 'Draft']])
-            
-            # Determine current status (simplified)
-            status = 'Working' if ongoing > 0 else 'Idle'
-            
-            employee_progress.append({
-                'name': emp.name,
-                'department': emp.department,
-                'assigned_projects': len(assigned_projects),
-                'ongoing': ongoing,
-                'overdue': overdue,
-                'completed': completed,
-                'pending': pending,
-                'status': status
-            })
+
+        # Active human employees (exclude synthetic DEPARTMENT master accounts)
+        active_employees_human = Employee.query.filter(
+            Employee.is_active == True,
+            or_(Employee.employment_type != 'DEPARTMENT', Employee.employment_type == None)
+        ).order_by(Employee.name).all()
+        total_employees = len(active_employees_human)
+
+        # Employee-wise progress & workforce utilization (Idle / Working / Over occupied / Available to work)
+        employee_progress, workforce_summary = compute_workforce_utilization(active_employees_human, projects)
+
+        # Weekly Timesheets for CEO HR-style Timesheet Approvals tab
+        md_all_timesheets = WeeklyTimesheet.query.order_by(
+            WeeklyTimesheet.week_start_date.desc(),
+            WeeklyTimesheet.id.desc()
+        ).all()
+        md_pending_timesheets_count = len([
+            wt for wt in md_all_timesheets
+            if wt.status in ['Submitted', 'PM Approved']
+        ])
         # Top 5 projects by contract value
         top_projects = sorted(
             [
@@ -5257,12 +5579,16 @@ def dashboard():
             at_risk_projects=at_risk_projects,
             recent_projects=recent_projects,
             employee_progress=employee_progress,
+            workforce_summary=workforce_summary,
             departments=departments,
             top_projects=top_projects,
             missing_dates=missing_dates,
             show_submit_week=show_submit_week,
             pending_job_cards_list=pending_job_cards_list,
-            pending_job_cards_count=pending_job_cards_count
+            pending_job_cards_count=pending_job_cards_count,
+            all_timesheets=md_all_timesheets,
+            employees_list=active_employees_human,
+            pending_timesheets_count=md_pending_timesheets_count
         )
 
     elif current_user.role == 'BD':
@@ -5725,8 +6051,11 @@ def hr_timesheets():
     if current_user.role not in ['HR', 'MD']:
         abort(403)
     
-    timesheets = WeeklyTimesheet.query.all()
-    employees = Employee.query.filter_by(is_active=True).all()
+    timesheets = WeeklyTimesheet.query.order_by(WeeklyTimesheet.week_start_date.desc(), WeeklyTimesheet.id.desc()).all()
+    employees = Employee.query.filter(
+        Employee.is_active == True,
+        or_(Employee.employment_type != 'DEPARTMENT', Employee.employment_type == None)
+    ).order_by(Employee.name).all()
     return render_template('hr/timesheets.html', timesheets=timesheets, employees=employees)
 
 @app.route('/hr/attendance')
@@ -6906,27 +7235,65 @@ def ceo_job_cards():
 @app.route('/timesheet/reject/<int:entry_id>', methods=['POST'])
 @login_required
 def reject_timesheet_action(entry_id):
+    is_ajax = (
+        request.is_json
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or 'application/json' in (request.headers.get('Accept') or '')
+    )
+
     entry = WeeklyTimesheet.query.get_or_404(entry_id)
-    # If the timesheet belongs to a PM, only HR can reject
-    if entry.employee.role == 'PM':
-        if current_user.role != 'HR':
+    if current_user.role not in ['PM', 'HR', 'MD'] and not current_user.has_hr_permission('timesheet_review'):
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        abort(403)
+
+    if current_user.role == 'PM':
+        if entry.employee and entry.employee.role == 'PM':
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'PM timesheets can only be reviewed by HR or CEO.'}), 403
             abort(403)
-        entry.status = 'Rejected'
-        entry.approval_level = None
-        entry.approved_by_id = None
-        db.session.commit()
-        flash(f"Project Manager's timesheet for {entry.employee.name} (Week of {entry.week_start_date.strftime('%d-%b-%Y')}) has been rejected by HR.", 'warning')
-        return redirect(url_for('hr_timesheets'))
-    # If the timesheet belongs to an employee, only PM can reject
+        proj_mgr_id = entry.task.job_card.indent.project_manager_id if (entry.task and entry.task.job_card and entry.task.job_card.indent) else None
+        if proj_mgr_id != current_user.id:
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Unauthorized for this project.'}), 403
+            abort(403)
+
+    reason = ''
+    if request.is_json:
+        reason = (request.get_json() or {}).get('reason', '')
     else:
-        if current_user.role != 'PM' or entry.task.job_card.indent.project_manager_id != current_user.id:
-            abort(403)
-        entry.status = 'Rejected'
-        entry.approval_level = None
-        entry.approved_by_id = None
+        reason = request.form.get('reason', '')
+
+    try:
+        approval_level = 'CEO' if current_user.role == 'MD' else ('HR' if current_user.role == 'HR' or current_user.has_hr_permission('timesheet_review') else 'PM')
+        sync_weekly_to_daily_approval(entry, current_user, 'Rejected', approval_level, comments=reason)
         db.session.commit()
-        flash(f"Weekly timesheet for {entry.employee.name} (Week of {entry.week_start_date.strftime('%d-%b-%Y')}) has been rejected by PM.", 'warning')
-        return redirect(url_for('verify_timesheets'))
+
+        log_audit_trail('TIMESHEET_REJECT', 'weekly_timesheet', entry.id, None, {
+            'approval_level': approval_level,
+            'reason': reason,
+            'rejected_by': current_user.name
+        })
+        create_notification(
+            entry.employee_id,
+            'Timesheet Rejected',
+            f'Your timesheet for week starting {entry.week_start_date.strftime("%d-%b-%Y")} was rejected by {current_user.name}.' + (f' Reason: {reason}' if reason else ''),
+            'warning'
+        )
+
+        msg = f"Timesheet for {entry.employee.name} (Week of {entry.week_start_date.strftime('%d-%b-%Y')}) has been rejected."
+        if is_ajax:
+            return jsonify({'success': True, 'status': 'Rejected', 'message': msg})
+
+        flash(msg, 'warning')
+        next_url = request.referrer or (url_for('hr_timesheets') if current_user.role == 'HR' else url_for('verify_timesheets'))
+        return redirect(next_url)
+    except Exception as e:
+        db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error rejecting timesheet: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('verify_timesheets'))
 
 @app.route('/timesheet/submit_week', methods=['POST'])
 @login_required
@@ -8443,66 +8810,50 @@ def edit_timesheet(timesheet_id):
 @app.route('/timesheet/approve/<int:timesheet_id>', methods=['POST'])
 @login_required
 def approve_timesheet(timesheet_id):
-    """Enhanced approval workflow"""
+    """Enhanced approval workflow synced across Daily, Weekly, and Audit logs."""
     timesheet = WeeklyTimesheet.query.get_or_404(timesheet_id)
-    
+
     # Check permissions
     if current_user.role == 'PM':
-        if timesheet.task.job_card.indent.project_manager_id != current_user.id:
-            abort(403)
+        proj_mgr_id = timesheet.task.job_card.indent.project_manager_id if (timesheet.task and timesheet.task.job_card and timesheet.task.job_card.indent) else None
+        if proj_mgr_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         approval_level = 'PM'
-    elif current_user.role == 'HR':
+        new_status = 'PM Approved'
+    elif current_user.role == 'HR' or current_user.has_hr_permission('timesheet_review'):
         approval_level = 'HR'
+        new_status = 'HR Approved'
     elif current_user.role == 'MD':
         approval_level = 'CEO'
+        new_status = 'CEO Approved'
     else:
-        abort(403)
-    
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    comments = ''
+    if request.is_json:
+        comments = (request.get_json() or {}).get('comments', '')
+    else:
+        comments = request.form.get('comments', '')
+
     try:
-        # Create approval record
-        approval = TimesheetApproval(
-            timesheet_id=timesheet_id,
-            approver_id=current_user.id,
-            approval_level=approval_level,
-            status='Approved',
-            comments=request.form.get('comments', ''),
-            approved_at=datetime.utcnow()
-        )
-        db.session.add(approval)
-        
-        # Update timesheet status
-        if approval_level == 'PM':
-            timesheet.status = 'PM Approved'
-            timesheet.approval_level = 'PM'
-        elif approval_level == 'HR':
-            timesheet.status = 'HR Approved'
-            timesheet.approval_level = 'HR'
-        elif approval_level == 'CEO':
-            timesheet.status = 'HR Approved'  # Final approval
-            timesheet.approval_level = 'CEO'
-        
-        timesheet.approved_by_id = current_user.id
-        
+        sync_weekly_to_daily_approval(timesheet, current_user, new_status, approval_level, comments=comments)
         db.session.commit()
-        
-        # Log audit
+
         log_audit_trail('TIMESHEET_APPROVE', 'weekly_timesheet', timesheet.id, None, {
             'approval_level': approval_level,
-            'comments': approval.comments
+            'status': new_status,
+            'comments': comments
         })
-        
-        # Send notification
         create_notification(
             timesheet.employee_id,
-            'Timesheet Approved',
-            f'Your timesheet for {timesheet.week_start_date} has been approved by {current_user.name}',
+            f'Timesheet {new_status}',
+            f'Your timesheet for {timesheet.week_start_date} has been approved ({new_status}) by {current_user.name}',
             'success'
         )
-        
-        return jsonify({'success': True, 'message': 'Timesheet approved successfully'})
+        return jsonify({'success': True, 'status': new_status, 'message': f'Timesheet approved ({new_status}) successfully'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Notifications
 @app.route('/notifications')
@@ -9024,25 +9375,32 @@ def api_timesheet_details(timesheet_id):
     rm_employee = emp.manager
     rm_name = (rm_employee.clean_name or rm_employee.name) if rm_employee else "Executive Head (CEO)"
     
-    rm_app = TimesheetApproval.query.filter_by(timesheet_id=timesheet.id, approval_level='RM', status='Approved').first()
+    rm_app = TimesheetApproval.query.filter(
+        TimesheetApproval.timesheet_id == timesheet.id,
+        TimesheetApproval.approval_level.in_(['RM', 'HR', 'CEO']),
+        TimesheetApproval.status == 'Approved'
+    ).order_by(TimesheetApproval.id.desc()).first()
     daily_rm = Timesheet.query.filter(
         Timesheet.employee_id == emp.id,
         Timesheet.date >= timesheet.week_start_date,
         Timesheet.date <= timesheet.week_end_date,
-        Timesheet.rm_status.in_(['Verified', 'Approved', 'CEO Approved'])
+        or_(
+            Timesheet.rm_status.in_(['Verified', 'Approved', 'CEO Approved']),
+            Timesheet.status.in_(['HR Approved', 'CEO Approved'])
+        )
     ).first()
-    
+
     if rm_app:
         rm_approved = True
-        rm_status = "Approved by RM"
+        rm_status = f"Approved by {rm_app.approval_level}"
         rm_approved_at = rm_app.approved_at.strftime('%d-%b-%Y %H:%M') if rm_app.approved_at else "Approved"
     elif daily_rm:
         rm_approved = True
-        rm_status = "Approved by RM"
+        rm_status = f"Approved ({daily_rm.status or 'RM'})"
         rm_approved_at = daily_rm.created_at.strftime('%d-%b-%Y') if daily_rm.created_at else "Approved"
     elif timesheet.status in ['HR Approved', 'CEO Approved'] or (rm_employee and rm_employee.role == 'MD' and timesheet.status == 'PM Approved'):
         rm_approved = True
-        rm_status = "Approved by RM"
+        rm_status = f"Approved ({timesheet.status})"
         rm_approved_at = timesheet.created_at.strftime('%d-%b-%Y') if timesheet.created_at else "Approved"
     else:
         rm_approved = False
@@ -9196,8 +9554,8 @@ def api_task_details(task_id):
         'timeline_start': task.timeline_start.strftime('%Y-%m-%d') if task.timeline_start else '',
         'timeline_end': task.timeline_end.strftime('%Y-%m-%d') if task.timeline_end else '',
         'status': task.status,
-        'assignees': [{'id': a.id, 'name': a.name} for a in task.assignees],
-        'available_assignees': [{'id': a.id, 'name': a.name} for a in available_assignees]
+        'assignees': [{'id': a.id, 'name': a.clean_name or a.name, 'emp_id': a.emp_id or ''} for a in task.assignees],
+        'available_assignees': [{'id': a.id, 'name': a.clean_name or a.name, 'emp_id': a.emp_id or ''} for a in available_assignees]
     }
     
     return jsonify({'success': True, 'task': task_data})
@@ -9567,14 +9925,15 @@ def api_executive_employee_drilldown(emp_id):
             pm_verified = True
             pm_status = 'N/A (Non-Project)'
 
-        # RM verification status
-        rm_verified = (ts.rm_status in ['Verified', 'Approved', 'CEO Approved']) or (ts.status == 'CEO Approved')
-        rm_status = 'Approved by RM' if rm_verified else 'Pending RM Approval'
+        # RM / Executive verification status
+        rm_verified = (ts.rm_status in ['Verified', 'Approved', 'CEO Approved']) or (ts.status in ['CEO Approved', 'HR Approved'])
+        rm_rejected = (ts.status == 'Rejected' or ts.rm_status == 'Rejected')
+        rm_status = 'Rejected' if rm_rejected else ('Approved by RM' if rm_verified else 'Pending RM Approval')
 
         is_fully_approved = (pm_verified and rm_verified)
-        # CEO can only approve if this employee reports directly to CEO AND PM has already verified
-        can_ceo_approve = is_direct and pm_verified and not rm_verified
-        needs_pm_first = is_direct and has_project and not pm_verified
+        # CEO can verify/approve any pending or unapproved timesheet directly
+        can_ceo_approve = (not rm_verified) and (not rm_rejected)
+        needs_pm_first = has_project and not pm_verified
 
         timesheet_items.append({
             'id': ts.id,
@@ -9585,11 +9944,12 @@ def api_executive_employee_drilldown(emp_id):
             'task_description': task_desc,
             'hours': ts.hours_worked,
             'progress': ts.progress_description or 'No progress notes entered.',
-            'status': 'Approved' if is_fully_approved else (ts.status or 'Submitted'),
+            'status': 'Rejected' if rm_rejected else ('CEO Approved' if ts.status == 'CEO Approved' else ('HR Approved' if ts.status == 'HR Approved' else ('Approved' if is_fully_approved else (ts.status or 'Submitted')))),
             'pm_status': pm_status,
             'pm_verified': pm_verified,
             'rm_status': rm_status,
             'rm_verified': rm_verified,
+            'is_rejected': rm_rejected,
             'is_approved': is_fully_approved or rm_verified,
             'can_ceo_approve': can_ceo_approve,
             'needs_pm_first': needs_pm_first,
@@ -9676,15 +10036,15 @@ def api_executive_employee_drilldown(emp_id):
 @csrf.exempt
 def api_executive_approve_timesheet():
     """
-    Endpoint for MD/CEO to verify and approve timesheets.
-    Strictly restricted: CEO only verifies timesheets for employees who report directly to CEO.
-    If associated with a project, PM verification must be completed first.
+    Endpoint for MD/CEO to verify/approve or reject timesheets across employees,
+    propagating synced status to Daily Timesheet, WeeklyTimesheet, and TimesheetApproval.
     """
     if current_user.role != 'MD':
         return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
 
     data = request.get_json() or {}
-    action_type = data.get('action', 'single') # 'single' or 'bulk'
+    action_type = data.get('action', 'single')  # 'single', 'bulk', or 'reject'
+    comments = data.get('comments', '') or data.get('reason', '') or ''
 
     try:
         if action_type == 'single':
@@ -9692,36 +10052,16 @@ def api_executive_approve_timesheet():
             if not timesheet_id:
                 return jsonify({'success': False, 'error': 'Timesheet ID is required'}), 400
 
-            ts = Timesheet.query.get_or_404(timesheet_id)
-            emp = ts.employee
-            is_direct = (emp.manager_id == current_user.id) or (emp.manager_id is None and emp.role in ['PM', 'BD', 'HR'])
-            if not is_direct:
-                rm_name = emp.manager.name if emp.manager else 'their assigned Reporting Manager'
-                return jsonify({
-                    'success': False,
-                    'error': f'Unauthorized: {emp.name} reports to {rm_name}. CEO only approves timesheets for direct reportees.'
-                }), 403
-
-            has_project = bool(ts.project_id or ts.task_id or (ts.project_name and ts.project_name != 'Others'))
-            if has_project and ts.status not in ['Verified', 'PM Approved', 'CEO Approved', 'Approved']:
-                return jsonify({
-                    'success': False,
-                    'error': 'Project timesheets must first be verified by the Project Manager before Reporting Manager / CEO approval.'
-                }), 400
-
-            ts.status = 'CEO Approved'
-            ts.rm_status = 'Approved'
+            ts = Timesheet.query.get_or_404(int(timesheet_id))
+            sync_daily_to_weekly_approval(ts, current_user, 'CEO Approved', 'CEO', comments=comments)
             db.session.commit()
 
-            # Record in AuditLog
             log_audit_trail('CEO_TIMESHEET_APPROVE', 'timesheet', ts.id, None, {
                 'approved_by': current_user.name,
                 'status': 'CEO Approved',
                 'rm_status': 'Approved',
                 'date': ts.date.strftime('%Y-%m-%d')
             })
-
-            # Create notification for employee
             create_notification(
                 ts.employee_id,
                 'Timesheet Approved by CEO',
@@ -9731,7 +10071,35 @@ def api_executive_approve_timesheet():
 
             return jsonify({
                 'success': True,
-                'message': f'Timesheet for {ts.date.strftime("%d-%b-%Y")} successfully verified and approved by CEO!'
+                'status': 'CEO Approved',
+                'message': f'Timesheet for {ts.date.strftime("%d-%b-%Y")} verified and approved by CEO!'
+            })
+
+        elif action_type == 'reject':
+            timesheet_id = data.get('timesheet_id')
+            if not timesheet_id:
+                return jsonify({'success': False, 'error': 'Timesheet ID is required'}), 400
+
+            ts = Timesheet.query.get_or_404(int(timesheet_id))
+            sync_daily_to_weekly_approval(ts, current_user, 'Rejected', 'CEO', comments=comments)
+            db.session.commit()
+
+            log_audit_trail('CEO_TIMESHEET_REJECT', 'timesheet', ts.id, None, {
+                'rejected_by': current_user.name,
+                'reason': comments,
+                'date': ts.date.strftime('%Y-%m-%d')
+            })
+            create_notification(
+                ts.employee_id,
+                'Timesheet Rejected by CEO',
+                f'Your timesheet entry for {ts.date.strftime("%d-%b-%Y")} was rejected by CEO {current_user.name}.' + (f' Reason: {comments}' if comments else ''),
+                'warning'
+            )
+
+            return jsonify({
+                'success': True,
+                'status': 'Rejected',
+                'message': f'Timesheet for {ts.date.strftime("%d-%b-%Y")} rejected.'
             })
 
         elif action_type == 'bulk':
@@ -9742,19 +10110,11 @@ def api_executive_approve_timesheet():
             if not emp_id:
                 return jsonify({'success': False, 'error': 'Employee ID is required'}), 400
 
-            emp = Employee.query.get_or_404(emp_id)
-            is_direct = (emp.manager_id == current_user.id) or (emp.manager_id is None and emp.role in ['PM', 'BD', 'HR'])
-            if not is_direct:
-                rm_name = emp.manager.name if emp.manager else 'their assigned Reporting Manager'
-                return jsonify({
-                    'success': False,
-                    'error': f'Unauthorized: {emp.name} reports to {rm_name}. CEO only approves timesheets for direct reportees.'
-                }), 403
+            emp = Employee.query.get_or_404(int(emp_id))
 
             query = Timesheet.query.filter(
                 Timesheet.employee_id == emp.id,
-                Timesheet.status != 'CEO Approved',
-                Timesheet.rm_status != 'Approved'
+                or_(Timesheet.status != 'CEO Approved', Timesheet.rm_status != 'Approved')
             )
             if from_date_str:
                 from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
@@ -9767,41 +10127,25 @@ def api_executive_approve_timesheet():
             if not pending_entries:
                 return jsonify({'success': True, 'message': 'All timesheets for this period are already approved.'})
 
-            # Check that project timesheets have PM verification
-            approved_count = 0
-            skipped_count = 0
-            for ts in pending_entries:
-                has_proj = bool(ts.project_id or ts.task_id or (ts.project_name and ts.project_name != 'Others'))
-                if has_proj and ts.status not in ['Verified', 'PM Approved', 'CEO Approved', 'Approved']:
-                    skipped_count += 1
-                    continue
-                ts.status = 'CEO Approved'
-                ts.rm_status = 'Approved'
-                approved_count += 1
-
+            sync_daily_to_weekly_approval(pending_entries, current_user, 'CEO Approved', 'CEO', comments=comments)
+            approved_count = len(pending_entries)
             db.session.commit()
 
             log_audit_trail('CEO_TIMESHEET_BULK_APPROVE', 'timesheet', emp.id, None, {
                 'approved_by': current_user.name,
                 'entries_count': approved_count,
-                'skipped_unverified_count': skipped_count,
                 'employee_name': emp.name
             })
-
             create_notification(
                 emp.id,
                 'Timesheets Approved by CEO',
-                f'{approved_count} timesheets have been verified & approved by CEO {current_user.name}.',
+                f'{approved_count} timesheet(s) have been verified & approved by CEO {current_user.name}.',
                 'success'
             )
 
-            msg = f'{approved_count} timesheet(s) successfully verified & approved by CEO!'
-            if skipped_count > 0:
-                msg += f' ({skipped_count} project entries skipped because they are awaiting PM verification first).'
-
             return jsonify({
                 'success': True,
-                'message': msg
+                'message': f'{approved_count} timesheet(s) successfully verified & approved by CEO!'
             })
 
         else:

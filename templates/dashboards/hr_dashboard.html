@@ -431,18 +431,21 @@
                                         <select class="form-control" id="timesheetFilter">
                                             <option value="">All Status</option>
                                             <option value="Submitted">Submitted</option>
-                                            <option value="Approved">Approved</option>
+                                            <option value="PM Approved">PM Approved</option>
+                                            <option value="HR Approved">HR Approved</option>
+                                            <option value="CEO Approved">CEO Approved</option>
+                                            <option value="Approved">All Approved (HR/CEO)</option>
                                             <option value="Rejected">Rejected</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <div class="form-group mb-0">
-                                        <label for="employeeFilter" class="form-label">Filter by Employee</label>
-                                        <select class="form-control" id="employeeFilter">
+                                        <label for="employeeFilter" class="form-label">Filter by Employee (Name or ID)</label>
+                                        <select class="form-control searchable-emp-select" id="employeeFilter">
                                             <option value="">All Employees</option>
                                             {% for employee in employees %}
-                                            <option value="{{ employee.name }}">{{ employee.name }}</option>
+                                            <option value="{{ employee.clean_name or employee.name }}" data-emp-id="{{ employee.emp_id or '' }}">{{ employee.clean_name or employee.name }} ({{ employee.emp_id or 'N/A' }})</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -524,7 +527,7 @@
                                                 <span class="text-muted small">hrs</span>
                                             </td>
                                             <td>
-                                                <span class="badge bg-{{ 'success' if timesheet.status in ['Approved', 'HR Approved'] else ('info' if timesheet.status == 'PM Approved' else ('warning' if timesheet.status == 'Submitted' else 'danger')) }} px-2 py-1 rounded-pill">
+                                                <span class="badge bg-{{ 'success' if timesheet.status in ['Approved', 'HR Approved', 'CEO Approved'] else ('info text-dark' if timesheet.status == 'PM Approved' else ('warning text-dark' if timesheet.status == 'Submitted' else 'danger')) }} px-2 py-1 rounded-pill">
                                                     {{ timesheet.status }}
                                                 </span>
                                             </td>
@@ -1276,13 +1279,13 @@ if (empSearchInput) {
 // Timesheet filter functionality
 function applyTimesheetFilters() {
     const statusFilter = document.getElementById('timesheetFilter')?.value;
-    const employeeFilter = document.getElementById('employeeFilter')?.value;
+    const employeeFilter = (document.getElementById('employeeFilter')?.value || '').trim().toLowerCase();
     const rows = document.querySelectorAll('#timesheetsTable tbody tr');
     rows.forEach(row => {
-        const status = row.getAttribute('data-status');
-        const employee = row.getAttribute('data-employee');
-        const matchesStatus = !statusFilter || status === statusFilter;
-        const matchesEmployee = !employeeFilter || employee === employeeFilter;
+        const status = row.getAttribute('data-status') || '';
+        const employee = (row.getAttribute('data-employee') || '').trim().toLowerCase();
+        const matchesStatus = !statusFilter || (statusFilter === 'Approved' ? ['Approved', 'HR Approved', 'CEO Approved'].includes(status) : status === statusFilter);
+        const matchesEmployee = !employeeFilter || employee === employeeFilter || employee.includes(employeeFilter);
         row.style.display = (matchesStatus && matchesEmployee) ? '' : 'none';
     });
 }

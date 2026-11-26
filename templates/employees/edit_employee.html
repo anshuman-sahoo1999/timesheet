@@ -164,10 +164,12 @@
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-user-tie"></i></span>
-                                    <select class="form-select border-start-0 ps-1" id="manager_id" name="manager_id">
+                                    <select class="form-select border-start-0 ps-1 searchable-emp-select" id="manager_id" name="manager_id" data-search-placeholder="Search RM by Name or Emp ID...">
                                         <option value="">-- Select Reporting Manager --</option>
                                         {% for mgr in managers %}
-                                        <option value="{{ mgr.id }}" {% if emp.manager_id == mgr.id %}selected{% endif %}>{{ mgr.name }} ({{ mgr.designation or mgr.role }})</option>
+                                        {% if mgr.employment_type != 'DEPARTMENT' %}
+                                        <option value="{{ mgr.id }}" data-emp-id="{{ mgr.emp_id or '' }}" {% if emp.manager_id == mgr.id %}selected{% endif %}>{{ mgr.clean_name or mgr.name }} ({{ mgr.emp_id or 'N/A' }} - {{ mgr.designation or mgr.role }})</option>
+                                        {% endif %}
                                         {% endfor %}
                                     </select>
                                 </div>

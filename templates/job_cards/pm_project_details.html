@@ -933,14 +933,14 @@
                                             <td class="fw-bold">{{ ts.hours_worked }} hrs</td>
                                             <td><small class="text-secondary">{{ ts.progress_description }}</small></td>
                                             <td>
-                                                <span class="badge bg-{{ 'success' if ts.status == 'Approved' else 'warning' if ts.status == 'Submitted' else 'secondary' }}">
+                                                <span class="badge bg-{{ 'success' if ts.status in ['Approved', 'PM Approved', 'HR Approved', 'CEO Approved', 'Verified'] else 'danger' if ts.status == 'Rejected' else 'warning text-dark' if ts.status == 'Submitted' else 'secondary' }}">
                                                     {{ ts.status }}
                                                 </span>
                                             </td>
                                             <td class="text-end">
-                                                {% if ts.status != 'Approved' %}
+                                                {% if ts.status not in ['Approved', 'PM Approved', 'HR Approved', 'CEO Approved', 'Verified'] %}
                                                 <button class="btn btn-sm btn-outline-success" onclick="approveTimesheet('{{ ts.id }}')">
-                                                    <i class="fas fa-check"></i>
+                                                    <i class="fas fa-check"></i> Verify
                                                 </button>
                                                 {% endif %}
                                             </td>
@@ -1284,7 +1284,9 @@
     // Active Employees & Categories lists
     const ALL_EMPLOYEES = [
         {% for emp in employees %}
-        { id: {{ emp.id }}, name: {{ emp.name|tojson }}, grade: {{ (emp.grade or 'S-1')|tojson }}, designation: {{ (emp.designation or '')|tojson }} },
+        {% if emp.employment_type != 'DEPARTMENT' %}
+        { id: {{ emp.id }}, emp_id: {{ (emp.emp_id or '')|tojson }}, name: {{ (emp.clean_name or emp.name)|tojson }}, grade: {{ (emp.grade or 'S-1')|tojson }}, designation: {{ (emp.designation or '')|tojson }} },
+        {% endif %}
         {% endfor %}
     ];
 
@@ -1477,7 +1479,8 @@
             let empOptions = `<option value="">Choose Employee...</option>`;
             ALL_EMPLOYEES.forEach(e => {
                 const sel = (res.employee_id && res.employee_id == e.id) ? 'selected' : '';
-                empOptions += `<option value="${e.id}" data-grade="${e.grade}" ${sel}>${e.name} (${e.grade})</option>`;
+                const label = e.emp_id ? `${e.name} (${e.emp_id} - ${e.grade})` : `${e.name} (${e.grade})`;
+                empOptions += `<option value="${e.id}" data-grade="${e.grade}" data-emp-id="${e.emp_id || ''}" ${sel}>${label}</option>`;
             });
 
             // Build task tags
@@ -1494,7 +1497,7 @@
             tr.innerHTML = `
                 <td class="text-center fw-bold text-muted">${idx + 1}</td>
                 <td>
-                    <select class="form-select form-select-sm res-emp-select" onchange="onResourceEmpChange(${idx}, this)">
+                    <select class="form-select form-select-sm res-emp-select searchable-emp-select" data-search-placeholder="Search Employee or ID..." onchange="onResourceEmpChange(${idx}, this)">
                         ${empOptions}
                     </select>
                 </td>

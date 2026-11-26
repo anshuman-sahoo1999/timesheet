@@ -156,10 +156,10 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label small text-muted fw-semibold">New Reporting Manager *</label>
-                    <select id="modalNewManager" class="form-select">
+                    <select id="modalNewManager" class="form-select searchable-emp-select" data-search-placeholder="Search Manager by Name or Emp ID...">
                         <option value="">No Manager (Top Executive)</option>
                         {% for m in managers %}
-                        <option value="{{ m.id }}">{{ m.clean_name or m.name }} ({{ m.designation or m.role }}) - {{ m.department.name if m.department else 'General' }}</option>
+                        <option value="{{ m.id }}" data-emp-id="{{ m.emp_id or '' }}">{{ m.clean_name or m.name }} ({{ m.emp_id or 'N/A' }} - {{ m.designation or m.role }})</option>
                         {% endfor %}
                     </select>
                 </div>

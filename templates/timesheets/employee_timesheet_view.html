@@ -712,8 +712,10 @@
                                         {{ "%02d:%02d" | format(h, m) }}
                                     </td>
                                     <td>
-                                        {% if entry.rm_status == 'Verified' or entry.status == 'Verified' %}
-                                            <span class="badge-verified"><i class="fas fa-check-circle me-1"></i>Verified</span>
+                                        {% if entry.rm_status == 'Rejected' or entry.status == 'Rejected' %}
+                                            <span class="badge-not-verified" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+                                        {% elif entry.rm_status in ['Verified', 'Approved', 'CEO Approved', 'HR Approved'] or entry.status in ['Verified', 'Approved', 'CEO Approved', 'HR Approved', 'PM Approved'] %}
+                                            <span class="badge-verified"><i class="fas fa-check-circle me-1"></i>{{ 'CEO Approved' if entry.status == 'CEO Approved' else ('HR Approved' if entry.status == 'HR Approved' else ('PM Verified' if entry.status == 'PM Approved' else 'Verified')) }}</span>
                                         {% else %}
                                             <span class="badge-not-verified"><i class="fas fa-clock me-1"></i>Not Verified</span>
                                         {% endif %}
@@ -1205,9 +1207,16 @@
                         dossierTableBody.innerHTML = '';
                         data.entries.forEach(item => {
                             const tr = document.createElement('tr');
-                            const statusBadge = (item.rm_status === 'Verified')
-                                ? '<span class="badge-verified"><i class="fas fa-check-circle me-1"></i>Verified</span>'
-                                : '<span class="badge-not-verified"><i class="fas fa-clock me-1"></i>Not Verified</span>';
+                            const approvedStates = ['Verified', 'Approved', 'CEO Approved', 'HR Approved', 'PM Approved'];
+                            let statusBadge;
+                            if (item.status === 'Rejected' || item.rm_status === 'Rejected') {
+                                statusBadge = '<span class="badge-not-verified" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;"><i class="fas fa-times-circle me-1"></i>Rejected</span>';
+                            } else if (approvedStates.includes(item.rm_status) || approvedStates.includes(item.status) || item.is_verified) {
+                                const label = (item.status === 'CEO Approved') ? 'CEO Approved' : ((item.status === 'HR Approved') ? 'HR Approved' : ((item.status === 'PM Approved') ? 'PM Verified' : 'Verified'));
+                                statusBadge = `<span class="badge-verified"><i class="fas fa-check-circle me-1"></i>${label}</span>`;
+                            } else {
+                                statusBadge = '<span class="badge-not-verified"><i class="fas fa-clock me-1"></i>Not Verified</span>';
+                            }
 
                             tr.innerHTML = `
                                 <td class="text-secondary fw-semibold text-center">${item.sl}</td>

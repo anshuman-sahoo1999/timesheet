@@ -22,7 +22,10 @@
                                 <select class="form-control" id="status_filter">
                                     <option value="">All Status</option>
                                     <option value="Submitted">Submitted</option>
-                                    <option value="Verified">Verified</option>
+                                    <option value="PM Approved">PM Approved</option>
+                                    <option value="HR Approved">HR Approved</option>
+                                    <option value="CEO Approved">CEO Approved</option>
+                                    <option value="Rejected">Rejected</option>
                                 </select>
                             </div>
                         </div>
@@ -39,10 +42,10 @@
                                 <label for="employee_filter" class="form-label">
                                     <i class="fas fa-user"></i> Employee Filter
                                 </label>
-                                <select class="form-control" id="employee_filter">
+                                <select class="form-control searchable-emp-select" id="employee_filter">
                                     <option value="">All Employees</option>
                                     {% for emp in employees %}
-                                    <option value="{{ emp.name }}">{{ emp.name }}</option>
+                                    <option value="{{ emp.name }}" data-emp-id="{{ emp.emp_id or '' }}">{{ emp.name }} ({{ emp.emp_id or 'N/A' }})</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -78,7 +81,7 @@
                             <div class="card bg-success text-white h-100 mb-0">
                                 <div class="card-body text-center">
                                     <h5><i class="fas fa-check-circle"></i> Verified</h5>
-                                    <h3>{{ timesheets|selectattr('status', 'equalto', 'Verified')|list|length }}</h3>
+                                    <h3>{{ timesheets|selectattr('status', 'in', ['Verified', 'Approved', 'PM Approved', 'HR Approved', 'CEO Approved'])|list|length }}</h3>
                                 </div>
                             </div>
                         </div>
@@ -145,18 +148,19 @@
                                         </button>
                                     </td>
                                     <td>
-                                        <span class="badge {{ 'bg-warning text-dark' if ts.status == 'Submitted' else 'bg-info text-dark' if ts.status == 'PM Approved' else 'bg-success' if ts.status == 'HR Approved' else 'bg-danger' if ts.status == 'Rejected' else 'bg-secondary' }}">
+                                        <span class="badge {{ 'bg-warning text-dark' if ts.status == 'Submitted' else 'bg-info text-dark' if ts.status == 'PM Approved' else 'bg-success' if ts.status in ['HR Approved', 'CEO Approved', 'Approved', 'Verified'] else 'bg-danger' if ts.status == 'Rejected' else 'bg-secondary' }}">
                                             {{ ts.status }}
                                         </span>
                                     </td>
                                     <td>{{ ts.created_at.strftime('%d %b %Y') }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            {% if ts.status == 'Submitted' %}
+                                            {% if ts.status in ['Submitted', 'PM Approved'] %}
                                             <button type="button" class="btn btn-sm btn-outline-success" onclick="verifyTimesheet({{ ts.id }})">
                                                 <i class="fas fa-check"></i> Verify
                                             </button>
                                             <form method="POST" action="{{ url_for('reject_timesheet_action', entry_id=ts.id) }}" style="display: inline; margin-left: 4px;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to reject this timesheet?');">
                                                     <i class="fas fa-times"></i> Reject
                                                 </button>
@@ -333,6 +337,7 @@ function verifyTimesheet(timesheetId) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: `csrf_token={{ csrf_token() }}`
         })

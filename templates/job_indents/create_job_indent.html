@@ -179,6 +179,19 @@
         resize: none;
     }
 
+    .field-input-wrap > .emc-ss-wrap > .emc-ss-trigger {
+        height: 48px;
+        border-radius: 10px;
+        padding-left: 42px;
+        border-color: var(--indent-border);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .field-input-wrap .field-icon {
+        z-index: 2;
+    }
+
     .indent-input:focus,
     .indent-select:focus,
     .indent-textarea:focus {
@@ -705,11 +718,11 @@
                         </label>
                         <div class="field-input-wrap">
                             <i class="fas fa-user-check field-icon"></i>
-                            <select class="indent-select" id="project_manager_id" name="project_manager_id">
+                            <select class="indent-select searchable-emp-select" id="project_manager_id" name="project_manager_id">
                                 <option value="">Select Project Manager (Optional)</option>
                                 {% for emp in employees %}
-                                    {% if emp.role in ['PM', 'EMP'] and emp.is_active %}
-                                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.department.name if emp.department else 'General' }})</option>
+                                    {% if emp.role in ['PM', 'EMP'] and emp.is_active and emp.employment_type != 'DEPARTMENT' %}
+                                    <option value="{{ emp.id }}" data-emp-id="{{ emp.emp_id or '' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }} - {{ emp.department.name if emp.department else 'General' }})</option>
                                     {% endif %}
                                 {% endfor %}
                             </select>

@@ -45,10 +45,12 @@
                     <!-- Choose the Department Head -->
                     <div class="col-12 col-md-4">
                         <label for="deptHead" class="form-label small text-muted fw-semibold d-none">Choose Department Head</label>
-                        <select class="form-select master-input" id="deptHead" name="department_head_id">
+                        <select class="form-select master-input searchable-emp-select" id="deptHead" name="department_head_id" data-search-placeholder="Search Head by Name or Emp ID...">
                             <option value="">Choose the Department Head</option>
                             {% for emp in employees %}
-                            <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.designation or emp.role }})</option>
+                            {% if emp.employment_type != 'DEPARTMENT' %}
+                            <option value="{{ emp.id }}" data-emp-id="{{ emp.emp_id or '' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }} - {{ emp.designation or emp.role }})</option>
+                            {% endif %}
                             {% endfor %}
                         </select>
                     </div>
@@ -133,12 +135,14 @@
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label small fw-bold">Department Head</label>
-                                                    <select name="department_head_id" class="form-select">
+                                                    <select name="department_head_id" class="form-select searchable-emp-select" data-search-placeholder="Search Head by Name or Emp ID...">
                                                         <option value="">Choose the Department Head</option>
                                                         {% for emp in employees %}
-                                                        <option value="{{ emp.id }}" {{ 'selected' if dept.department_head_id == emp.id }}>
-                                                            {{ emp.name }} ({{ emp.designation or emp.role }})
+                                                        {% if emp.employment_type != 'DEPARTMENT' %}
+                                                        <option value="{{ emp.id }}" data-emp-id="{{ emp.emp_id or '' }}" {{ 'selected' if dept.department_head_id == emp.id }}>
+                                                            {{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }} - {{ emp.designation or emp.role }})
                                                         </option>
+                                                        {% endif %}
                                                         {% endfor %}
                                                     </select>
                                                 </div>

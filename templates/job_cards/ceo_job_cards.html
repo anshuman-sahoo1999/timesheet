@@ -45,8 +45,13 @@
                                     <td>
                                         {% if card.status == 'Approved' %}
                                             <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Approved</span>
+                                            {% if card.change_request_unlocked %}
+                                            <span class="badge bg-info text-dark ms-1"><i class="fas fa-unlock me-1"></i>CR Edit Unlocked</span>
+                                            {% endif %}
                                         {% elif card.status == 'Submitted' %}
                                             <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Pending Review</span>
+                                        {% elif card.status in ['Hold', 'On Hold'] %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning"><i class="fas fa-pause-circle me-1"></i>Hold</span>
                                         {% elif card.status == 'Rejected' %}
                                             <span class="badge bg-danger"><i class="fas fa-undo me-1"></i>Revision Requested</span>
                                         {% else %}
@@ -54,9 +59,22 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <a href="{{ url_for('view_job_card_details', card_id=card.id) }}" class="btn btn-primary btn-sm">
-                                            <i class="fas fa-clipboard-check me-1"></i> Review & Approve
-                                        </a>
+                                        <div class="d-flex flex-wrap gap-1 align-items-center">
+                                            <a href="{{ url_for('view_job_card_details', card_id=card.id) }}" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-clipboard-check me-1"></i> View &amp; Action
+                                            </a>
+                                            {% set pending_crs = card.indent.change_requests | selectattr('status', 'equalto', 'Pending') | list if card.indent and card.indent.change_requests else [] %}
+                                            {% set total_crs = card.indent.change_requests | list if card.indent and card.indent.change_requests else [] %}
+                                            <button type="button" class="btn btn-outline-warning text-dark btn-sm fw-semibold"
+                                                    onclick='openChangeRequestLogModal({{ card.indent.id }}, {{ card.indent.project_name|tojson }})'>
+                                                <i class="fas fa-code-branch me-1"></i>Change Request Log
+                                                {% if pending_crs|length > 0 %}
+                                                <span class="badge bg-danger ms-1">{{ pending_crs|length }}</span>
+                                                {% elif total_crs|length > 0 %}
+                                                <span class="badge bg-secondary ms-1">{{ total_crs|length }}</span>
+                                                {% endif %}
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -123,4 +141,5 @@
         </div>
     </div>
 </div>
+{% include 'partials/change_request_log_modal.html' %}
 {% endblock %} 

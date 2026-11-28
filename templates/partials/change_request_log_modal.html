@@ -1,0 +1,196 @@
+<!-- Shared Change Request Log & CEO Approval Modal -->
+<div class="modal fade" id="globalCrLogModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header bg-dark text-white py-3 px-4">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-code-branch text-warning"></i>
+                        <span id="crLogModalTitle">Change Request Log</span>
+                    </h5>
+                    <small class="text-white-50" id="crLogModalSubtitle">Inspect submitted Duration, Team, and Financial Head change requests against this Job Card</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 bg-light" id="crLogModalBody">
+                <div class="text-center py-5 text-muted">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2 small">Loading Change Request history...</div>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top d-flex justify-content-between align-items-center">
+                <div id="crLogFooterStatus" class="small text-muted"></div>
+                <div class="d-flex gap-2">
+                    <a id="crLogOpenProjectBtn" href="#" class="btn btn-sm btn-outline-primary d-none">
+                        <i class="fas fa-external-link-alt me-1"></i> Open Project Workspace
+                    </a>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    function _crEscape(val) {
+        if (val === null || val === undefined) return '';
+        return String(val)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function _getCrCsrf() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    window._crModalIndentId = null;
+    window._crModalProjectTitle = '';
+
+    window.openChangeRequestLogModal = function(indentId, projectTitle) {
+        window._crModalIndentId = indentId;
+        window._crModalProjectTitle = projectTitle || '';
+        const modalEl = document.getElementById('globalCrLogModal');
+        if (!modalEl) return;
+        const bodyEl = document.getElementById('crLogModalBody');
+        const titleEl = document.getElementById('crLogModalTitle');
+        const subEl = document.getElementById('crLogModalSubtitle');
+        const footerEl = document.getElementById('crLogFooterStatus');
+        const openBtn = document.getElementById('crLogOpenProjectBtn');
+
+        titleEl.textContent = projectTitle ? `Change Request Log — ${projectTitle}` : 'Change Request Log';
+        subEl.textContent = 'Loading change requests raised by PM against this project...';
+        footerEl.textContent = '';
+        if (openBtn) openBtn.classList.add('d-none');
+        bodyEl.innerHTML = `<div class="text-center py-5 text-muted"><div class="spinner-border text-primary"></div><div class="mt-2 small">Loading requests...</div></div>`;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        fetch(`/api/project/${indentId}/change-requests`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    bodyEl.innerHTML = `<div class="alert alert-danger">${_crEscape(data.error || 'Failed to load change requests.')}</div>`;
+                    return;
+                }
+                const proj = data.project || {};
+                subEl.textContent = `${proj.file_number || ''} • Job Card Status: ${proj.jc_status || 'N/A'} • ${proj.change_request_unlocked ? 'Edit Unlocked for PM Re-submission' : 'Standard Approval Lock State'}`;
+                if (openBtn && proj.job_card_view_url) {
+                    openBtn.href = proj.job_card_view_url;
+                    openBtn.classList.remove('d-none');
+                }
+                footerEl.innerHTML = proj.change_request_unlocked
+                    ? '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle"><i class="fas fa-unlock me-1"></i>Job Card Edit is currently UNLOCKED for PM revision &amp; re-submission</span>'
+                    : (proj.jc_status === 'Approved'
+                        ? '<span class="badge bg-secondary-subtle text-secondary border"><i class="fas fa-lock me-1"></i>Job Card is CEO-approved &amp; locked unless a Change Request is approved</span>'
+                        : '<span class="badge bg-light text-dark border">Pre-approval stage (PM can edit directly)</span>');
+
+                const crs = data.change_requests || [];
+                if (!crs.length) {
+                    bodyEl.innerHTML = `
+                        <div class="text-center py-5 bg-white rounded-3 border">
+                            <i class="fas fa-code-branch fa-3x text-secondary opacity-25 mb-3"></i>
+                            <h6 class="fw-bold text-dark">No Change Requests Logged</h6>
+                            <p class="small text-muted mb-0">No duration, team, financial head, or scope change requests have been raised for this Job Card yet.</p>
+                        </div>`;
+                    return;
+                }
+
+                const isCeo = !!data.can_decide;
+                let html = '<div class="d-flex flex-column gap-3">';
+                crs.forEach((cr, idx) => {
+                    const badgeClass = cr.status === 'Approved' ? 'bg-success' : (cr.status === 'Rejected' ? 'bg-danger' : 'bg-warning text-dark');
+                    const d = cr.details || {};
+                    const extraChips = [];
+                    if (cr.revised_start_date || cr.revised_end_date) {
+                        extraChips.push(`<span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="far fa-calendar-alt me-1"></i>Revised Timeline: ${_crEscape(cr.revised_start_date || 'N/A')} &rarr; ${_crEscape(cr.revised_end_date || 'N/A')}</span>`);
+                    }
+                    if (d.team_add_names) {
+                        extraChips.push(`<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-user-plus me-1"></i>Add Team: ${_crEscape(d.team_add_names)}</span>`);
+                    }
+                    if (d.team_remove_names) {
+                        extraChips.push(`<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-user-minus me-1"></i>Remove Team: ${_crEscape(d.team_remove_names)}</span>`);
+                    }
+                    if (d.team_man_days) {
+                        extraChips.push(`<span class="badge bg-light text-dark border"><i class="fas fa-clock me-1"></i>Man-Days Delta: ${_crEscape(d.team_man_days)}</span>`);
+                    }
+                    if (d.financial_head) {
+                        extraChips.push(`<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="fas fa-coins me-1"></i>Head: ${_crEscape(d.financial_head)} ${d.head_revised_amount ? '(₹ ' + Number(d.head_revised_amount).toLocaleString('en-IN') + ')' : ''}</span>`);
+                    }
+                    if (cr.revised_budget !== null && cr.revised_budget !== undefined) {
+                        extraChips.push(`<span class="badge bg-dark text-white"><i class="fas fa-rupee-sign me-1"></i>Revised Total Budget: ₹ ${Number(cr.revised_budget).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`);
+                    }
+
+                    html += `
+                    <div class="card border shadow-sm" style="border-radius: 12px;">
+                        <div class="card-body p-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                <div>
+                                    <span class="badge bg-secondary me-1">${_crEscape(cr.change_type)}</span>
+                                    <span class="fw-bold text-dark fs-6">${_crEscape(cr.title)}</span>
+                                    <div class="small text-muted mt-1">
+                                        Requested by <strong>${_crEscape(cr.requested_by_name)}</strong> on ${_crEscape(cr.created_at_formatted)}
+                                    </div>
+                                </div>
+                                <span class="badge ${badgeClass} px-3 py-2">${_crEscape(cr.status)}</span>
+                            </div>
+                            <p class="small text-secondary mb-2 p-2 bg-light rounded border">${_crEscape(cr.description)}</p>
+                            ${extraChips.length ? `<div class="d-flex flex-wrap gap-2 mb-2">${extraChips.join('')}</div>` : ''}
+                            ${cr.ceo_remarks ? `<div class="small text-dark mt-2"><strong>CEO Remarks:</strong> ${_crEscape(cr.ceo_remarks)}</div>` : ''}
+                            ${(isCeo && cr.status === 'Pending') ? `
+                            <div class="mt-3 pt-2 border-top d-flex flex-column flex-md-row align-items-md-center gap-2">
+                                <input type="text" class="form-control form-control-sm" id="crCeoRemarks_${cr.id}" placeholder="Optional CEO remarks / approval instructions...">
+                                <div class="d-flex gap-2 flex-shrink-0">
+                                    <button type="button" class="btn btn-sm btn-success fw-semibold" onclick="submitCeoCrDecision(${cr.id}, 'approve')">
+                                        <i class="fas fa-check-circle me-1"></i> Approve &amp; Unlock Edit
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger fw-semibold" onclick="submitCeoCrDecision(${cr.id}, 'reject')">
+                                        <i class="fas fa-times-circle me-1"></i> Reject
+                                    </button>
+                                </div>
+                            </div>` : ''}
+                        </div>
+                    </div>`;
+                });
+                html += '</div>';
+                bodyEl.innerHTML = html;
+            })
+            .catch(() => {
+                bodyEl.innerHTML = `<div class="alert alert-danger">Network error loading Change Request Log.</div>`;
+            });
+    };
+
+    window.submitCeoCrDecision = function(crId, decision) {
+        const remarksEl = document.getElementById(`crCeoRemarks_${crId}`);
+        const ceo_remarks = remarksEl ? remarksEl.value.trim() : '';
+        const actionWord = decision === 'approve' ? 'APPROVE this Change Request and unlock the Job Card for PM editing' : 'REJECT this Change Request';
+        if (!confirm(`Are you sure you want to ${actionWord}?`)) return;
+
+        fetch(`/api/change-request/${crId}/decision`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': _getCrCsrf()
+            },
+            body: JSON.stringify({ decision: decision, ceo_remarks: ceo_remarks })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                if (window._crModalIndentId) {
+                    openChangeRequestLogModal(window._crModalIndentId, window._crModalProjectTitle);
+                }
+                setTimeout(() => window.location.reload(), 900);
+            } else {
+                alert(res.error || 'Could not process decision.');
+            }
+        })
+        .catch(() => alert('Network error processing decision.'));
+    };
+})();
+</script>

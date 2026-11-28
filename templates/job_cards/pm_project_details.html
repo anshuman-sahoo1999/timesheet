@@ -276,15 +276,6 @@
         color: #047857;
         font-size: 1.12rem;
     }
-    .pm-summary-sidebar-col {
-        width: 100%;
-    }
-    @media (min-width: 992px) {
-        .pm-summary-sidebar-col {
-            max-width: 320px;
-            min-width: 250px;
-        }
-    }
     @media (max-width: 991.98px) {
         .project-summary-sidebar {
             position: static !important;
@@ -324,94 +315,108 @@
         </div>
     </div>
 
-    <!-- Main 2-Column Layout matching Image 3, 4, 5 -->
+    <!-- Horizontal Project Summary Banner & Full-Width Workspace -->
     <div class="row g-3 g-md-4 align-items-start">
-        <!-- Left Sidebar: Project Summary Card (Image 3, 4, 5) -->
-        <div class="col-12 col-xl-3 col-lg-4 pm-summary-sidebar-col">
-            <div class="project-summary-sidebar">
-                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
-                    Project Summary
-                </h5>
-                
-                <!-- Project Name in Gold/Amber -->
-                <div class="project-name-highlight">
-                    {{ indent.project_name }}
-                </div>
-
-                <div class="summary-meta-item">
-                    <span class="summary-meta-label">Start Date:</span>
-                    <span class="summary-meta-val">
-                        {{ indent.contract_start_date.strftime('%d %b %Y') if indent.contract_start_date else 'N/A' }}
-                    </span>
-                </div>
-                <div class="summary-meta-item">
-                    <span class="summary-meta-label">End Date:</span>
-                    <span class="summary-meta-val">
-                        {{ indent.contract_end_date.strftime('%d %b %Y') if indent.contract_end_date else 'N/A' }}
-                    </span>
-                </div>
-                <div class="summary-meta-item">
-                    <span class="summary-meta-label">Status:</span>
-                    <span class="summary-meta-val">
-                        <span class="badge bg-success px-2 py-1">Approved</span>
-                    </span>
-                </div>
-                <div class="summary-meta-item">
-                    <span class="summary-meta-label">Department:</span>
-                    <span class="summary-meta-val">
-                        {{ indent.department.name if indent.department else 'General Administration' }}
-                    </span>
-                </div>
-                <div class="summary-meta-item">
-                    <span class="summary-meta-label">Sub Department:</span>
-                    <span class="summary-meta-val">
-                        {{ indent.sub_department.name if indent.sub_department else (indent.department.short_code if indent.department else 'IT') }}
-                    </span>
-                </div>
-                <div class="summary-meta-item">
-                    <span class="summary-meta-label">Budget Approved:</span>
-                    <span class="summary-meta-val">
-                        {% if jc and jc.budget_status == 'Approved' %}
-                            <span class="badge bg-success px-2 py-1">Approved</span>
-                        {% elif jc and jc.status == 'Submitted' %}
-                            <span class="badge bg-info text-dark px-2 py-1">Submitted</span>
-                        {% else %}
-                            <span class="badge bg-warning text-dark px-2 py-1">Pending</span>
-                        {% endif %}
-                    </span>
-                </div>
-                <div class="summary-meta-item">
-                    <span class="summary-meta-label">Client Name:</span>
-                    <span class="summary-meta-val text-truncate" style="max-width: 140px;" title="{{ indent.client_name }}">
-                        {{ indent.client_name }}
-                    </span>
-                </div>
-                {% if current_user.role == 'MD' %}
-                <div class="summary-meta-item">
-                    <span class="summary-meta-label">Contract Value:</span>
-                    <span class="summary-meta-val text-success fw-bold">
-                        ₹ {{ '{:,.2f}'.format(indent.contract_value or 0) }}
-                    </span>
-                </div>
-                {% endif %}
-
-                <div class="mt-4 pt-3 border-top">
-                    <div class="text-muted small mb-1">Assigned Project Manager:</div>
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.85rem;">
-                            {{ indent.project_manager.initials if indent.project_manager else 'PM' }}
+        <!-- Top Horizontal Project Summary Card (Eliminates vertical sidebar whitespace) -->
+        <div class="col-12">
+            <div class="project-summary-sidebar p-3 p-md-4" style="position: static !important;">
+                <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 border-bottom pb-3 mb-3">
+                    <div>
+                        <div class="text-uppercase text-muted fw-bold mb-1" style="font-size: 0.72rem; letter-spacing: 0.6px;">
+                            <i class="fas fa-briefcase text-warning me-1"></i>Project Summary
                         </div>
-                        <div>
-                            <div class="fw-bold text-dark small">{{ (indent.project_manager.clean_name or indent.project_manager.name) if indent.project_manager else (current_user.clean_name or current_user.name) }}</div>
-                            <div class="text-muted" style="font-size: 0.75rem;">{{ indent.project_manager.designation if indent.project_manager else 'Project Manager' }}</div>
+                        <h4 class="project-name-highlight mb-1" style="font-size: 1.25rem; margin-bottom: 4px !important;">
+                            {{ indent.project_name }}
+                        </h4>
+                        <div class="d-flex flex-wrap align-items-center gap-2 small text-muted">
+                            <span><i class="far fa-building me-1 text-primary"></i><strong class="text-dark">{{ indent.client_name }}</strong></span>
+                            <span>&bull;</span>
+                            <span><i class="fas fa-sitemap me-1 text-success"></i>{{ indent.department.name if indent.department else 'General Administration' }}
+                                {% if indent.sub_department %}({{ indent.sub_department.name }}){% endif %}
+                            </span>
+                            {% if current_user.role == 'MD' %}
+                            <span>&bull;</span>
+                            <span class="text-success fw-bold"><i class="fas fa-indian-rupee-sign me-1"></i>Contract: ₹ {{ '{:,.2f}'.format(indent.contract_value or 0) }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 flex-shrink-0">
+                        <span class="badge bg-light text-dark border px-3 py-2 font-monospace">{{ indent.file_number }}</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                            Indent: {{ indent.status }}
+                        </span>
+                        {% if jc and jc.status == 'Approved' %}
+                            <span class="badge bg-success px-3 py-2"><i class="fas fa-check-circle me-1"></i>Job Card: Approved</span>
+                        {% elif jc and jc.status == 'Submitted' %}
+                            <span class="badge bg-info text-dark px-3 py-2"><i class="fas fa-clock me-1"></i>Job Card: Pending CEO</span>
+                        {% elif jc and jc.status in ['Hold', 'On Hold'] %}
+                            <span class="badge bg-warning text-dark px-3 py-2"><i class="fas fa-pause-circle me-1"></i>Job Card: Hold</span>
+                        {% elif jc and jc.status == 'Rejected' %}
+                            <span class="badge bg-danger px-3 py-2"><i class="fas fa-undo me-1"></i>Job Card: Rejected</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark px-3 py-2"><i class="fas fa-pencil me-1"></i>Job Card: {{ jc.status if jc else 'Draft' }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Horizontal Row: Assigned PM + Project Duration / Timelines (As Per Contract vs Planned/Execution Dates) -->
+                <div class="row g-3 align-items-stretch">
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-light rounded-3 border h-100 d-flex align-items-center gap-3">
+                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 40px; height: 40px; font-size: 0.9rem;">
+                                {{ indent.project_manager.initials if indent.project_manager else 'PM' }}
+                            </div>
+                            <div style="min-width: 0;">
+                                <div class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Assigned Project Manager</div>
+                                <div class="fw-bold text-dark small text-truncate">{{ (indent.project_manager.clean_name or indent.project_manager.name) if indent.project_manager else (current_user.clean_name or current_user.name) }}</div>
+                                <div class="text-muted" style="font-size: 0.74rem;">{{ indent.project_manager.designation if indent.project_manager else 'Project Manager' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <div class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.72rem; letter-spacing: 0.4px;">
+                                <i class="fas fa-file-contract text-primary me-1"></i>Project Duration — As Per Contract
+                            </div>
+                            <div class="row g-2 small font-monospace">
+                                <div class="col-6">
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Start Date</span>
+                                    <strong class="text-dark">{{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }}</strong>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">End Date</span>
+                                    <strong class="text-dark">{{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 rounded-3 border h-100 {{ 'bg-success-subtle border-success-subtle' if jc and jc.status == 'Approved' else 'bg-light' }}">
+                            <div class="{{ 'text-success' if jc and jc.status == 'Approved' else 'text-primary' }} text-uppercase fw-bold mb-2" style="font-size: 0.72rem; letter-spacing: 0.4px;">
+                                <i class="fas {{ 'fa-check-double' if jc and jc.status == 'Approved' else 'fa-calendar-check' }} me-1"></i>
+                                {{ 'Project Duration — Execution Dates' if jc and jc.status == 'Approved' else 'Project Duration — Planned Execution Dates' }}
+                            </div>
+                            <div class="row g-2 small font-monospace">
+                                <div class="col-6">
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Start Date</span>
+                                    <strong class="text-dark">{{ jc.actual_start_date.strftime('%d-%b-%Y') if jc and jc.actual_start_date else 'Not Set' }}</strong>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">End Date</span>
+                                    <strong class="text-dark">{{ jc.actual_end_date.strftime('%d-%b-%Y') if jc and jc.actual_end_date else 'Not Set' }}</strong>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Right Main Panel: Tabs matching Image 3, 4, 5 -->
-        <div class="col-12 col-xl-9 col-lg-8 flex-grow-1" style="min-width: 0;">
+        <!-- Full-Width Main Panel: Tabs -->
+        <div class="col-12" style="min-width: 0;">
             <!-- Navigation Tabs -->
             <ul class="nav pm-nav-tabs" id="projectDetailsTabs" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -477,7 +482,32 @@
                         </div>
 
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="card h-100 border-light bg-light p-3">
+                                    <h6 class="fw-bold text-dark mb-2"><i class="fas fa-calendar-alt text-warning me-2"></i>Project Duration / Timelines</h6>
+                                    <div class="small mb-2 pb-2 border-bottom">
+                                        <span class="text-muted fw-semibold d-block" style="font-size: 0.74rem;">As Per Contract:</span>
+                                        <strong class="font-monospace text-dark">
+                                            {{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }}
+                                            to
+                                            {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}
+                                        </strong>
+                                    </div>
+                                    <div class="small">
+                                        <span class="{{ 'text-success' if jc and jc.status == 'Approved' else 'text-primary' }} fw-semibold d-block" style="font-size: 0.74rem;">
+                                            {{ 'Execution Dates:' if jc and jc.status == 'Approved' else 'Planned Execution Dates:' }}
+                                        </span>
+                                        <strong class="font-monospace text-dark">
+                                            {% if jc and jc.actual_start_date and jc.actual_end_date %}
+                                                {{ jc.actual_start_date.strftime('%d-%b-%Y') }} to {{ jc.actual_end_date.strftime('%d-%b-%Y') }}
+                                            {% else %}
+                                                Not Set Yet
+                                            {% endif %}
+                                        </strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="card h-100 border-light bg-light p-3">
                                     <h6 class="fw-bold text-dark mb-2"><i class="fas fa-handshake text-success me-2"></i>Contract Parameters</h6>
                                     <ul class="list-unstyled small mb-0">
@@ -488,7 +518,7 @@
                                     </ul>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="card h-100 border-light bg-light p-3">
                                     <h6 class="fw-bold text-dark mb-2"><i class="fas fa-building text-primary me-2"></i>Client Information</h6>
                                     <ul class="list-unstyled small mb-0">
@@ -568,33 +598,60 @@
                 <div class="tab-pane fade show active" id="estimate-content" role="tabpanel">
                     <div class="tab-content-card">
                         
-                        <!-- Alert notice for status -->
-                        {% if jc and jc.status == 'Approved' %}
-                        <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
-                            <i class="fas fa-check-circle fa-2x me-3"></i>
+                        <!-- Alert notice for status & Change Request Edit Lock -->
+                        {% if jc and jc.status == 'Approved' and jc.change_request_unlocked %}
+                        <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 border-info" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-unlock-alt fa-2x text-info me-3"></i>
+                                <div>
+                                    <h6 class="alert-heading mb-1 fw-bold text-dark">Change Request Approved &mdash; Edit Access Unlocked</h6>
+                                    <span>CEO has approved your Change Request. Update the approved Timelines, Team, or Financial Heads below, then click <strong>Preview &amp; Re-Submit</strong>.</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% elif jc and jc.status == 'Approved' %}
+                        <div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-lock fa-2x me-3"></i>
+                                <div>
+                                    <h6 class="alert-heading mb-1 fw-bold">Job Card Approved by CEO (Editing Locked)</h6>
+                                    <span>Direct editing is locked after CEO budget approval. To modify Duration, Team Members, or Financial Heads, submit a Change Request for CEO approval.</span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-danger fw-semibold flex-shrink-0" onclick="openChangeRequestTabAndModal()">
+                                <i class="fas fa-code-branch me-1"></i> Raise Change Request
+                            </button>
+                        </div>
+                        {% elif jc and jc.status in ['Hold', 'On Hold'] %}
+                        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+                            <i class="fas fa-pause-circle fa-2x me-3"></i>
                             <div>
-                                <h6 class="alert-heading mb-1 fw-bold">Job Card Approved by CEO</h6>
-                                <span>The Job Card and budget estimate have been approved. All assignments and project timelines are active.</span>
+                                <h6 class="alert-heading mb-1 fw-bold">Placed on Hold by CEO</h6>
+                                <span>This Job Card is currently on Hold. You may revise any section and re-submit for CEO approval.</span>
                             </div>
                         </div>
                         {% elif jc and jc.status == 'Submitted' %}
                         <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
                             <i class="fas fa-paper-plane fa-2x me-3"></i>
                             <div>
-                                <h6 class="alert-heading mb-1 fw-bold">Submitted & Pending CEO Approval</h6>
-                                <span>Submitted on {{ jc.submitted_at.strftime('%d-%b-%Y at %I:%M %p') if jc.submitted_at else 'recently' }}. You can review or edit before final ratification.</span>
+                                <h6 class="alert-heading mb-1 fw-bold">Submitted &amp; Pending CEO Approval</h6>
+                                <span>Submitted on {{ jc.submitted_at.strftime('%d-%b-%Y at %I:%M %p') if jc.submitted_at else 'recently' }}. Since CEO has not approved yet, you can still edit, preview, and re-submit.</span>
                             </div>
                         </div>
                         {% endif %}
 
-                        <!-- ================= SECTION A: PROJECT DELIVERABLES (Image 4 & 5) ================= -->
+                        <!-- ================= SECTION A: PROJECT DELIVERABLES ================= -->
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom pb-2 mb-3">
                             <h3 class="section-title text-primary mb-0">
                                 <i class="fas fa-bullseye me-2"></i>A. PROJECT DELIVERABLES
                             </h3>
+                            {% if can_pm_edit or current_user.role in ['MD', 'Admin'] %}
                             <button type="button" class="btn btn-sm btn-outline-success" onclick="saveSectionDraft('deliverables')">
                                 <i class="fas fa-save me-1"></i> Save Deliverables Draft
                             </button>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-1"><i class="fas fa-lock me-1"></i>Locked (Approval Active)</span>
+                            {% endif %}
                         </div>
 
                         <!-- (i) Overview of the Project -->
@@ -852,14 +909,20 @@
                                 </div>
                             </div>
 
-                            <!-- Bottom Action Buttons: Save & Draft, Preview & Submit -->
+                            <!-- Bottom Action Buttons: Save & Draft, Preview & Submit (respects Change Request lock) -->
                             <div class="d-flex flex-wrap justify-content-end gap-3 mt-4 pt-3 border-top">
+                                {% if can_pm_edit or current_user.role in ['MD', 'Admin'] %}
                                 <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="saveSectionDraft('all')">
-                                    <i class="fas fa-save me-1"></i> Save & Draft
+                                    <i class="fas fa-save me-1"></i> Save &amp; Draft
                                 </button>
                                 <button type="button" class="btn btn-success px-4 py-2 fw-bold shadow-sm" onclick="openPreviewModal()">
-                                    <i class="fas fa-eye me-1"></i> Preview & Submit
+                                    <i class="fas fa-eye me-1"></i> {{ 'Preview & Re-Submit' if jc and jc.status in ['Approved', 'Submitted', 'Rejected', 'Hold', 'On Hold'] else 'Preview & Submit' }}
                                 </button>
+                                {% else %}
+                                <button type="button" class="btn btn-danger px-4 py-2 fw-bold shadow-sm" onclick="openChangeRequestTabAndModal()">
+                                    <i class="fas fa-code-branch me-1"></i> Raise Change Request to Edit
+                                </button>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -985,53 +1048,74 @@
                 <!-- ================= 7. PROJECT CHANGE REQUEST TAB ================= -->
                 <div class="tab-pane fade" id="change-request-content" role="tabpanel">
                     <div class="tab-content-card">
-                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom pb-3 mb-4">
                             <div>
-                                <h4 class="fw-bold text-dark mb-0"><i class="fas fa-code-branch text-danger me-2"></i>Project Change Requests</h4>
-                                <div class="text-muted small">Raise requests for budget revision, timeline extension, or scope modification to the CEO.</div>
+                                <h4 class="fw-bold text-dark mb-0"><i class="fas fa-code-branch text-danger me-2"></i>Project Change Request Log</h4>
+                                <div class="text-muted small">Submit and track Duration/Timeline changes, Team Member additions/deletions, Financial Head-wise changes, or Scope revisions for CEO approval.</div>
                             </div>
-                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#newChangeRequestModal">
-                                <i class="fas fa-plus me-1"></i> Raise Change Request
-                            </button>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-dark fw-semibold"
+                                        onclick='openChangeRequestLogModal({{ indent.id }}, {{ indent.project_name|tojson }})'>
+                                    <i class="fas fa-history me-1"></i> Inspect Full Log
+                                </button>
+                                <button class="btn btn-sm btn-danger fw-semibold" data-bs-toggle="modal" data-bs-target="#newChangeRequestModal">
+                                    <i class="fas fa-plus me-1"></i> Raise Change Request
+                                </button>
+                            </div>
                         </div>
 
                         <div class="table-responsive">
                             <table class="table table-hover align-middle">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Date</th>
-                                        <th>Type</th>
-                                        <th>Title & Details</th>
-                                        <th>Requested Changes</th>
+                                        <th>Date &amp; Time</th>
+                                        <th>Change Category</th>
+                                        <th>Title &amp; Justification</th>
+                                        <th>Requested Modifications</th>
                                         <th>Status</th>
-                                        <th>CEO Remarks</th>
+                                        <th>CEO Remarks / Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% if change_requests %}
                                         {% for cr in change_requests %}
                                         <tr>
-                                            <td>{{ cr.created_at.strftime('%d-%b-%Y') }}</td>
+                                            <td class="small font-monospace">{{ cr.created_at.strftime('%d-%b-%Y, %I:%M %p') if cr.created_at else 'N/A' }}</td>
                                             <td><span class="badge bg-secondary">{{ cr.change_type }}</span></td>
                                             <td>
                                                 <div class="fw-bold text-dark">{{ cr.title }}</div>
                                                 <small class="text-muted">{{ cr.description }}</small>
                                             </td>
-                                            <td>
-                                                {% if cr.revised_budget %}<div>Budget: ₹ {{ '{:,.2f}'.format(cr.revised_budget) }}</div>{% endif %}
-                                                {% if cr.revised_end_date %}<div>End Date: {{ cr.revised_end_date.strftime('%d-%b-%Y') }}</div>{% endif %}
+                                            <td class="small">
+                                                {% if cr.revised_start_date or cr.revised_end_date %}
+                                                <div><i class="far fa-calendar-alt text-primary me-1"></i>Timeline: {{ cr.revised_start_date.strftime('%d-%b-%Y') if cr.revised_start_date else 'N/A' }} &rarr; {{ cr.revised_end_date.strftime('%d-%b-%Y') if cr.revised_end_date else 'N/A' }}</div>
+                                                {% endif %}
+                                                {% if cr.revised_budget is not none %}
+                                                <div><i class="fas fa-rupee-sign text-success me-1"></i>Revised Total Budget: ₹ {{ '{:,.2f}'.format(cr.revised_budget) }}</div>
+                                                {% endif %}
+                                                {% if cr.change_details_json %}
+                                                <div class="text-muted cr-json-preview" data-json='{{ cr.change_details_json|e }}'></div>
+                                                {% endif %}
                                             </td>
                                             <td>
                                                 <span class="badge bg-{{ 'success' if cr.status == 'Approved' else 'danger' if cr.status == 'Rejected' else 'warning text-dark' }}">
                                                     {{ cr.status }}
                                                 </span>
                                             </td>
-                                            <td><small class="text-muted">{{ cr.ceo_remarks or 'Pending review' }}</small></td>
+                                            <td>
+                                                <small class="text-muted d-block">{{ cr.ceo_remarks or 'Pending review' }}</small>
+                                                {% if current_user.role in ['MD', 'Admin'] and cr.status == 'Pending' %}
+                                                <button type="button" class="btn btn-xs btn-outline-primary mt-1 py-0 px-2" style="font-size: 0.72rem;"
+                                                        onclick='openChangeRequestLogModal({{ indent.id }}, {{ indent.project_name|tojson }})'>
+                                                    Review / Decide
+                                                </button>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     {% else %}
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted py-4">No change requests raised for this project.</td>
+                                            <td colspan="6" class="text-center text-muted py-4">No change requests raised for this project yet.</td>
                                         </tr>
                                     {% endif %}
                                 </tbody>
@@ -1142,22 +1226,24 @@
 
 <!-- ================= MODAL: RAISE CHANGE REQUEST ================= -->
 <div class="modal fade" id="newChangeRequestModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <form action="{{ url_for('submit_change_request', indent_id=indent.id) }}" method="POST">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <form action="{{ url_for('submit_change_request', indent_id=indent.id) }}" method="POST" class="w-100">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Raise Project Change Request</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 14px; overflow: hidden;">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold">
+                        <i class="fas fa-code-branch me-2"></i>Raise Project Change Request
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Change Type</label>
-                        <select name="change_type" class="form-select" required>
-                            <option value="Budget Revision">Budget Revision</option>
-                            <option value="Timeline Extension">Timeline Extension</option>
-                            <option value="Scope Change">Scope Change</option>
-                            <option value="Resource Reallocation">Resource Reallocation</option>
+                        <label class="form-label fw-bold">Change Request Category</label>
+                        <select name="change_type" id="crChangeTypeSelect" class="form-select" required onchange="toggleCrSections()">
+                            <option value="Duration / Timeline Change">Duration / Timeline Change</option>
+                            <option value="Team Member Addition / Deletion">Team Member Addition / Deletion</option>
+                            <option value="Financial Head-wise Change">Financial Head-wise Change</option>
+                            <option value="Scope Change">Scope / Deliverables Change</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -1166,26 +1252,99 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Detailed Justification</label>
-                        <textarea name="description" class="form-control" rows="3" placeholder="Explain rationale, technical dependency, or client instructions" required></textarea>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Explain rationale, impact on schedule/resources/financial heads, or client instructions" required></textarea>
                     </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small">Revised Budget (₹)</label>
-                            <input type="number" step="0.01" name="revised_budget" class="form-control" placeholder="Optional">
+
+                    <!-- Duration / Timeline Section -->
+                    <div id="crSectionDuration" class="p-3 bg-light rounded border mb-3">
+                        <div class="fw-bold small text-primary mb-2"><i class="far fa-calendar-alt me-1"></i> Duration / Timeline Adjustment</div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small">Revised Start Date</label>
+                                <input type="date" name="revised_start_date" class="form-control form-control-sm"
+                                       min="{{ indent.contract_start_date.isoformat() if indent.contract_start_date else '' }}"
+                                       max="{{ indent.contract_end_date.isoformat() if indent.contract_end_date else '' }}"
+                                       value="{{ jc.actual_start_date.isoformat() if jc and jc.actual_start_date else '' }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Revised End Date</label>
+                                <input type="date" name="revised_end_date" class="form-control form-control-sm"
+                                       min="{{ indent.contract_start_date.isoformat() if indent.contract_start_date else '' }}"
+                                       value="{{ jc.actual_end_date.isoformat() if jc and jc.actual_end_date else '' }}">
+                            </div>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label small">Revised End Date</label>
-                            <input type="date" name="revised_end_date" class="form-control">
+                    </div>
+
+                    <!-- Team Member Addition / Deletion Section -->
+                    <div id="crSectionTeam" class="p-3 bg-light rounded border mb-3 d-none">
+                        <div class="fw-bold small text-success mb-2"><i class="fas fa-users-cog me-1"></i> Team Member Addition / Deletion</div>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small">Members to Add</label>
+                                <select name="team_add_ids" class="form-select form-select-sm searchable-emp-select" multiple data-search-placeholder="Search employee to add...">
+                                    {% for emp in employees %}
+                                    {% if emp.employment_type != 'DEPARTMENT' %}
+                                    <option value="{{ emp.id }}" data-emp-id="{{ emp.emp_id or '' }}" data-dept="{{ emp.department.name if emp.department else 'General' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }}) - {{ emp.designation or emp.role }}</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small">Members to Remove</label>
+                                <select name="team_remove_ids" class="form-select form-select-sm searchable-emp-select" multiple data-search-placeholder="Search employee to remove...">
+                                    {% for emp in employees %}
+                                    {% if emp.employment_type != 'DEPARTMENT' %}
+                                    <option value="{{ emp.id }}" data-emp-id="{{ emp.emp_id or '' }}" data-dept="{{ emp.department.name if emp.department else 'General' }}">{{ emp.clean_name or emp.name }} ({{ emp.emp_id or 'N/A' }}) - {{ emp.designation or emp.role }}</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <label class="form-label small">Revised Man-Days / Role Impact Notes</label>
+                                <input type="text" name="team_man_days" class="form-control form-control-sm" placeholder="e.g., +15 man-days GIS Analyst, remove 1 Jr. Engineer">
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Financial Head-wise Section -->
+                    <div id="crSectionFinance" class="p-3 bg-light rounded border mb-3 d-none">
+                        <div class="fw-bold small text-warning-emphasis mb-2"><i class="fas fa-coins me-1"></i> Financial Head-wise Budget Modification</div>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small">Financial Head / Category</label>
+                                <select name="financial_head" class="form-select form-select-sm">
+                                    <option value="">Select Financial Head</option>
+                                    <option value="Resource Manpower">Resource Manpower (B-1)</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.name }}">{{ cat.name }}</option>
+                                    {% endfor %}
+                                    <option value="Overhead Allocation">Overhead Allocation</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label small">Head Revised Amount (₹)</label>
+                                <input type="number" step="0.01" name="head_revised_amount" class="form-control form-control-sm" placeholder="Optional">
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label small">Revised Total Budget (₹)</label>
+                                <input type="number" step="0.01" name="revised_budget" class="form-control form-control-sm" placeholder="Optional">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info py-2 px-3 small mb-0">
+                        <i class="fas fa-info-circle me-1"></i> Once the CEO approves this Change Request, editing on this Job Card will unlock so you can update and re-submit.
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger btn-sm">Submit Change Request to CEO</button>
+                    <button type="submit" class="btn btn-danger btn-sm fw-bold">Submit Change Request to CEO</button>
                 </div>
             </div>
         </form>
     </div>
+</div>
+{% include 'partials/change_request_log_modal.html' %}
 <!-- Modal: Modern In-Screen Pop-Up PDF & Document Viewer -->
 <div class="modal fade" id="docViewerModal" tabindex="-1" aria-labelledby="docViewerModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 92vw;">
@@ -2230,6 +2389,35 @@
         if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 
+    const CAN_PM_EDIT = {{ (can_pm_edit or current_user.role in ['MD', 'Admin'])|tojson }};
+
+    function toggleCrSections() {
+        const sel = document.getElementById('crChangeTypeSelect');
+        if (!sel) return;
+        const val = sel.value || '';
+        const durEl = document.getElementById('crSectionDuration');
+        const teamEl = document.getElementById('crSectionTeam');
+        const finEl = document.getElementById('crSectionFinance');
+        if (durEl) durEl.classList.toggle('d-none', !val.includes('Duration') && !val.includes('Timeline'));
+        if (teamEl) teamEl.classList.toggle('d-none', !val.includes('Team') && !val.includes('Resource'));
+        if (finEl) finEl.classList.toggle('d-none', !val.includes('Financial') && !val.includes('Budget'));
+    }
+
+    function openChangeRequestTabAndModal() {
+        const crTabBtn = document.getElementById('change-request-tab');
+        if (crTabBtn) {
+            bootstrap.Tab.getOrCreateInstance(crTabBtn).show();
+        }
+        const crModalEl = document.getElementById('newChangeRequestModal');
+        if (crModalEl) {
+            setTimeout(() => {
+                toggleCrSections();
+                bootstrap.Modal.getOrCreateInstance(crModalEl).show();
+                if (window.initSearchableSelects) window.initSearchableSelects(crModalEl);
+            }, 150);
+        }
+    }
+
     // Initialize everything on load
     document.addEventListener('DOMContentLoaded', function() {
         renderMilestones();
@@ -2237,6 +2425,43 @@
         renderExpenditures();
         renderTeamTab();
         renderMilestoneStatusTab();
+        toggleCrSections();
+
+        // Format Change Request details JSON badges in Change Request tab
+        document.querySelectorAll('.cr-json-preview').forEach(el => {
+            try {
+                const d = JSON.parse(el.getAttribute('data-json') || '{}');
+                const parts = [];
+                if (d.team_add_names) parts.push(`+Team: ${d.team_add_names}`);
+                if (d.team_remove_names) parts.push(`-Team: ${d.team_remove_names}`);
+                if (d.team_man_days) parts.push(`Man-Days: ${d.team_man_days}`);
+                if (d.financial_head) parts.push(`Head: ${d.financial_head}${d.head_revised_amount ? ' (₹ ' + Number(d.head_revised_amount).toLocaleString('en-IN') + ')' : ''}`);
+                if (parts.length) el.textContent = parts.join(' • ');
+            } catch (e) {}
+        });
+
+        // Lock Job Card editor inputs when CEO approved & CR not unlocked
+        if (!CAN_PM_EDIT) {
+            const estPane = document.getElementById('estimate-content');
+            if (estPane) {
+                estPane.querySelectorAll('input, select, textarea').forEach(inp => {
+                    inp.setAttribute('disabled', 'disabled');
+                });
+                estPane.querySelectorAll('.btn-square-plus, .btn-circle-minus, .editor-toolbar button, .task-tag-input').forEach(btn => {
+                    btn.style.pointerEvents = 'none';
+                    btn.style.opacity = '0.5';
+                });
+                const editor = document.getElementById('projectOverviewEditor');
+                if (editor) editor.setAttribute('contenteditable', 'false');
+            }
+        }
+
+        // Handle ?tab=change-request query parameter
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('tab') === 'change-request') {
+            const crTabBtn = document.getElementById('change-request-tab');
+            if (crTabBtn) bootstrap.Tab.getOrCreateInstance(crTabBtn).show();
+        }
     });
 </script>
 {% endblock %}

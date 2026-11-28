@@ -110,6 +110,22 @@
         background-color: #ef4444;
         color: #ffffff;
     }
+    .badge-hold {
+        background-color: #f97316;
+        color: #ffffff;
+    }
+    .btn-action-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.18s ease;
+    }
     .table-controls {
         display: flex;
         align-items: center;
@@ -125,7 +141,7 @@
 
 {% block content %}
 <div class="container-fluid px-2 px-md-4 py-2 py-md-3">
-    <!-- Header matching Image 2 -->
+    <!-- Header -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 pt-2">
         <h3 class="pm-title mb-0">
             <i class="fas fa-tasks text-success me-2"></i>Manage Job Cards
@@ -146,92 +162,147 @@
         </div>
     </div>
 
-    <!-- Tabular View matching Image 1 & Image 2 -->
+    <!-- Tabular View -->
     <div class="job-cards-table-card">
         <div class="table-responsive">
             <table class="table table-job-cards" id="manageJobCardsTable">
                 <thead>
-                    <!-- Image 1 & 2 Table Structure with Nested Contract Dates Header -->
                     <tr class="header-main">
-                        <th rowspan="2" style="width: 70px;">Sl. No.</th>
-                        <th rowspan="2" style="width: 190px;">Project Code</th>
-                        <th rowspan="2">Name of the Project</th>
-                        <th rowspan="2" style="width: 180px;">BD Name</th>
-                        <th colspan="2" style="width: 240px;">Contract Dates</th>
-                        <th rowspan="2" style="width: 120px;">Role</th>
-                        <th rowspan="2" style="width: 140px;">Status</th>
-                        <th rowspan="2" style="width: 90px;">Actions</th>
+                        <th rowspan="2" style="width: 60px;">Sl. No</th>
+                        <th rowspan="2" style="min-width: 220px;">Name of the Project</th>
+                        <th rowspan="2" style="min-width: 170px;">Initiated By</th>
+                        <th colspan="2" style="width: 210px;">Contract Dates</th>
+                        <th colspan="2" style="width: 210px;">Execution Dates</th>
+                        <th rowspan="2" style="width: 145px;">Status</th>
+                        <th rowspan="2" style="width: 190px;">Actions</th>
                     </tr>
                     <tr class="header-sub">
-                        <th style="width: 120px;">Start Date</th>
-                        <th style="width: 120px;">End Date</th>
+                        <th style="width: 105px;">Start Date</th>
+                        <th style="width: 105px;">End Date</th>
+                        <th style="width: 105px;">Start Date</th>
+                        <th style="width: 105px;">End Date</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% if projects %}
                         {% for project in projects %}
                         {% set jc = project.job_card %}
+                        {% set creator = project.creator %}
+                        {% set creator_role_label = 'CEO' if creator and creator.role in ['MD', 'Admin'] else ('BD Department' if creator and (creator.role == 'BD' or creator.employment_type == 'DEPARTMENT') else (creator.name if creator else 'System Admin')) %}
+                        {% set pending_crs = project.change_requests | selectattr('status', 'equalto', 'Pending') | list if project.change_requests else [] %}
+                        {% set can_edit_jc = (not jc) or (jc.status != 'Approved') or jc.change_request_unlocked %}
+                        {% set created_dt = (jc.created_at if jc and jc.created_at else project.created_at) %}
                         <tr class="project-row">
                             <td class="text-center fw-bold text-muted">{{ loop.index }}</td>
                             <td>
-                                <span class="badge bg-light text-dark border px-2 py-1 font-monospace">
-                                    {{ project.file_number }}
-                                </span>
-                            </td>
-                            <td>
                                 <div class="fw-bold text-dark">{{ project.project_name }}</div>
-                                <small class="text-muted"><i class="far fa-building me-1"></i>{{ project.client_name }}</small>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                    <span class="badge bg-light text-dark border px-2 py-1 font-monospace" style="font-size: 0.72rem;">
+                                        {{ project.file_number }}
+                                    </span>
+                                    <small class="text-muted"><i class="far fa-building me-1"></i>{{ project.client_name }}</small>
+                                </div>
                             </td>
                             <td>
-                                <div class="text-dark">{{ project.creator.name if project.creator else 'System Admin' }}</div>
-                                <small class="text-muted">{{ project.department.short_code if project.department else 'GA' }}</small>
+                                <div class="fw-semibold text-dark">{{ creator_role_label }}</div>
+                                {% if creator and creator.role not in ['MD', 'Admin', 'BD'] and creator.employment_type != 'DEPARTMENT' %}
+                                <small class="text-muted d-block">{{ creator.clean_name or creator.name }}</small>
+                                {% elif creator and creator.role == 'BD' and creator.name != 'BD Department' %}
+                                <small class="text-muted d-block">{{ creator.clean_name or creator.name }}</small>
+                                {% endif %}
+                                <small class="text-muted d-block font-monospace" style="font-size: 0.74rem;">
+                                    <i class="far fa-clock me-1"></i>{{ created_dt.strftime('%d-%b-%Y, %I:%M %p') if created_dt else 'N/A' }}
+                                </small>
                             </td>
-                            <td class="text-center font-monospace">
+                            <td class="text-center font-monospace small">
                                 {{ project.contract_start_date.strftime('%d-%m-%y') if project.contract_start_date else 'N/A' }}
                             </td>
-                            <td class="text-center font-monospace">
+                            <td class="text-center font-monospace small">
                                 {{ project.contract_end_date.strftime('%d-%m-%y') if project.contract_end_date else 'N/A' }}
                             </td>
-                            <td class="text-center">
-                                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">
-                                    Project Manager
-                                </span>
+                            <td class="text-center font-monospace small">
+                                {% if jc and jc.actual_start_date %}
+                                    <span class="{{ 'text-success fw-semibold' if jc.status == 'Approved' else 'text-primary' }}">
+                                        {{ jc.actual_start_date.strftime('%d-%m-%y') }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center font-monospace small">
+                                {% if jc and jc.actual_end_date %}
+                                    <span class="{{ 'text-success fw-semibold' if jc.status == 'Approved' else 'text-primary' }}">
+                                        {{ jc.actual_end_date.strftime('%d-%m-%y') }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
                             </td>
                             <td class="text-center">
                                 {% if not jc or jc.status == 'Draft' %}
                                     {% if not jc or (not jc.overview and not jc.milestones_json and not jc.resources_json) %}
                                         <span class="status-badge badge-pm-assigned" title="Project assigned by CEO; Job Card pending creation">
-                                            PM Assigned
+                                            Draft / Assigned
                                         </span>
                                     {% else %}
-                                        <span class="status-badge badge-draft" title="Draft saved; pending final submission">
+                                        <span class="status-badge badge-draft" title="Draft saved; pending submission">
                                             Draft
                                         </span>
                                     {% endif %}
                                 {% elif jc.status == 'Submitted' %}
-                                    <span class="status-badge badge-submitted" title="Submitted to CEO for approval">
-                                        Submitted
+                                    <span class="status-badge badge-submitted" title="Submitted to CEO for budget approval">
+                                        Pending
                                     </span>
                                 {% elif jc.status == 'Approved' %}
                                     <span class="status-badge badge-approved" title="Job Card Approved by CEO">
                                         Approved
                                     </span>
+                                    {% if jc.change_request_unlocked %}
+                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle d-block mt-1" style="font-size: 0.7rem;">
+                                            <i class="fas fa-unlock me-1"></i>CR Edit Unlocked
+                                        </span>
+                                    {% endif %}
                                 {% elif jc.status == 'Rejected' %}
                                     <span class="status-badge badge-rejected" title="Revision requested by CEO">
-                                        Revision Req.
+                                        Rejected
+                                    </span>
+                                {% elif jc.status in ['Hold', 'On Hold'] %}
+                                    <span class="status-badge badge-hold" title="Placed on Hold by CEO">
+                                        Hold
                                     </span>
                                 {% else %}
                                     <span class="status-badge badge-draft">{{ jc.status }}</span>
                                 {% endif %}
+                                {% if pending_crs|length > 0 %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle d-block mt-1" style="font-size: 0.68rem;">
+                                    <i class="fas fa-code-branch me-1"></i>{{ pending_crs|length }} CR Pending
+                                </span>
+                                {% endif %}
                             </td>
                             <td class="text-center">
-                                <!-- Eye Icon Action Button matching Image 2 -->
-                                <a href="{{ url_for('pm_project_details', indent_id=project.id) }}" 
-                                   class="btn-action-view" 
-                                   title="View & Manage Project Job Card Details"
-                                   data-bs-toggle="tooltip">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+                                <div class="d-inline-flex flex-wrap justify-content-center align-items-center gap-1">
+                                    {% if can_edit_jc %}
+                                    <a href="{{ url_for('pm_project_details', indent_id=project.id) }}"
+                                       class="btn btn-sm btn-success btn-action-pill shadow-sm"
+                                       title="{{ 'Edit approved Job Card (Change Request approved) & re-submit' if jc and jc.status == 'Approved' else 'Edit Job Card, preview & submit' }}"
+                                       data-bs-toggle="tooltip">
+                                        <i class="fas fa-pen-to-square"></i> Edit
+                                    </a>
+                                    {% else %}
+                                    <a href="{{ url_for('pm_project_details', indent_id=project.id) }}?tab=change-request"
+                                       class="btn btn-sm btn-outline-danger btn-action-pill"
+                                       title="Job Card is approved & locked. Click to raise a Change Request."
+                                       data-bs-toggle="tooltip">
+                                        <i class="fas fa-lock"></i> Change Req
+                                    </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('view_job_card_details', card_id=jc.id) if jc else url_for('pm_project_details', indent_id=project.id) }}"
+                                       class="btn btn-sm btn-outline-primary btn-action-pill"
+                                       title="View full Job Card details"
+                                       data-bs-toggle="tooltip">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

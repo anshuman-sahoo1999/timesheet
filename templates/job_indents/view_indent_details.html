@@ -233,9 +233,23 @@
             </a>
             {% endif %}
             {% if indent.project_manager_id == current_user.id or current_user.role in ['MD', 'Admin'] %}
-            <a href="{{ url_for('pm_project_details', indent_id=indent.id) }}" class="btn btn-sm btn-outline-primary" style="border-radius: 8px;">
-                <i class="fas fa-edit me-1"></i> Edit Job Card
-            </a>
+                {% if jc and jc.status == 'Approved' and not jc.change_request_unlocked and current_user.role not in ['MD', 'Admin'] %}
+                <a href="{{ url_for('pm_project_details', indent_id=indent.id) }}?tab=change-request" class="btn btn-sm btn-outline-danger" style="border-radius: 8px;">
+                    <i class="fas fa-code-branch me-1"></i> Raise Change Request
+                </a>
+                {% else %}
+                <a href="{{ url_for('pm_project_details', indent_id=indent.id) }}" class="btn btn-sm btn-outline-primary" style="border-radius: 8px;">
+                    <i class="fas fa-edit me-1"></i> Edit Job Card
+                </a>
+                {% endif %}
+            {% endif %}
+            {% if current_user.role in ['MD', 'Admin'] %}
+            <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-semibold" style="border-radius: 8px;"
+                    onclick='openChangeRequestLogModal({{ indent.id }}, {{ indent.project_name|tojson }})'>
+                <i class="fas fa-code-branch me-1"></i> Change Request Log
+                {% set p_cr = indent.change_requests | selectattr('status', 'equalto', 'Pending') | list if indent.change_requests else [] %}
+                {% if p_cr|length > 0 %}<span class="badge bg-danger ms-1">{{ p_cr|length }}</span>{% endif %}
+            </button>
             {% endif %}
             {% for doc in uploaded_docs %}
                 {% if doc.is_viewable %}
@@ -478,18 +492,34 @@
             </div>
         </div>
 
-        <!-- Project Timeline Duration -->
-        <div class="col-6 col-md-3">
+        <!-- Project Duration / Timelines -->
+        <div class="col-12 col-md-3">
             <div class="metric-card">
                 <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <div class="metric-label">Contract Timeline</div>
-                        <div class="metric-value fs-6 font-monospace mt-1">
-                            {{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }}
+                    <div class="w-100 pe-2">
+                        <div class="metric-label mb-1">Project Duration / Timelines</div>
+                        <div class="small border-bottom pb-1 mb-1">
+                            <span class="text-muted fw-semibold d-block" style="font-size: 0.72rem;">As Per Contract:</span>
+                            <span class="font-monospace fw-bold text-dark" style="font-size: 0.8rem;">
+                                {{ indent.contract_start_date.strftime('%d-%b-%Y') if indent.contract_start_date else 'N/A' }}
+                                &rarr;
+                                {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}
+                            </span>
                         </div>
-                        <small class="text-muted">to {{ indent.contract_end_date.strftime('%d-%b-%Y') if indent.contract_end_date else 'N/A' }}</small>
+                        <div class="small">
+                            <span class="{{ 'text-success' if jc and jc.status == 'Approved' else 'text-primary' }} fw-semibold d-block" style="font-size: 0.72rem;">
+                                {{ 'Execution Dates:' if jc and jc.status == 'Approved' else 'Planned Execution Dates:' }}
+                            </span>
+                            <span class="font-monospace fw-bold text-dark" style="font-size: 0.8rem;">
+                                {% if jc and jc.actual_start_date and jc.actual_end_date %}
+                                    {{ jc.actual_start_date.strftime('%d-%b-%Y') }} &rarr; {{ jc.actual_end_date.strftime('%d-%b-%Y') }}
+                                {% else %}
+                                    Not Set Yet
+                                {% endif %}
+                            </span>
+                        </div>
                     </div>
-                    <div class="p-2 rounded-circle bg-warning-subtle text-warning">
+                    <div class="p-2 rounded-circle bg-warning-subtle text-warning flex-shrink-0">
                         <i class="fas fa-calendar-alt fa-lg"></i>
                     </div>
                 </div>
@@ -1310,4 +1340,5 @@
         }
     });
 </script>
+{% include 'partials/change_request_log_modal.html' %}
 {% endblock %}

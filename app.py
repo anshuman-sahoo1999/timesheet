@@ -793,12 +793,17 @@ class JobCard(db.Model):
     sub_total = db.Column(db.Float, default=0.0)
     overhead_cost = db.Column(db.Float, default=0.0)
     grand_total = db.Column(db.Float, default=0.0)
-    budget_status = db.Column(db.String(50), default='Pending') # Draft, Pending, Approved, Rejected
+    budget_status = db.Column(db.String(50), default='Pending') # Draft, Pending, Approved, Rejected, On Hold
     submitted_at = db.Column(db.DateTime, nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
     approval_remarks = db.Column(db.Text, nullable=True)
+    change_request_unlocked = db.Column(db.Boolean, default=False)  # Unlocked by CEO approving a Change Request
 
     indent = db.relationship('JobIndent', backref=db.backref('job_card', uselist=False))
+
+    @property
+    def is_pm_editable(self):
+        return (self.status != 'Approved') or bool(self.change_request_unlocked)
 
 class IndentDocument(db.Model):
     __tablename__ = 'indent_documents'
@@ -832,7 +837,9 @@ class ProjectChangeRequest(db.Model):
     title = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text, nullable=False)
     revised_budget = db.Column(db.Float, nullable=True)
+    revised_start_date = db.Column(db.Date, nullable=True)
     revised_end_date = db.Column(db.Date, nullable=True)
+    change_details_json = db.Column(db.Text, nullable=True)  # Structured payload for Timeline, Team Add/Remove, Financial Heads
     status = db.Column(db.String(50), default='Pending')  # Pending, Approved, Rejected
     ceo_remarks = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -1291,6 +1298,14 @@ def _ensure_text_column_migrations():
                     ), {'tbl': tbl, 'col': col}).fetchone()
                     if res and res[0] and res[0].lower() != 'text':
                         conn.execute(sa_text(f'ALTER TABLE "{tbl}" ALTER COLUMN "{col}" TYPE TEXT'))
+                # Ensure Change Request lock & structured CR columns exist
+                extra_cols = [
+                    ("job_card", "change_request_unlocked", "BOOLEAN NOT NULL DEFAULT FALSE"),
+                    ("project_change_request", "revised_start_date", "DATE"),
+                    ("project_change_request", "change_details_json", "TEXT"),
+                ]
+                for tbl, col, ddl in extra_cols:
+                    conn.execute(sa_text(f'ALTER TABLE "{tbl}" ADD COLUMN IF NOT EXISTS "{col}" {ddl}'))
                 # Repair any legacy plain-text rows that previously stored '&amp;' / '&lt;' / '&gt;' via bleach.clean
                 plain_cleanup = [
                     ('job_indent', ['project_name', 'client_name', 'project_type', 'description']),
@@ -1414,6 +1429,12 @@ def dispatch_templated_email(step_key, to, context, fallback_subject, fallback_b
 @login_manager.user_loader
 def load_user(user_id):
     return Employee.query.get(int(user_id))
+
+
+@app.before_request
+def _run_one_time_schema_sync():
+    if not _TEXT_COLUMNS_MIGRATED:
+        _ensure_text_column_migrations()
 
 # --- Database Initialization ---
 def init_db():
@@ -3588,6 +3609,9 @@ def pm_project_details(indent_id):
 
     # Project Change Requests
     change_requests = ProjectChangeRequest.query.filter_by(job_indent_id=indent.id).order_by(ProjectChangeRequest.created_at.desc()).all()
+    can_pm_edit = (not jc) or (jc.status != 'Approved') or bool(jc.change_request_unlocked)
+    pending_cr_count = sum(1 for cr in change_requests if cr.status == 'Pending')
+    approved_cr_count = sum(1 for cr in change_requests if cr.status == 'Approved')
 
     uploaded_docs, docs_by_slot = build_indent_docs_context(indent)
 
@@ -3600,7 +3624,10 @@ def pm_project_details(indent_id):
         categories=categories,
         employees=employees,
         timesheets=timesheets,
-        change_requests=change_requests
+        change_requests=change_requests,
+        can_pm_edit=can_pm_edit,
+        pending_cr_count=pending_cr_count,
+        approved_cr_count=approved_cr_count
     )
 
 @app.route('/api/job-card/<int:indent_id>/calculate-budget', methods=['POST'])
@@ -3668,6 +3695,12 @@ def api_save_job_card_draft(indent_id):
     if not jc:
         jc = JobCard(job_indent_id=indent.id)
         db.session.add(jc)
+
+    if jc.status == 'Approved' and not jc.change_request_unlocked and current_user.role not in ['MD', 'Admin']:
+        return jsonify({
+            'success': False,
+            'error': 'Job Card is already approved by the CEO. Please raise a Change Request and await CEO approval before editing.'
+        }), 403
 
     data = request.get_json() or {}
     overview = data.get('overview', '')
@@ -3767,6 +3800,12 @@ def api_submit_job_card(indent_id):
         jc = JobCard(job_indent_id=indent.id)
         db.session.add(jc)
 
+    if jc.status == 'Approved' and not jc.change_request_unlocked and current_user.role not in ['MD', 'Admin']:
+        return jsonify({
+            'success': False,
+            'error': 'Job Card is already approved by the CEO. Please raise a Change Request and await CEO approval before re-submitting.'
+        }), 403
+
     data = request.get_json() or {}
     overview = data.get('overview', jc.overview or '')
     actual_start_str = data.get('actual_start_date')
@@ -3842,10 +3881,15 @@ def api_submit_job_card(indent_id):
     jc.grand_total = grand_total
     jc.estimated_value = grand_total
 
-    is_resubmission = (jc.status == 'Rejected' or jc.budget_status == 'Revision Requested')
+    is_resubmission = (
+        jc.status in ('Rejected', 'Hold', 'On Hold', 'Approved')
+        or jc.budget_status == 'Revision Requested'
+        or bool(jc.change_request_unlocked)
+    )
 
     jc.status = 'Submitted'
     jc.budget_status = 'Pending Approval'
+    jc.change_request_unlocked = False
     jc.submitted_at = datetime.utcnow()
 
     # Clear and recreate tasks for assignees
@@ -4347,21 +4391,64 @@ def upload_indent_document(indent_id):
 @login_required
 def submit_change_request(indent_id):
     indent = JobIndent.query.get_or_404(indent_id)
-    if current_user.role not in ['PM', 'MD'] and indent.project_manager_id != current_user.id:
+    if current_user.role not in ['PM', 'MD', 'Admin'] and indent.project_manager_id != current_user.id:
         abort(403)
 
-    change_type = request.form.get('change_type')
-    title = request.form.get('title')
-    description = request.form.get('description')
-    revised_budget = request.form.get('revised_budget', type=float)
-    revised_end_date_str = request.form.get('revised_end_date')
+    is_json = request.is_json
+    payload = (request.get_json() or {}) if is_json else request.form
 
-    revised_end_date = None
-    if revised_end_date_str:
+    change_type = clean_plain_text(payload.get('change_type', 'General Change'))
+    title = clean_plain_text(payload.get('title', ''))
+    description = clean_plain_text(payload.get('description', ''))
+    if not title or not description:
+        if is_json:
+            return jsonify({'success': False, 'error': 'Title and justification description are required.'}), 400
+        flash('Title and detailed justification are required for a Change Request.', 'danger')
+        return redirect(url_for('pm_project_details', indent_id=indent.id) + '?tab=change-request')
+
+    rev_budget_raw = payload.get('revised_budget')
+    revised_budget = None
+    if rev_budget_raw not in (None, ''):
         try:
-            revised_end_date = datetime.strptime(revised_end_date_str, '%Y-%m-%d').date()
+            revised_budget = float(str(rev_budget_raw).replace(',', '').strip())
         except ValueError:
-            pass
+            revised_budget = None
+
+    revised_start_date = _parse_iso_date_safe(payload.get('revised_start_date'))
+    revised_end_date = _parse_iso_date_safe(payload.get('revised_end_date'))
+
+    # Collect structured details for Duration, Team Add/Delete, Financial Head-wise changes
+    add_ids = request.form.getlist('team_add_ids') if not is_json else (payload.get('team_add_ids') or [])
+    rem_ids = request.form.getlist('team_remove_ids') if not is_json else (payload.get('team_remove_ids') or [])
+    add_names = []
+    for eid in add_ids:
+        emp = Employee.query.get(int(eid)) if str(eid).isdigit() else None
+        if emp:
+            add_names.append(f"{emp.clean_name or emp.name} ({emp.emp_id or emp.id})")
+    rem_names = []
+    for eid in rem_ids:
+        emp = Employee.query.get(int(eid)) if str(eid).isdigit() else None
+        if emp:
+            rem_names.append(f"{emp.clean_name or emp.name} ({emp.emp_id or emp.id})")
+
+    financial_head = clean_plain_text(payload.get('financial_head', ''))
+    head_rev_raw = payload.get('head_revised_amount')
+    head_revised_amount = None
+    if head_rev_raw not in (None, ''):
+        try:
+            head_revised_amount = float(str(head_rev_raw).replace(',', '').strip())
+        except ValueError:
+            head_revised_amount = None
+
+    details_dict = {
+        'team_add_ids': [int(x) for x in add_ids if str(x).isdigit()],
+        'team_add_names': ', '.join(add_names),
+        'team_remove_ids': [int(x) for x in rem_ids if str(x).isdigit()],
+        'team_remove_names': ', '.join(rem_names),
+        'team_man_days': clean_plain_text(payload.get('team_man_days', '')),
+        'financial_head': financial_head,
+        'head_revised_amount': head_revised_amount,
+    }
 
     cr = ProjectChangeRequest(
         job_indent_id=indent.id,
@@ -4371,7 +4458,9 @@ def submit_change_request(indent_id):
         title=title,
         description=description,
         revised_budget=revised_budget,
+        revised_start_date=revised_start_date,
         revised_end_date=revised_end_date,
+        change_details_json=json.dumps(details_dict),
         status='Pending'
     )
     db.session.add(cr)
@@ -4382,12 +4471,12 @@ def submit_change_request(indent_id):
         create_notification(
             ceo_user.id,
             f"Change Request: {indent.project_name}",
-            f"PM {current_user.name} has submitted a {change_type} request for '{indent.project_name}': {title}",
+            f"PM {current_user.name} submitted a {change_type} request for '{indent.project_name}': {title}",
             'warning'
         )
         ceo_email = get_ceo_email()
         if ceo_email:
-            rev_budget_str = f"₹ {revised_budget:,.2f}" if revised_budget else 'N/A'
+            rev_budget_str = f"₹ {revised_budget:,.2f}" if revised_budget is not None else 'N/A'
             rev_end_str = revised_end_date.strftime('%d-%b-%Y') if revised_end_date else 'N/A'
             dispatch_templated_email(
                 step_key='job_card_change_request',
@@ -4407,9 +4496,10 @@ def submit_change_request(indent_id):
                 cc=current_user.email
             )
 
-    db.session.commit()
+    if is_json:
+        return jsonify({'success': True, 'cr_id': cr.id, 'message': 'Project Change Request submitted to CEO for approval.'})
     flash("Project Change Request submitted to CEO for review.", "success")
-    return redirect(url_for('pm_project_details', indent_id=indent.id))
+    return redirect(url_for('pm_project_details', indent_id=indent.id) + '?tab=change-request')
 
 @app.route('/api/job-card/<int:indent_id>/verify-timesheet', methods=['POST'])
 @login_required
@@ -4878,6 +4968,7 @@ def process_job_card(card_id):
     if action == 'approve':
         job_card.status = 'Approved'
         job_card.budget_status = 'Approved'
+        job_card.change_request_unlocked = False
         job_card.approved_at = datetime.utcnow()
         job_card.indent.status = 'In Progress'
 
@@ -4995,6 +5086,17 @@ def process_job_card(card_id):
                 fallback_body=f"<p>Dear {pm.name},</p><p>Your Job Card for project <b>{job_card.indent.project_name}</b> (Code: {job_card.indent.file_number}) has been returned for revision by CEO/MD.</p>{remarks_html}",
                 cc=ceo_email,
                 signature=ceo_signature
+            )
+    elif action == 'hold':
+        job_card.status = 'Hold'
+        job_card.budget_status = 'On Hold'
+        flash(f'Job Card for {job_card.indent.project_name} has been placed on Hold.', 'warning')
+        if pm:
+            create_notification(
+                pm.id,
+                f"Job Card Placed On Hold: {job_card.indent.project_name}",
+                f"CEO has placed the Job Card for '{job_card.indent.project_name}' on Hold." + (f" Remarks: {remarks}" if remarks else ""),
+                'warning'
             )
     db.session.commit()
     return redirect(url_for('view_job_card_details', card_id=card_id))
@@ -11663,6 +11765,141 @@ def api_it_emailer_step_reset(step_key):
         'subject_template': tpl.subject_template,
         'body_template': tpl.body_template,
         'message': f"Reset '{tpl.step_name}' back to default corporate message."
+    })
+
+
+@app.route('/api/project/<int:indent_id>/change-requests', methods=['GET'])
+@login_required
+def api_project_change_requests(indent_id):
+    indent = JobIndent.query.get_or_404(indent_id)
+    if current_user.role not in ['MD', 'Admin', 'BD'] and indent.project_manager_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    jc = indent.job_card
+    crs = ProjectChangeRequest.query.filter_by(job_indent_id=indent.id).order_by(ProjectChangeRequest.created_at.desc()).all()
+    items = []
+    for cr in crs:
+        details = {}
+        if cr.change_details_json:
+            try:
+                details = json.loads(cr.change_details_json)
+            except Exception:
+                details = {}
+        items.append({
+            'id': cr.id,
+            'change_type': cr.change_type,
+            'title': cr.title,
+            'description': cr.description,
+            'revised_budget': cr.revised_budget,
+            'revised_start_date': cr.revised_start_date.strftime('%d-%b-%Y') if cr.revised_start_date else None,
+            'revised_end_date': cr.revised_end_date.strftime('%d-%b-%Y') if cr.revised_end_date else None,
+            'details': details,
+            'status': cr.status,
+            'ceo_remarks': cr.ceo_remarks,
+            'requested_by_name': (cr.requested_by.clean_name or cr.requested_by.name) if cr.requested_by else 'PM',
+            'created_at_formatted': cr.created_at.strftime('%d-%b-%Y, %I:%M %p') if cr.created_at else 'Recent',
+            'reviewed_at_formatted': cr.reviewed_at.strftime('%d-%b-%Y, %I:%M %p') if cr.reviewed_at else None,
+        })
+
+    return jsonify({
+        'success': True,
+        'can_decide': (current_user.role in ['MD', 'Admin']),
+        'project': {
+            'id': indent.id,
+            'project_name': indent.project_name,
+            'file_number': indent.file_number,
+            'jc_id': jc.id if jc else None,
+            'jc_status': jc.status if jc else 'Not Created',
+            'change_request_unlocked': bool(jc.change_request_unlocked) if jc else False,
+            'job_card_view_url': url_for('view_job_card_details', card_id=jc.id) if jc else url_for('pm_project_details', indent_id=indent.id),
+        },
+        'change_requests': items,
+    })
+
+
+@app.route('/api/change-request/<int:cr_id>/decision', methods=['POST'])
+@login_required
+def api_change_request_decision(cr_id):
+    if current_user.role not in ['MD', 'Admin']:
+        return jsonify({'success': False, 'error': 'Only CEO / MD can approve or reject Change Requests.'}), 403
+
+    cr = ProjectChangeRequest.query.get_or_404(cr_id)
+    indent = cr.indent
+    jc = cr.job_card or (indent.job_card if indent else None)
+
+    data = request.get_json() if request.is_json else request.form
+    decision = (data.get('decision') or data.get('action') or '').strip().lower()
+    ceo_remarks = clean_plain_text(data.get('ceo_remarks') or data.get('remarks') or '')
+
+    if decision not in ('approve', 'reject'):
+        return jsonify({'success': False, 'error': 'Invalid decision (expected approve or reject).'}), 400
+
+    cr.reviewed_at = datetime.utcnow()
+    pm = indent.project_manager if indent else None
+
+    if decision == 'approve':
+        cr.status = 'Approved'
+        cr.ceo_remarks = ceo_remarks or 'Approved by CEO — Job Card unlocked for editing & re-submission.'
+        if jc:
+            jc.change_request_unlocked = True
+        db.session.commit()
+
+        log_audit_trail(
+            'CHANGE_REQUEST_APPROVED',
+            'project_change_request',
+            cr.id,
+            new_values={'status': 'Approved', 'jc_unlocked': True, 'ceo_remarks': cr.ceo_remarks},
+            user_id=current_user.id
+        )
+        if pm:
+            create_notification(
+                pm.id,
+                f"Change Request Approved: {indent.project_name}",
+                f"CEO approved your Change Request '{cr.title}' for '{indent.project_name}' ({indent.file_number}). Edit access on this Job Card is now unlocked—please update and re-submit.",
+                'success'
+            )
+            send_email(
+                pm.email,
+                f"Change Request Approved: {indent.project_name} ({indent.file_number})",
+                f"<p>Dear {pm.clean_name or pm.name},</p><p>Your Change Request (<b>{cr.change_type}: {cr.title}</b>) for project <b>{indent.project_name}</b> has been <b>APPROVED</b> by the CEO/MD.</p><p>You may now edit and re-submit the Job Card under <b>Manage Job Cards</b>.</p><p><b>CEO Remarks:</b> {cr.ceo_remarks}</p>",
+                step_key='job_card_change_request'
+            )
+        return jsonify({
+            'success': True,
+            'status': 'Approved',
+            'change_request_unlocked': True,
+            'message': 'Change Request approved and Job Card edit access unlocked for PM.'
+        })
+
+    # reject
+    cr.status = 'Rejected'
+    cr.ceo_remarks = ceo_remarks or 'Rejected by CEO.'
+    db.session.commit()
+
+    log_audit_trail(
+        'CHANGE_REQUEST_REJECTED',
+        'project_change_request',
+        cr.id,
+        new_values={'status': 'Rejected', 'ceo_remarks': cr.ceo_remarks},
+        user_id=current_user.id
+    )
+    if pm:
+        create_notification(
+            pm.id,
+            f"Change Request Rejected: {indent.project_name}",
+            f"CEO rejected your Change Request '{cr.title}' for '{indent.project_name}'. Remarks: {cr.ceo_remarks}",
+            'warning'
+        )
+        send_email(
+            pm.email,
+            f"Change Request Rejected: {indent.project_name} ({indent.file_number})",
+            f"<p>Dear {pm.clean_name or pm.name},</p><p>Your Change Request (<b>{cr.change_type}: {cr.title}</b>) for project <b>{indent.project_name}</b> was <b>not approved</b>.</p><p><b>CEO Remarks:</b> {cr.ceo_remarks}</p>",
+            step_key='job_card_change_request'
+        )
+    return jsonify({
+        'success': True,
+        'status': 'Rejected',
+        'message': 'Change Request rejected.'
     })
 
 
